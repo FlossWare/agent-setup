@@ -1,0 +1,15 @@
+┌──────────────────────────────────────────────────────────────┐
+│ API Key Status                                               │
+└──────────────────────────────────────────────────────────────┘
+
+  Budget: Free only
+  Only free-tier providers shown
+
+ SET  Cohere       $COHERE_API_KEY
+ ---  OpenRouter   $OPENROUTER_API_KEY
+                   https://openrouter.ai/keys
+ SET  Gemini       $GEMINI_API_KEY
+
+  2 provider(s) configured
+
+  Press any key to continue...

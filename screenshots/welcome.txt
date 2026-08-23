@@ -1,0 +1,7 @@
+┌──────────────────────────────────────────────────────────────┐
+│ FlossWare AI — Coding Agent Setup                            │
+└──────────────────────────────────────────────────────────────┘
+
+  Configure AI coding agents with FlossWare libraries
+  github.com/FlossWare/coding-agent-setup
+  Theme: dark  (press 't' to change, Enter to start)

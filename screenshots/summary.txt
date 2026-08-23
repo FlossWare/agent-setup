@@ -1,0 +1,25 @@
+┌──────────────────────────────────────────────────────────────┐
+│ Setup Complete                                               │
+└──────────────────────────────────────────────────────────────┘
+
+  Agents:
+    + Claude Code
+    + Cursor
+    + OpenCode / Codex
+
+  FlossWare AI Stack:
+    + model-router-ai
+    + resilience-ai
+    + structured-output-ai
+
+  Budget: Free only
+  Project: /home/user/my-project
+
+  Generated files:
+    ai_config.py
+    .flossware-ai.json
+    CLAUDE.md
+    .cursorrules
+    AGENTS.md
+
+  Press q to exit

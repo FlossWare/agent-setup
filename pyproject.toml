@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "coding-agent-setup"
+version = "0.1.0"
+description = "Interactive TUI builder for configuring AI coding agents with FlossWare AI libraries"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+
+dependencies = [
+    "curses-themes @ git+https://github.com/FlossWare/curses-themes.git",
+]
+
+[project.optional-dependencies]
+core = [
+    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git",
+    "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git",
+    "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git",
+]
+all = [
+    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git",
+    "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git",
+    "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git",
+    "consensus-ai @ git+https://github.com/FlossWare/consensus-ai.git",
+    "evaluation-ai @ git+https://github.com/FlossWare/evaluation-ai.git",
+    "observability-ai @ git+https://github.com/FlossWare/observability-ai.git",
+    "security-ai @ git+https://github.com/FlossWare/security-ai.git",
+    "rag-ai @ git+https://github.com/FlossWare/rag-ai.git",
+    "genetic-optimizer-ai @ git+https://github.com/FlossWare/genetic-optimizer-ai.git",
+]
+
+[project.urls]
+Homepage = "https://github.com/FlossWare/coding-agent-setup"
+Repository = "https://github.com/FlossWare/coding-agent-setup"

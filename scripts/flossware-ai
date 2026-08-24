@@ -7,12 +7,13 @@ Usage: flossware-ai <command> [options]
 Commands:
   setup | update | reinstall | doctor | profile [name]
   providers                 List provider definitions and configuration status
-  accounts                  List discovered accounts without secrets
+  accounts [--verify]       List discovered accounts without secrets
   models [--refresh]        Discover/list models permitted by the active profile
   models --free             Show only free-capable models
   models --provider NAME    Show models from one provider
   explain MODEL             Explain model access without exposing credentials
   agents                    List supported agent integrations
+  mcp-config AGENT          Print safe MCP config for an agent
   router                    Run the FlossWare model-router MCP server
   <agent>                   Launch an agent through the active profile
 
@@ -27,10 +28,11 @@ case "${1:-}" in
   ""|--help|-h|help) usage;;
   profile) shift; profile "$@";;
   providers) exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" providers;;
-  accounts) exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" accounts;;
+  accounts) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" accounts "$@";;
   models) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" models "$@";;
   explain) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" explain "$@";;
   agents) printf '%s\n' claude crush codex opencode cursor aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
+  mcp-config) shift; exec "$ROOT/venv/bin/python" "$ROOT/mcp.py" "$@";;
   setup) shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/setup.py" "$@";;
   update|reinstall) ACTION="$1"; shift; [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall) || EXTRA=(); exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@";;
   doctor) exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" doctor;;

@@ -20,11 +20,11 @@ FLOSSWARE_BASE = "https://github.com/FlossWare"
 AGENTS = [
     ("Claude Code", "claude-code", "CLAUDE.md"),
     ("Cursor", "cursor", ".cursorrules"),
-    ("OpenCode / Codex", "opencode", "AGENTS.md"),
+    ("OpenCode", "opencode", "AGENTS.md"),
 ]
 
 CAPABILITIES = [
-    ("model-router-ai", "LLM routing, provider failover, cost awareness", True),
+    ("model-router-ai", "LLM routing, provider failover, capability and cost awareness", True),
     ("resilience-ai", "Retry, circuit breakers, timeouts", True),
     ("structured-output-ai", "Schema-validated model output", True),
     ("consensus-ai", "Multi-model voting", False),
@@ -36,7 +36,7 @@ CAPABILITIES = [
 ]
 
 BUDGET_POLICIES = [
-    ("No spend", 0.0, "Only providers/models permitted by a zero-cost policy"),
+    ("Strict budget", 0.0, "Only providers/models permitted by a zero-cost policy"),
     ("Light", 10.0, "Up to $10/month"),
     ("Medium", 50.0, "Up to $50/month"),
     ("Custom", -1.0, "Set an explicit monthly ceiling"),
@@ -56,8 +56,8 @@ PROVIDERS = [
 class Config:
     agents: list[int] = field(default_factory=list)
     capabilities: list[int] = field(default_factory=list)
-    budget_index: int = 1
-    budget_amount: float = 10.0
+    budget_index: int = 2
+    budget_amount: float = 50.0
     repo_dir: str = "."
     theme: str = "dark"
 
@@ -67,7 +67,7 @@ def load_theme(name: str):
     try:
         from curses_themes import ThemeManager
         return ThemeManager.load(name)
-    except (ImportError, Exception):
+    except Exception:
         return None
 
 
@@ -93,7 +93,7 @@ def add(win, y, x, text, pair=5, attr=0):
 
 def header(win, title, step=None):
     win.erase()
-    h, w = win.getmaxyx()
+    _, w = win.getmaxyx()
     label = f" FlossWare AI  |  {title} " if step is None else f" FlossWare AI  |  {step}/5  {title} "
     add(win, 1, 2, "=" * min(max(10, w - 4), 72), 1)
     add(win, 2, 2, label, 1, curses.A_BOLD)
@@ -157,10 +157,9 @@ def key_status(win):
     add(win, y, 2, "Credentials are optional. Values are never displayed or written.", 5)
     y += 2
     configured = 0
-    for name, env, url in PROVIDERS:
+    for name, env, _ in PROVIDERS:
         present = bool(os.environ.get(env))
-        if present:
-            configured += 1
+        configured += int(present)
         add(win, y, 2, "SET " if present else "----", 2 if present else 3, curses.A_BOLD)
         add(win, y, 8, name, 1 if present else 5, curses.A_BOLD)
         add(win, y, 22, f"${env}", 5)
@@ -186,12 +185,12 @@ def generate_artifacts(cfg: Config):
     provider_status = {name: bool(os.environ.get(env)) for name, env, _ in PROVIDERS}
     provider_vars = {name: env for name, env, _ in PROVIDERS}
 
-    install_lines = "\n".join(f"pip install {pkg}" for pkg in pip_packages(cfg.capabilities))
+    install_lines = "\n".join(f"python -m pip install {pkg}" for pkg in pip_packages(cfg.capabilities))
     providers_md = "\n".join(f"- {name}: `${env}` ({'configured' if provider_status[name] else 'not set'})" for name, env, _ in PROVIDERS)
     base = [
         "## FlossWare AI Integration",
         "",
-        "This project uses provider-neutral FlossWare AI libraries. Provider selection and spending are policy decisions, not hard-coded free-only assumptions.",
+        "This project uses provider-neutral FlossWare AI libraries. Provider selection and spending are explicit policy decisions, not hard-coded vendor or pricing preferences.",
         "",
         "### AI Stack",
         *[f"- **[{n}]({FLOSSWARE_BASE}/{n})**: {CAPABILITIES[i][1]}" for i, n in [(i, CAPABILITIES[i][0]) for i in cfg.capabilities]],
@@ -211,11 +210,9 @@ def generate_artifacts(cfg: Config):
         "",
     ]
     for idx in cfg.agents:
-        filename = AGENTS[idx][2]
-        content = "\n".join(base) + "\n"
-        path = repo / filename
+        path = repo / AGENTS[idx][2]
         if not path.exists():
-            path.write_text(content, encoding="utf-8")
+            path.write_text("\n".join(base) + "\n", encoding="utf-8")
 
     config = {
         "tool": "FlossWare/coding-agent-setup",
@@ -263,9 +260,8 @@ def run(stdscr, theme_name):
     palette()
     external_theme = load_theme(theme_name)
     cfg = Config(theme=theme_name)
-
     y = header(stdscr, "Coding Agent Setup")
-    add(stdscr, y, 2, "Configure Claude Code, Cursor, or OpenCode/Codex with FlossWare AI.", 5)
+    add(stdscr, y, 2, "Configure Claude Code, Cursor, or OpenCode with FlossWare AI.", 5)
     add(stdscr, y + 2, 2, "Provider-neutral. Credentials optional. Budget is a policy.", 2)
     add(stdscr, y + 4, 2, "Press Enter to start, t for theme selection, q to quit.", 6)
     stdscr.refresh()
@@ -285,16 +281,16 @@ def run(stdscr, theme_name):
     if caps is None:
         return
     cfg.capabilities = caps
-    budget = menu(stdscr, "Monthly Budget Policy", [(b[0], b[2]) for b in BUDGET_POLICIES], multi=False)
+    budget = menu(stdscr, "Budget Policy", [(b[0], b[2]) for b in BUDGET_POLICIES], multi=False)
     if budget is None:
         return
     cfg.budget_index = budget
     if BUDGET_POLICIES[budget][1] < 0:
-        value = input_screen(stdscr, "Monthly budget ceiling in USD:", "25")
+        value = input_screen(stdscr, "Monthly budget ceiling in USD:", "50")
         try:
             cfg.budget_amount = max(0.0, float(value))
         except ValueError:
-            cfg.budget_amount = 25.0
+            cfg.budget_amount = 50.0
     else:
         cfg.budget_amount = BUDGET_POLICIES[budget][1]
     cfg.repo_dir = input_screen(stdscr, "Project directory:", os.getcwd())

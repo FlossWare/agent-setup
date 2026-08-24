@@ -49,12 +49,12 @@ source "$VENV/bin/activate"; python -m pip install --upgrade pip setuptools whee
 log "Installing coding-agent-ai from $RELEASE_REF"; python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"
 log "Installing coding-agent-setup from $RELEASE_REF"
 if [[ -d "$SETUP_DIR/.git" ]]; then git -C "$SETUP_DIR" fetch --force origin "$RELEASE_REF"; git -C "$SETUP_DIR" checkout --force "$RELEASE_REF"; git -C "$SETUP_DIR" reset --hard "origin/$RELEASE_REF" 2>/dev/null || true; else git clone --depth 1 --branch "$RELEASE_REF" "$SETUP_REPO" "$SETUP_DIR"; fi
-for required in scripts/setup.py scripts/profile.sh scripts/flossware-ai scripts/router_mcp.py scripts/discovery.py; do [[ -f "$SETUP_DIR/$required" ]] || fail "missing $required"; done
+for required in scripts/setup.py scripts/profile.sh scripts/flossware-ai scripts/router_mcp.py scripts/discovery.py scripts/mcp.py; do [[ -f "$SETUP_DIR/$required" ]] || fail "missing $required"; done
 for p in personal redhat; do [[ -f "$SETUP_DIR/profiles/$p.toml" ]] || fail "missing profiles/$p.toml"; done
-python -m compileall -q "$SETUP_DIR/scripts/setup.py" "$SETUP_DIR/scripts/router_mcp.py" "$SETUP_DIR/scripts/discovery.py"
-PROFILE_DIR="$INSTALL_ROOT/config/profiles/$PROFILE"; mkdir -p "$PROFILE_DIR" "$INSTALL_ROOT/bin" "$INSTALL_ROOT/state" "$INSTALL_ROOT/cache"
-cp "$SETUP_DIR/scripts/profile.sh" "$PROFILE_DIR/profile.sh"; cp "$SETUP_DIR/profiles/$PROFILE.toml" "$PROFILE_DIR/profile.toml"; cp "$SETUP_DIR/scripts/flossware-ai" "$INSTALL_ROOT/bin/flossware-ai"; cp "$SETUP_DIR/scripts/router_mcp.py" "$INSTALL_ROOT/router_mcp.py"; cp "$SETUP_DIR/scripts/discovery.py" "$INSTALL_ROOT/discovery.py"
-chmod 700 "$PROFILE_DIR/profile.sh" "$INSTALL_ROOT/bin/flossware-ai" "$INSTALL_ROOT/discovery.py"; printf '%s\n' "$PROFILE" > "$INSTALL_ROOT/state/active-profile"; chmod 600 "$INSTALL_ROOT/state/active-profile"
+python -m compileall -q "$SETUP_DIR/scripts/setup.py" "$SETUP_DIR/scripts/router_mcp.py" "$SETUP_DIR/scripts/discovery.py" "$SETUP_DIR/scripts/mcp.py"
+PROFILE_DIR="$INSTALL_ROOT/config/profiles/$PROFILE"; mkdir -p "$PROFILE_DIR" "$INSTALL_ROOT/bin" "$INSTALL_ROOT/state" "$INSTALL_ROOT/cache" "$INSTALL_ROOT/mcp"
+cp "$SETUP_DIR/scripts/profile.sh" "$PROFILE_DIR/profile.sh"; cp "$SETUP_DIR/profiles/$PROFILE.toml" "$PROFILE_DIR/profile.toml"; cp "$SETUP_DIR/scripts/flossware-ai" "$INSTALL_ROOT/bin/flossware-ai"; cp "$SETUP_DIR/scripts/router_mcp.py" "$INSTALL_ROOT/router_mcp.py"; cp "$SETUP_DIR/scripts/discovery.py" "$INSTALL_ROOT/discovery.py"; cp "$SETUP_DIR/scripts/mcp.py" "$INSTALL_ROOT/mcp.py"
+chmod 700 "$PROFILE_DIR/profile.sh" "$INSTALL_ROOT/bin/flossware-ai" "$INSTALL_ROOT/discovery.py" "$INSTALL_ROOT/mcp.py"; printf '%s\n' "$PROFILE" > "$INSTALL_ROOT/state/active-profile"; chmod 600 "$INSTALL_ROOT/state/active-profile"
 printf '{\n  "profile": "%s",\n  "policy": "%s",\n  "credential_values_written": false,\n  "credential_source": "native-agent-store-or-environment"\n}\n' "$PROFILE" "$([[ "$PROFILE" == redhat ]] && echo redhat-anthropic-only || echo personal-all-configured)" > "$PROFILE_DIR/profile.json"; chmod 600 "$PROFILE_DIR/profile.json"
 for spec in "claude:claude" "crush:crush" "codex:codex" "opencode:opencode" "cursor:cursor" "aider:aider" "cline:cline" "roo-code:roo" "gemini-cli:gemini" "github-copilot:gh" "windsurf:windsurf" "amazon-q:q" "kiro:kiro"; do NAME="${spec%%:*}"; WRAPPER="$INSTALL_ROOT/bin/$NAME"; cat > "$WRAPPER" <<EOF
 #!/usr/bin/env bash
@@ -73,4 +73,4 @@ import os
 vars=("COHERE_API_KEY","OPENROUTER_API_KEY","GEMINI_API_KEY","GROQ_API_KEY","CEREBRAS_API_KEY","DEEPINFRA_API_TOKEN","NVIDIA_API_KEY","HUGGINGFACE_API_KEY","OPENAI_API_KEY","ANTHROPIC_API_KEY")
 print(f"credential presence check: PASS ({sum(bool(os.environ.get(v)) for v in vars)} configured; values not displayed or persisted)")
 PY
-log "Installation complete"; printf '%s\n' "AI root: $INSTALL_ROOT" "Profile: $PROFILE" "Launcher: $PATH_SHIM" "Ref: $RELEASE_REF" "" "Run: flossware-ai doctor" "Providers: flossware-ai providers" "Accounts:  flossware-ai accounts" "Models:    flossware-ai models --refresh" "Reinstall: ./scripts/install.sh --reinstall"
+log "Installation complete"; printf '%s\n' "AI root: $INSTALL_ROOT" "Profile: $PROFILE" "Launcher: $PATH_SHIM" "Ref: $RELEASE_REF" "" "Run: flossware-ai doctor" "Providers: flossware-ai providers" "Accounts:  flossware-ai accounts" "Models:    flossware-ai models --refresh" "MCP:       flossware-ai mcp-config claude|opencode|crush|codex" "Reinstall: ./scripts/install.sh --reinstall"

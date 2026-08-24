@@ -26,7 +26,7 @@ See [docs/platforms/fedora.md](docs/platforms/fedora.md) for the complete instal
 
 The TUI walks through:
 
-1. **Select Agents** — Claude Code, Cursor, OpenCode
+1. **Select Agents** — choose from the supported coding-agent adapters
 2. **FlossWare AI Capabilities** — Pick composable libraries
 3. **Budget Policy** — Strict, light, medium, or custom policy
 4. **Project Directory** — Where to generate configs
@@ -34,13 +34,39 @@ The TUI walks through:
 
 Credentials are optional. The TUI never displays or writes credential values.
 
+## Supported Coding Agents
+
+The agent selector is backed by an adapter registry rather than hard-coded TUI behavior. Each adapter declares the project-local instruction/configuration target it supports.
+
+| Agent | Project target | Purpose |
+|-------|----------------|---------|
+| Claude Code | `CLAUDE.md` | Claude Code project instructions |
+| Cursor | `.cursorrules` | Cursor project rules |
+| OpenCode | `AGENTS.md` | Shared agent instructions |
+| Crush | `AGENTS.md` | Shared project context |
+| Codex | `AGENTS.md` | Codex project instructions |
+| Aider | `CONVENTIONS.md` + `.aider.conf.yml` | Read-only conventions loaded by Aider |
+| Cline | `.clinerules/FlossWare.md` | Project rules |
+| Roo Code | `.roo/rules/FlossWare.md` | Project rules |
+| Gemini CLI | `GEMINI.md` | Project instructions |
+| GitHub Copilot | `.github/copilot-instructions.md` | Repository custom instructions |
+
+Shared `AGENTS.md` consumers intentionally use one common project instruction file. The setup tool does not create competing copies for OpenCode, Crush, and Codex.
+
+Existing user-owned instruction/configuration files are preserved. Generated files are created only when absent, making setup safe to rerun.
+
 ### Generated Files
 
 | Agent | File | Contents |
 |-------|------|----------|
 | Claude Code | `CLAUDE.md` | AI stack, routing, providers, usage guidance |
 | Cursor | `.cursorrules` | Libraries, providers, guidelines |
-| OpenCode | `AGENTS.md` | Stack, providers, install guidance |
+| OpenCode / Crush / Codex | `AGENTS.md` | Stack, providers, install guidance |
+| Aider | `CONVENTIONS.md`, `.aider.conf.yml` | Conventions and automatic read configuration |
+| Cline | `.clinerules/FlossWare.md` | Stack, providers, install guidance |
+| Roo Code | `.roo/rules/FlossWare.md` | Stack, providers, install guidance |
+| Gemini CLI | `GEMINI.md` | Stack, providers, install guidance |
+| GitHub Copilot | `.github/copilot-instructions.md` | Stack, providers, install guidance |
 | All | `ai_config.py` | Python configuration wiring selected capabilities |
 | All | `.flossware-ai.json` | Build manifest for reproducibility |
 
@@ -94,7 +120,7 @@ Cost is a routing attribute, not an architectural identity. Provider-specific in
 
 10 themes via [FlossWare/curses-themes](https://github.com/FlossWare/curses-themes):
 
-`dark` `light` `default` `borland-3d` `dos` `dbase-iii` `dbase-iv` `dbase-iv-3d` `ti-99-4a` `trs-80`
+`dark` `light` `default` `borland-3d` `dos` `dbase-III` `dbase-IV` `dbase-IV-3d` `ti-99-4a` `trs-80`
 
 Theme support is optional. The TUI has a built-in fallback palette and does not install a theme package during startup.
 

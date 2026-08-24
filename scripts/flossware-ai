@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
-# FlossWare AI command namespace.
 set -euo pipefail
 ROOT="${FLOSSWARE_AI_ROOT:-$HOME/.flossware/ai}"; STATE="$ROOT/state"; PROFILE_FILE="$STATE/active-profile"
 usage(){ cat <<'EOF'
 Usage: flossware-ai <command> [options]
 
 Commands:
-  setup                 Run interactive agent setup
-  update                Update managed FlossWare AI installation
-  reinstall             Recreate managed AI state without deleting user config
-  doctor                Validate installation and credential boundaries
-  profile [name]        Show/select active profile (personal|redhat)
+  setup | update | reinstall | doctor | profile [name]
   providers             List provider definitions and configuration status
   accounts              List discovered accounts without secrets
   models [--refresh]    Discover/list models permitted by the active profile
@@ -23,7 +18,7 @@ EOF
 }
 profile(){ mkdir -p "$STATE"; if [[ $# -eq 0 ]]; then [[ -f "$PROFILE_FILE" ]] && cat "$PROFILE_FILE" || echo personal; return; fi; case "$1" in personal|redhat) printf '%s\n' "$1" > "$PROFILE_FILE"; chmod 600 "$PROFILE_FILE"; echo "Active profile: $1";; *) echo "ERROR: profile must be personal or redhat" >&2; exit 2;; esac; }
 active_profile(){ [[ -f "$PROFILE_FILE" ]] && cat "$PROFILE_FILE" || echo personal; }
-agent_path(){ case "$1" in claude|crush|codex|opencode|cursor|aider|cline|roo-code|gemini-cli|github-copilot|windsurf|amazon-q|kiro) echo "$1";; *) return 1;; esac; }
+agent_path(){ case "$1" in claude) echo claude;; crush) echo crush;; codex) echo codex;; opencode) echo opencode;; cursor) echo cursor;; aider) echo aider;; cline) echo cline;; roo-code) echo roo;; gemini-cli) echo gemini;; github-copilot) echo gh;; windsurf) echo windsurf;; amazon-q) echo q;; kiro) echo kiro-cli;; *) return 1;; esac; }
 launch_agent(){ local name="$1"; shift; local prof="$(active_profile)"; if [[ "${1:-}" == --profile ]]; then [[ $# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }; prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi; case "$prof" in personal|redhat);; *) echo "ERROR: invalid profile '$prof'" >&2; exit 2;; esac; local pd="$ROOT/config/profiles/$prof"; [[ -f "$pd/profile.sh" ]] || { echo "ERROR: profile '$prof' is not installed" >&2; exit 1; }; source "$pd/profile.sh" "$prof"; local cmd; cmd="$(agent_path "$name")" || { echo "ERROR: unknown agent '$name'" >&2; exit 2; }; command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: agent '$cmd' is not installed or not on PATH" >&2; exit 127; }; exec "$cmd" "$@"; }
 case "${1:-}" in
   ""|--help|-h|help) usage;;
@@ -34,7 +29,7 @@ case "${1:-}" in
   agents) printf '%s\n' claude crush codex opencode cursor aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
   setup) shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/setup.py" "$@";;
   update|reinstall) ACTION="$1"; shift; [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall) || EXTRA=(); exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@";;
-  doctor) echo "FlossWare AI root: $ROOT"; echo "Active profile: $(active_profile)"; [[ -x "$ROOT/venv/bin/python" ]] && echo "Python environment: PASS" || echo "Python environment: FAIL"; [[ -f "$ROOT/discovery.py" ]] && echo "Discovery: PASS" || echo "Discovery: FAIL"; [[ -f "$ROOT/router_mcp.py" ]] && echo "Router bridge: PASS" || echo "Router bridge: FAIL"; for a in claude crush codex opencode cursor aider cline roo-code gemini-cli; do command -v "$a" >/dev/null 2>&1 && echo "Agent $a: PASS" || echo "Agent $a: not installed"; done; echo "Credential values: not displayed";;
+  doctor) echo "FlossWare AI root: $ROOT"; echo "Active profile: $(active_profile)"; [[ -x "$ROOT/venv/bin/python" ]] && echo "Python environment: PASS" || echo "Python environment: FAIL"; [[ -f "$ROOT/discovery.py" ]] && echo "Discovery: PASS" || echo "Discovery: FAIL"; [[ -f "$ROOT/router_mcp.py" ]] && echo "Router bridge: PASS" || echo "Router bridge: FAIL"; for a in claude crush codex opencode cursor aider cline roo-code gemini-cli; do command -v "$(agent_path "$a")" >/dev/null 2>&1 && echo "Agent $a: PASS" || echo "Agent $a: not installed"; done; echo "Credential values: not displayed";;
   router) shift; prof="$(active_profile)"; if [[ "${1:-}" == --profile ]]; then prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi; source "$ROOT/config/profiles/$prof/profile.sh" "$prof"; exec "$ROOT/venv/bin/python" "$ROOT/router_mcp.py" "$@";;
   *) launch_agent "$1" "${@:2}";;
 esac

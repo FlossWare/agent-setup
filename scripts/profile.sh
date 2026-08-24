@@ -2,6 +2,7 @@
 # FlossWare provider-profile isolation. Policy only, never secrets.
 set -euo pipefail
 FLOSSWARE_PROFILE="${1:-personal}"
+PROFILE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "$FLOSSWARE_PROFILE" in
   personal)
     export FLOSSWARE_PROFILE=personal
@@ -20,4 +21,4 @@ case "$FLOSSWARE_PROFILE" in
     return 2 2>/dev/null || exit 2
     ;;
 esac
-export FLOSSWARE_PROFILE_CONFIG="$INSTALL_ROOT/profiles/$FLOSSWARE_PROFILE/profile.toml"
+export FLOSSWARE_PROFILE_CONFIG="$PROFILE_ROOT/profile.toml"

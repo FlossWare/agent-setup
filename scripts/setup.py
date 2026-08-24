@@ -17,11 +17,40 @@ from pathlib import Path
 
 FLOSSWARE_BASE = "https://github.com/FlossWare"
 
-AGENTS = [
-    ("Claude Code", "claude-code", "CLAUDE.md"),
-    ("Cursor", "cursor", ".cursorrules"),
-    ("OpenCode", "opencode", "AGENTS.md"),
-]
+
+@dataclass(frozen=True)
+class AgentAdapter:
+    """Metadata and project instruction targets for a coding agent."""
+
+    id: str
+    name: str
+    description: str
+    files: tuple[str, ...]
+
+
+# Project-local instruction mechanisms verified against current agent documentation.
+# Shared AGENTS.md consumers intentionally use the same file rather than creating
+# competing agent-specific copies.
+AGENT_ADAPTERS = (
+    AgentAdapter("claude-code", "Claude Code", "Anthropic project instructions", ("CLAUDE.md",)),
+    AgentAdapter("cursor", "Cursor", "Cursor project rules", (".cursorrules",)),
+    AgentAdapter("opencode", "OpenCode", "Shared agent instructions", ("AGENTS.md",)),
+    AgentAdapter("crush", "Crush", "Shared agent instructions", ("AGENTS.md",)),
+    AgentAdapter("codex", "Codex", "Shared agent instructions", ("AGENTS.md",)),
+    AgentAdapter("aider", "Aider", "Aider conventions", ("CONVENTIONS.md",)),
+    AgentAdapter("cline", "Cline", "Cline project rules", (".clinerules/FlossWare.md",)),
+    AgentAdapter("roo-code", "Roo Code", "Roo Code project rules", (".roo/rules/FlossWare.md",)),
+    AgentAdapter("gemini-cli", "Gemini CLI", "Gemini project instructions", ("GEMINI.md",)),
+    AgentAdapter(
+        "github-copilot",
+        "GitHub Copilot",
+        "GitHub Copilot repository instructions",
+        (".github/copilot-instructions.md",),
+    ),
+)
+
+# Backward-compatible indexed view used by the existing TUI/config format.
+AGENTS = tuple((a.name, a.id, a.files[0]) for a in AGENT_ADAPTERS)
 
 CAPABILITIES = [
     ("model-router-ai", "LLM routing, provider failover, capability and cost awareness", True),
@@ -175,6 +204,26 @@ def pip_packages(capabilities):
     return [f"git+{FLOSSWARE_BASE}/{CAPABILITIES[i][0]}.git" for i in capabilities]
 
 
+def _write_if_missing(path: Path, content: str) -> None:
+    """Create an instruction file without overwriting user configuration."""
+    if path.exists():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def _agent_content(base: list[str], adapter: AgentAdapter) -> str:
+    content = list(base)
+    if adapter.id == "aider":
+        content[0] = "# FlossWare AI Integration"
+        content.extend([
+            "",
+            "Aider: load this file as a read-only conventions file.",
+            "",
+        ])
+    return "\n".join(content) + "\n"
+
+
 def generate_artifacts(cfg: Config):
     repo = Path(cfg.repo_dir).resolve()
     if not (repo / ".git").exists():
@@ -210,9 +259,12 @@ def generate_artifacts(cfg: Config):
         "",
     ]
     for idx in cfg.agents:
-        path = repo / AGENTS[idx][2]
-        if not path.exists():
-            path.write_text("\n".join(base) + "\n", encoding="utf-8")
+        adapter = AGENT_ADAPTERS[idx]
+        content = _agent_content(base, adapter)
+        for relative_path in adapter.files:
+            _write_if_missing(repo / relative_path, content)
+        if adapter.id == "aider":
+            _write_if_missing(repo / ".aider.conf.yml", "# FlossWare AI conventions\nread: CONVENTIONS.md\n")
 
     config = {
         "tool": "FlossWare/coding-agent-setup",
@@ -222,7 +274,7 @@ def generate_artifacts(cfg: Config):
         "providers": provider_status,
         "provider_env_vars": provider_vars,
         "credential_values_written": False,
-        "agents": [AGENTS[i][1] for i in cfg.agents],
+        "agents": [AGENT_ADAPTERS[i].id for i in cfg.agents],
         "theme": cfg.theme,
     }
     (repo / "ai_config.py").write_text(
@@ -261,7 +313,7 @@ def run(stdscr, theme_name):
     external_theme = load_theme(theme_name)
     cfg = Config(theme=theme_name)
     y = header(stdscr, "Coding Agent Setup")
-    add(stdscr, y, 2, "Configure Claude Code, Cursor, or OpenCode with FlossWare AI.", 5)
+    add(stdscr, y, 2, "Configure supported coding agents with FlossWare AI.", 5)
     add(stdscr, y + 2, 2, "Provider-neutral. Credentials optional. Budget is a policy.", 2)
     add(stdscr, y + 4, 2, "Press Enter to start, t for theme selection, q to quit.", 6)
     stdscr.refresh()
@@ -273,7 +325,7 @@ def run(stdscr, theme_name):
         stdscr.refresh()
         stdscr.getch()
 
-    agents = menu(stdscr, "Select Coding Agents", [(a[0], a[2]) for a in AGENTS], multi=True)
+    agents = menu(stdscr, "Select Coding Agents", [(a.name, a.description) for a in AGENT_ADAPTERS], multi=True)
     if not agents:
         return
     cfg.agents = agents

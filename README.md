@@ -50,6 +50,9 @@ The agent selector is backed by an adapter registry rather than hard-coded TUI b
 | Roo Code | `.roo/rules/FlossWare.md` | Project rules |
 | Gemini CLI | `GEMINI.md` | Project instructions |
 | GitHub Copilot | `.github/copilot-instructions.md` | Repository custom instructions |
+| Windsurf | `.windsurfrules` | Windsurf project rules |
+| Amazon Q Developer | `.amazonq/rules/FlossWare.md` | Project rules |
+| Kiro | `.kiro/steering/FlossWare.md` | Workspace steering |
 
 Shared `AGENTS.md` consumers intentionally use one common project instruction file. The setup tool does not create competing copies for OpenCode, Crush, and Codex.
 
@@ -67,6 +70,9 @@ Existing user-owned instruction/configuration files are preserved. Generated fil
 | Roo Code | `.roo/rules/FlossWare.md` | Stack, providers, install guidance |
 | Gemini CLI | `GEMINI.md` | Stack, providers, install guidance |
 | GitHub Copilot | `.github/copilot-instructions.md` | Stack, providers, install guidance |
+| Windsurf | `.windsurfrules` | Stack, providers, install guidance |
+| Amazon Q Developer | `.amazonq/rules/FlossWare.md` | Stack, providers, install guidance |
+| Kiro | `.kiro/steering/FlossWare.md` | Always-on workspace steering |
 | All | `ai_config.py` | Python configuration wiring selected capabilities |
 | All | `.flossware-ai.json` | Build manifest for reproducibility |
 

@@ -1,134 +1,131 @@
 # Interactive TUI Setup Guide
 
-The `scripts/setup.py` builder walks you through configuring AI coding agents
-with FlossWare libraries. It generates custom config files tailored to your
-selected agents, capabilities, budget, and API keys.
+The `scripts/setup.py` builder configures AI coding agents with FlossWare libraries. It is provider-neutral and pricing-neutral. Provider/model selection is a runtime policy decision.
+
+For the current dogfood milestone, **Fedora Linux is the Tier-1 installation target**. Start with `./scripts/install.sh` on Fedora, then launch the TUI through `~/.local/bin/flossware-setup`.
 
 ## Requirements
 
+- Fedora Linux
 - Python 3.11+
-- A terminal that supports colors (most do)
-- curses-themes (auto-installed on first run)
+- Git
+- A terminal that supports curses
+- Optional: `curses-themes` for additional themes. The TUI has a built-in fallback palette and never installs a theme package during startup.
+
+## Install
+
+```bash
+./scripts/install.sh
+```
+
+For reproducibility:
+
+```bash
+FLOSSWARE_RELEASE_REF=<reviewed-ref> ./scripts/install.sh
+```
 
 ## Launch
 
 ```bash
-python3 scripts/setup.py                    # dark theme (default)
-python3 scripts/setup.py --theme borland-3d # retro Borland look
-python3 scripts/setup.py --theme trs-80     # vintage terminal
+~/.local/bin/flossware-setup
+```
+
+Or, from the repository checkout:
+
+```bash
+python3 scripts/setup.py
+python3 scripts/setup.py --theme borland-3d
+python3 scripts/setup.py --theme trs-80
 ```
 
 ## Walkthrough
 
 ### Welcome Screen
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ FlossWare AI — Coding Agent Setup                            │
-└──────────────────────────────────────────────────────────────┘
+The welcome screen identifies the setup as provider-neutral and explains that credentials are optional and budget is a policy.
 
-  Configure AI coding agents with FlossWare libraries
-  github.com/FlossWare/coding-agent-setup
-  Theme: dark  (press 't' to change, Enter to start)
-```
-
-Press `t` to preview and switch themes. Press `Enter` to begin.
+Press `Enter` to begin. Press `q` or `Esc` to quit.
 
 ### Step 1: Select Coding Agents
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ 1/5  Select Coding Agents                                    │
-└──────────────────────────────────────────────────────────────┘
+The supported integrations are:
 
- > [x] Claude Code       Terminal, desktop, web, IDE extensions
-   [x] Cursor            AI-native IDE with built-in models
-   [x] OpenCode / Codex  Terminal-based coding agents
+- Claude Code
+- Cursor
+- OpenCode
 
-  Space:toggle  Enter:confirm  a:all  n:none  q:quit
-```
-
-Select which agents you use. Each gets its own config file.
+Each selected agent receives its own integration file.
 
 ### Step 2: FlossWare AI Capabilities
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ 2/5  FlossWare AI Capabilities                               │
-└──────────────────────────────────────────────────────────────┘
+The core capabilities are pre-selected:
 
- > [x] model-router-ai       Smart LLM routing with provider failover
-   [x] resilience-ai          Retry, circuit breaker, timeout patterns
-   [x] structured-output-ai   Schema-validated JSON from LLMs
-   [ ] consensus-ai           Multi-model voting for critical decisions
-   [ ] evaluation-ai          Quality scoring and adversarial verification
-   [ ] observability-ai       Structured logging, metrics, cost tracking
-   [ ] security-ai            Input validation, secrets masking, audit logging
-   [ ] rag-ai                 Document retrieval and hybrid search
-   [ ] genetic-optimizer-ai   Parameter tuning via genetic algorithms
+- `model-router-ai` — routing, provider failover, capability and cost awareness
+- `resilience-ai` — retry, circuit breaker, timeout patterns
+- `structured-output-ai` — schema-validated model output
 
-  Space:toggle  Enter:confirm  a:all  n:none  q:quit
-```
+Optional capabilities include consensus, evaluation, observability, security, retrieval, and optimization.
 
-The 3 core libraries are pre-selected. Add optional capabilities as needed.
+### Step 3: Budget Policy
 
-### Step 3: Monthly Budget
+Budget is a **policy input**, not a provider category.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ 3/5  Monthly Budget                                          │
-└──────────────────────────────────────────────────────────────┘
+Available policies:
 
- > (o) Free only    Cohere, OpenRouter, Gemini free tiers
-   ( ) Light        $10/month — adds Groq, Cerebras fast inference
-   ( ) Medium       $50/month — adds Claude Haiku, GPT-4o-mini
-   ( ) Custom       Set your own monthly budget
+- **Strict budget** — zero-cost ceiling
+- **Light** — up to $10/month
+- **Medium** — up to $50/month
+- **Custom** — explicit monthly ceiling
 
-  Enter:select  q:quit
-```
-
-Budget selection configures model-router-ai's cost awareness.
+The TUI does not hide providers because they are paid or elevate providers because they are zero-cost. The routing layer decides what is permitted under the selected policy.
 
 ### Step 4: Project Directory
 
-Enter the path to your project. Must be a git repository.
+Enter the path to your project. It must be a Git repository.
 
-### Step 5: API Key Status
+### Step 5: Provider Credential Status
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ API Key Status                                               │
-└──────────────────────────────────────────────────────────────┘
+The TUI reports whether supported environment variables are present. It does not display credential values and does not provide signup instructions.
 
-  Budget: Free only
-  Only free-tier providers shown
+Example:
 
+```text
  SET  Cohere       $COHERE_API_KEY
  ---  OpenRouter   $OPENROUTER_API_KEY
-                   https://openrouter.ai/keys
  SET  Gemini       $GEMINI_API_KEY
 
-  2 provider(s) configured
-
-  Press any key to continue...
+  2 provider credential(s) detected
+  Credentials are optional. Values are never displayed or written.
 ```
-
-Shows which API keys are set. Unset keys show signup URLs.
 
 ### Build & Summary
 
-The builder installs selected libraries via pip, generates agent-specific
-config files, and writes the build manifest (`.flossware-ai.json`).
+The builder installs selected FlossWare libraries into the active Python environment and generates agent-specific configuration files plus the build manifest.
 
 ## Generated Files
 
 | File | Agent | Contents |
 |------|-------|----------|
-| `CLAUDE.md` | Claude Code | AI stack, routing, providers, code examples |
+| `CLAUDE.md` | Claude Code | AI stack, routing, providers, code guidance |
 | `.cursorrules` | Cursor | Libraries, providers, guidelines |
-| `AGENTS.md` | OpenCode | Stack, providers, install commands |
-| `ai_config.py` | All | Python config wiring selected capabilities |
+| `AGENTS.md` | OpenCode | Stack, providers, install guidance |
+| `ai_config.py` | All | Python configuration wiring selected capabilities |
 | `.flossware-ai.json` | All | Build manifest for reproducibility |
+
+Credential values are never written to these files.
+
+## Architecture
+
+```text
+request
+  -> policy / model router
+  -> provider-neutral contract
+  -> cross-cutting decorators
+  -> provider adapter
+  -> model/runtime
+```
+
+Decorators implement cross-cutting behavior such as resilience, security, observability, evaluation, structured-output validation, and token/cost accounting. They must not encode provider or pricing preferences.
 
 ## Keyboard Controls
 
@@ -139,32 +136,25 @@ config files, and writes the build manifest (`.flossware-ai.json`).
 | `Enter` | Confirm / select |
 | `a` | Select all |
 | `n` | Select none |
-| `t` | Theme picker (welcome screen) |
+| `t` | Theme picker on welcome screen |
 | `q` | Quit / cancel |
 
 ## Themes
 
 10 themes from [FlossWare/curses-themes](https://github.com/FlossWare/curses-themes):
 
-| Theme | Style |
-|-------|-------|
-| dark | Modern dark terminal |
-| light | Light background |
-| default | System default colors |
-| borland-3d | Blue Borland/Turbo Pascal |
-| dos | Classic DOS look |
-| dbase-iii | dBASE III monochrome |
-| dbase-iv | dBASE IV blue |
-| dbase-iv-3d | dBASE IV with 3D borders |
-| ti-99-4a | TI-99/4A home computer |
-| trs-80 | TRS-80 green phosphor |
+`dark` `light` `default` `borland-3d` `dos` `dbase-iii` `dbase-iv` `dbase-iv-3d` `ti-99-4a` `trs-80`
 
-## Non-Interactive Alternative
+Theme support is optional and the TUI has a built-in fallback palette.
 
-For CI/CD or headless environments:
+## Non-Interactive Installation
+
+The Fedora installer is the canonical non-interactive installation path:
 
 ```bash
-./scripts/install.sh --agent all --repo /path/to/project
+./scripts/install.sh
 ```
 
-This installs core libraries and copies starter templates without the TUI.
+It installs the actual `coding-agent-ai` runtime, creates an isolated environment, validates the TUI and `pa` command, and installs the `flossware-setup` launcher.
+
+For complete Fedora dogfood instructions, see [platforms/fedora.md](platforms/fedora.md).

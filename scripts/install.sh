@@ -1,175 +1,133 @@
 #!/usr/bin/env bash
-# Non-interactive installer for FlossWare AI coding-agent configs.
-#
-# Usage:
-#   ./scripts/install.sh [--agent claude|cursor|opencode|all] [--repo /path/to/project]
-#
-# Review this script before running it. It installs pinned release artifacts when
-# available, copies integration templates, and reports provider-key presence only.
-
+# Fedora installer for FlossWare coding-agent-setup + coding-agent-ai.
+# This is the Tier-1 dogfood installer. It installs prerequisites, creates an
+# isolated environment, installs the actual FlossWare runtime, validates it,
+# and never writes credential values.
 set -euo pipefail
 
 AGENT="all"
-REPO_DIR="."
+REPO_DIR=""
+INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware}"
+VENV="$INSTALL_ROOT/venv"
+SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
+AI_REPO="https://github.com/FlossWare/coding-agent-ai.git"
 SETUP_REPO="https://github.com/FlossWare/coding-agent-setup.git"
-FLOSSWARE_BASE="https://github.com/FlossWare"
-CORE_LIBS=(model-router-ai resilience-ai structured-output-ai)
-PYTHON_MIN_MAJOR=3
-PYTHON_MIN_MINOR=11
+RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"
 
 usage() {
     cat <<'EOF'
-Usage: install.sh [--agent claude|cursor|opencode|all] [--repo /path/to/project]
+Usage: ./scripts/install.sh [--agent claude|cursor|opencode|all] [--repo /path/to/project]
+
+Fedora is the Tier-1 supported installation target for the current dogfood milestone.
 
 Options:
-  --agent, -a   Agent to configure (claude, cursor, opencode, all). Default: all
-  --repo, -r    Git project directory. Default: current directory
+  --agent, -a   Agent integration to configure. Default: all
+  --repo, -r    Optional Git project to configure after installation
   --help, -h    Show this help
 
-This installer never writes provider credentials to project files and only
-reports whether supported credential variables are present.
+Environment:
+  FLOSSWARE_INSTALL_ROOT   Installation root (default: ~/.flossware)
+  FLOSSWARE_RELEASE_REF    Git ref/tag/commit to install (default: main)
+
+The installer never prints, stores, or copies credential values.
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --agent|-a)
-            [[ $# -ge 2 ]] || { echo "ERROR: --agent requires a value" >&2; exit 2; }
-            AGENT="$2"; shift 2 ;;
-        --repo|-r)
-            [[ $# -ge 2 ]] || { echo "ERROR: --repo requires a path" >&2; exit 2; }
-            REPO_DIR="$2"; shift 2 ;;
+        --agent|-a) [[ $# -ge 2 ]] || { echo "ERROR: --agent requires a value" >&2; exit 2; }; AGENT="$2"; shift 2 ;;
+        --repo|-r) [[ $# -ge 2 ]] || { echo "ERROR: --repo requires a path" >&2; exit 2; }; REPO_DIR="$2"; shift 2 ;;
         --help|-h) usage; exit 0 ;;
-        *) echo "ERROR: Unknown option: $1" >&2; usage >&2; exit 2 ;;
+        *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
-case "$AGENT" in
-    claude|cursor|opencode|all) ;;
-    *) echo "ERROR: Unknown agent '$AGENT'. Use: claude, cursor, opencode, or all" >&2; exit 2 ;;
-esac
+case "$AGENT" in claude|cursor|opencode|all) ;; *) echo "ERROR: invalid agent '$AGENT'" >&2; exit 2 ;; esac
 
-if [[ ! -d "$REPO_DIR" ]]; then
-    echo "ERROR: project directory does not exist: $REPO_DIR" >&2
+if [[ "${OSTYPE:-}" != linux* ]] || [[ ! -r /etc/os-release ]]; then
+    echo "ERROR: this installer currently supports Fedora Linux only." >&2
     exit 1
 fi
-REPO_DIR="$(cd "$REPO_DIR" && pwd)"
-if [[ ! -d "$REPO_DIR/.git" ]]; then
-    echo "ERROR: $REPO_DIR is not a git repository." >&2
+# shellcheck disable=SC1091
+source /etc/os-release
+if [[ "${ID:-}" != "fedora" ]]; then
+    echo "ERROR: Fedora Linux is required; detected ${ID:-unknown}." >&2
     exit 1
 fi
 
-if ! command -v python3 >/dev/null 2>&1; then
-    echo "ERROR: python3 not found. Install Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ first." >&2
-    exit 1
-fi
-PYTHON_VERSION="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)'; then
-    echo "ERROR: Python $PYTHON_VERSION found; Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}+ is required." >&2
-    exit 1
-fi
-
-PIP_CMD=""
-if python3 -m pip --version >/dev/null 2>&1; then
-    PIP_CMD="python3 -m pip"
+if [[ $EUID -eq 0 ]]; then
+    DNF=(dnf)
 else
-    echo "ERROR: pip is not available for Python $PYTHON_VERSION." >&2
-    exit 1
+    command -v sudo >/dev/null 2>&1 || { echo "ERROR: sudo is required to install Fedora prerequisites." >&2; exit 1; }
+    DNF=(sudo dnf)
 fi
 
-if ! command -v git >/dev/null 2>&1; then
-    echo "ERROR: git is required." >&2
-    exit 1
+log(){ printf '\n[FlossWare] %s\n' "$*"; }
+fail(){ printf '\n[FlossWare] ERROR: %s\n' "$*" >&2; exit 1; }
+
+log "Installing Fedora prerequisites"
+"${DNF[@]}" install -y git python3 python3-devel python3-pip gcc gcc-c++ make pkgconf-pkg-config openssl-devel libffi-devel rust cargo ncurses-devel
+
+command -v git >/dev/null || fail "git is unavailable after prerequisite installation"
+command -v python3 >/dev/null || fail "python3 is unavailable after prerequisite installation"
+python3 - <<'PY'
+import sys
+if sys.version_info < (3, 11):
+    raise SystemExit(f"Python 3.11+ required; found {sys.version.split()[0]}")
+print(f"Python {sys.version.split()[0]}")
+PY
+
+mkdir -p "$INSTALL_ROOT"
+if [[ ! -d "$VENV" ]]; then
+    log "Creating isolated Python environment: $VENV"
+    python3 -m venv "$VENV"
 fi
+# shellcheck disable=SC1091
+source "$VENV/bin/activate"
+python -m pip install --upgrade pip setuptools wheel
 
-# Keep the installer deterministic when a release/version is provided by the
-# environment. Otherwise install from the repository's current default branch.
-# CI should exercise a pinned RELEASE_REF rather than relying on moving HEAD.
-RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"
+log "Installing coding-agent-ai from $RELEASE_REF"
+python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"
 
-echo "=== FlossWare AI — Coding Agent Setup ==="
-echo "Agent:   $AGENT"
-echo "Project: $REPO_DIR"
-echo "Python:  $PYTHON_VERSION"
-echo "Ref:     $RELEASE_REF"
-echo ""
-
-echo "[1/3] Installing FlossWare AI libraries..."
-FAILED=()
-for lib in "${CORE_LIBS[@]}"; do
-    if ! $PIP_CMD install --quiet "git+${FLOSSWARE_BASE}/${lib}.git@${RELEASE_REF}"; then
-        FAILED+=("$lib")
-    else
-        echo "  $lib: installed"
-    fi
-done
-if (( ${#FAILED[@]} > 0 )); then
-    echo "ERROR: required libraries failed to install: ${FAILED[*]}" >&2
-    echo "No successful installation is reported. Fix the failures and rerun." >&2
-    exit 1
-fi
-
-echo "[2/3] Setting up agent integration..."
-SETUP_TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$SETUP_TMPDIR"' EXIT
-if ! git clone --depth 1 --branch "$RELEASE_REF" --quiet "$SETUP_REPO" "$SETUP_TMPDIR/setup"; then
-    echo "ERROR: Could not clone $SETUP_REPO at ref '$RELEASE_REF'" >&2
-    exit 1
-fi
-
-copy_no_clobber() {
-    local src="$1" dst="$2"
-    if [[ ! -e "$dst" ]]; then
-        cp -- "$src" "$dst"
-        return 0
-    fi
-    return 1
-}
-
-copy_integration() {
-    local agent="$1"
-    local src="$SETUP_TMPDIR/setup/templates/$agent"
-    [[ -d "$src" ]] || { echo "ERROR: Missing template for '$agent'" >&2; return 1; }
-    case "$agent" in
-        claude-code)
-            copy_no_clobber "$src/CLAUDE.md" "$REPO_DIR/CLAUDE.md" && echo "  Created CLAUDE.md" || echo "  CLAUDE.md already exists (skipped)" ;;
-        cursor)
-            copy_no_clobber "$src/.cursorrules" "$REPO_DIR/.cursorrules" && echo "  Created .cursorrules" || echo "  .cursorrules already exists (skipped)" ;;
-        opencode)
-            copy_no_clobber "$src/AGENTS.md" "$REPO_DIR/AGENTS.md" && echo "  Created AGENTS.md" || echo "  AGENTS.md already exists (skipped)" ;;
-    esac
-}
-
-case "$AGENT" in
-    claude) copy_integration claude-code ;;
-    cursor) copy_integration cursor ;;
-    opencode) copy_integration opencode ;;
-    all)
-        copy_integration claude-code
-        copy_integration cursor
-        copy_integration opencode
-        ;;
-esac
-
-echo "[3/3] Checking API-key presence (values are never printed)..."
-FOUND=0
-for var in COHERE_API_KEY OPENROUTER_API_KEY GEMINI_API_KEY GROQ_API_KEY CEREBRAS_API_KEY HUGGINGFACE_API_KEY; do
-    if [[ -n "${!var:-}" ]]; then
-        echo "  $var: set"
-        FOUND=$((FOUND + 1))
-    else
-        echo "  $var: not set"
-    fi
-done
-
-echo ""
-if [[ $FOUND -eq 0 ]]; then
-    echo "No provider credentials are configured. This is allowed; configure credentials through your chosen secure provider/router mechanism."
+log "Installing coding-agent-setup from $RELEASE_REF"
+if [[ -d "$SETUP_DIR/.git" ]]; then
+    git -C "$SETUP_DIR" fetch --force origin "$RELEASE_REF" || true
+    git -C "$SETUP_DIR" checkout --force "$RELEASE_REF"
 else
-    echo "$FOUND provider credential variable(s) detected. Values were not displayed or persisted."
+    rm -rf "$SETUP_DIR"
+    git clone --depth 1 --branch "$RELEASE_REF" "$SETUP_REPO" "$SETUP_DIR"
 fi
 
-echo ""
-echo "=== Done! ==="
-echo "Full interactive experience: python3 scripts/setup.py"
-echo "Docs: https://github.com/FlossWare/coding-agent-setup"
+[[ -f "$SETUP_DIR/scripts/setup.py" ]] || fail "coding-agent-setup checkout is missing scripts/setup.py"
+python -m compileall -q "$SETUP_DIR/scripts/setup.py"
+python "$SETUP_DIR/scripts/setup.py" --help >/dev/null
+pa --help >/dev/null
+
+LAUNCHER="${HOME}/.local/bin/flossware-setup"
+mkdir -p "$(dirname "$LAUNCHER")"
+cat > "$LAUNCHER" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+source "$VENV/bin/activate"
+exec python "$SETUP_DIR/scripts/setup.py" "\$@"
+EOF
+chmod 700 "$LAUNCHER"
+
+if [[ -n "$REPO_DIR" ]]; then
+    [[ -d "$REPO_DIR/.git" ]] || fail "--repo must point to a Git repository: $REPO_DIR"
+    REPO_DIR="$(cd "$REPO_DIR" && pwd)"
+    log "Repository validated: $REPO_DIR"
+    echo "Installation is complete. Run '$LAUNCHER' to configure the project interactively."
+fi
+
+log "Running credential-boundary validation"
+python - <<'PY'
+import os
+for name in ("COHERE_API_KEY", "OPENROUTER_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "HUGGINGFACE_API_KEY"):
+    bool(os.environ.get(name))
+print("credential presence check: PASS (values not displayed or persisted)")
+PY
+
+log "Installation complete"
+printf '%s\n' "Environment: $VENV" "Setup:       $SETUP_DIR" "Launcher:    $LAUNCHER" "Runtime:     pa" "Ref:         $RELEASE_REF"
+printf '%s\n' "" "Run: $LAUNCHER" "Run '$LAUNCHER --help' for help."

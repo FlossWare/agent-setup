@@ -5,24 +5,28 @@ usage(){ cat <<'EOF'
 Usage: flossware-ai <command> [options]
 
 Commands:
-  setup | update | reinstall | doctor | profile [name]
+  setup | tui | update | reinstall | clean | doctor | profile [name]
   providers                 List provider definitions and configuration status
   accounts [--verify]       List discovered accounts without secrets
   models [--refresh]        Discover/list models permitted by the active profile
   models --free             Show only free-capable models
   models --provider NAME    Show models from one provider
   explain MODEL             Explain model access without exposing credentials
-  agents                    List supported agent integrations
+  components                List independently usable FlossWare AI capabilities
+  components <name>         Show/configure one capability
+  agents                    List all supported coding-agent integrations
+  agents setup AGENT        Generate safe project integration for an agent
   mcp-config AGENT          Print safe MCP config for an agent
   router                    Run the FlossWare model-router MCP server
   <agent>                   Launch an agent through the active profile
 
-Credential values are never printed or persisted by this command.
+Configuration is shared under ~/.flossware/ai. Credentials are referenced, never copied.
+Loom is the full orchestration platform; these commands configure individual FlossWare pieces.
 EOF
 }
 profile(){ mkdir -p "$STATE"; if [[ $# -eq 0 ]]; then [[ -f "$PROFILE_FILE" ]] && cat "$PROFILE_FILE" || echo personal; return; fi; case "$1" in personal|redhat) printf '%s\n' "$1" > "$PROFILE_FILE"; chmod 600 "$PROFILE_FILE"; echo "Active profile: $1";; *) echo "ERROR: profile must be personal or redhat" >&2; exit 2;; esac; }
 active_profile(){ [[ -f "$PROFILE_FILE" ]] && cat "$PROFILE_FILE" || echo personal; }
-agent_path(){ case "$1" in claude) echo claude;; crush) echo crush;; codex) echo codex;; opencode) echo opencode;; cursor) echo cursor;; aider) echo aider;; cline) echo cline;; roo-code) echo roo;; gemini-cli) echo gemini;; github-copilot) echo gh;; windsurf) echo windsurf;; amazon-q) echo q;; kiro) echo kiro-cli;; *) return 1;; esac; }
+agent_path(){ case "$1" in claude|claude-code) echo claude;; crush) echo crush;; codex) echo codex;; opencode) echo opencode;; cursor) echo cursor;; aider) echo aider;; cline) echo cline;; roo-code) echo roo;; gemini-cli) echo gemini;; github-copilot) echo gh;; windsurf) echo windsurf;; amazon-q) echo q;; kiro) echo kiro-cli;; *) return 1;; esac; }
 launch_agent(){ local name="$1"; shift; local prof="$(active_profile)"; if [[ "${1:-}" == --profile ]]; then [[ $# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }; prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi; case "$prof" in personal|redhat);; *) echo "ERROR: invalid profile '$prof'" >&2; exit 2;; esac; local pd="$ROOT/config/profiles/$prof"; [[ -f "$pd/profile.sh" ]] || { echo "ERROR: profile '$prof' is not installed" >&2; exit 1; }; source "$pd/profile.sh" "$prof"; local cmd; cmd="$(agent_path "$name")" || { echo "ERROR: unknown agent '$name'" >&2; exit 2; }; command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: agent '$cmd' is not installed or not on PATH" >&2; exit 127; }; exec "$cmd" "$@"; }
 case "${1:-}" in
   ""|--help|-h|help) usage;;
@@ -31,10 +35,13 @@ case "${1:-}" in
   accounts) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" accounts "$@";;
   models) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" models "$@";;
   explain) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" explain "$@";;
-  agents) printf '%s\n' claude crush codex opencode cursor aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
+  components) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" components "$@";;
+  agents) shift; if [[ "${1:-}" == setup ]]; then shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/setup.py" --agent "${1:-}" "${@:2}"; fi; printf '%s\n' claude-code cursor opencode crush codex aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
   mcp-config) shift; exec "$ROOT/venv/bin/python" "$ROOT/mcp.py" "$@";;
   setup) shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/setup.py" "$@";;
+  tui) exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/tui.py" "$@";;
   update|reinstall) ACTION="$1"; shift; [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall) || EXTRA=(); exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@";;
+  clean) exec "$ROOT/coding-agent-setup/scripts/install.sh" --clean "$@";;
   doctor) exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" doctor;;
   router) shift; prof="$(active_profile)"; if [[ "${1:-}" == --profile ]]; then prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi; source "$ROOT/config/profiles/$prof/profile.sh" "$prof"; exec "$ROOT/venv/bin/python" "$ROOT/router_mcp.py" "$@";;
   *) launch_agent "$1" "${@:2}";;

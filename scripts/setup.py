@@ -28,15 +28,14 @@ class AgentAdapter:
     files: tuple[str, ...]
 
 
-# Project-local instruction mechanisms verified against current agent documentation.
-# Shared AGENTS.md consumers intentionally use the same file rather than creating
-# competing agent-specific copies.
+# Project-local instruction mechanisms are maintained as adapter metadata.
+# Shared AGENTS.md consumers intentionally use one common instruction file.
 AGENT_ADAPTERS = (
     AgentAdapter("claude-code", "Claude Code", "Anthropic project instructions", ("CLAUDE.md",)),
     AgentAdapter("cursor", "Cursor", "Cursor project rules", (".cursorrules",)),
     AgentAdapter("opencode", "OpenCode", "Shared agent instructions", ("AGENTS.md",)),
-    AgentAdapter("crush", "Crush", "Shared agent instructions", ("AGENTS.md",)),
-    AgentAdapter("codex", "Codex", "Shared agent instructions", ("AGENTS.md",)),
+    AgentAdapter("crush", "Crush", "Shared project context", ("AGENTS.md",)),
+    AgentAdapter("codex", "Codex", "OpenAI project instructions", ("AGENTS.md",)),
     AgentAdapter("aider", "Aider", "Aider conventions", ("CONVENTIONS.md",)),
     AgentAdapter("cline", "Cline", "Cline project rules", (".clinerules/FlossWare.md",)),
     AgentAdapter("roo-code", "Roo Code", "Roo Code project rules", (".roo/rules/FlossWare.md",)),
@@ -44,9 +43,12 @@ AGENT_ADAPTERS = (
     AgentAdapter(
         "github-copilot",
         "GitHub Copilot",
-        "GitHub Copilot repository instructions",
+        "GitHub repository instructions",
         (".github/copilot-instructions.md",),
     ),
+    AgentAdapter("windsurf", "Windsurf", "Windsurf project rules", (".windsurfrules",)),
+    AgentAdapter("amazon-q", "Amazon Q Developer", "Amazon Q project rules", (".amazonq/rules/FlossWare.md",)),
+    AgentAdapter("kiro", "Kiro", "Kiro workspace steering", (".kiro/steering/FlossWare.md",)),
 )
 
 # Backward-compatible indexed view used by the existing TUI/config format.
@@ -216,11 +218,9 @@ def _agent_content(base: list[str], adapter: AgentAdapter) -> str:
     content = list(base)
     if adapter.id == "aider":
         content[0] = "# FlossWare AI Integration"
-        content.extend([
-            "",
-            "Aider: load this file as a read-only conventions file.",
-            "",
-        ])
+        content.extend(["", "Aider: load this file as a read-only conventions file.", ""])
+    if adapter.id == "kiro":
+        content.insert(0, "---\ninclusion: always\n---")
     return "\n".join(content) + "\n"
 
 

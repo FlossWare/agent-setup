@@ -3,20 +3,17 @@ set -euo pipefail
 ROOT="${FLOSSWARE_AI_ROOT:-$HOME/.flossware/ai}"; STATE="$ROOT/state"; PROFILE_FILE="$STATE/active-profile"
 usage(){ cat <<'EOF'
 Usage: flossware-ai <command> [options]
-
 Commands:
   setup | tui | update | reinstall | clean | doctor | profile [name]
   providers | accounts [--verify] | models [--refresh|--free|--provider NAME]
-  explain MODEL | components [NAME] | agents [setup AGENT] | mcp-config AGENT
-  router | <agent>
-
-Configuration is shared under ~/.flossware/ai. Credentials are referenced, never copied.
-Loom is the full orchestration platform; these commands configure individual FlossWare pieces.
+  explain MODEL | components [NAME] | agents [setup AGENT] | mcp-config AGENT | router
+  <agent>
 EOF
 }
 profile(){ mkdir -p "$STATE"; if [[ $# -eq 0 ]]; then [[ -f "$PROFILE_FILE" ]] && cat "$PROFILE_FILE" || echo personal; return; fi; case "$1" in personal|redhat) printf '%s\n' "$1" > "$PROFILE_FILE"; chmod 600 "$PROFILE_FILE"; echo "Active profile: $1";; *) echo "ERROR: profile must be personal or redhat" >&2; exit 2;; esac; }
 active_profile(){ [[ -f "$PROFILE_FILE" ]] && cat "$PROFILE_FILE" || echo personal; }
 agent_path(){ case "$1" in claude|claude-code) echo claude;; crush) echo crush;; codex) echo codex;; opencode) echo opencode;; cursor) echo cursor;; aider) echo aider;; cline) echo cline;; roo-code) echo roo;; gemini-cli) echo gemini;; github-copilot) echo gh;; windsurf) echo windsurf;; amazon-q) echo q;; kiro) echo kiro-cli;; *) return 1;; esac; }
+components(){ local c; c=(model-router-ai resilience-ai structured-output-ai consensus-ai evaluation-ai observability-ai security-ai rag-ai genetic-optimizer-ai); if [[ $# -eq 0 ]]; then printf '%s\n' "${c[@]}"; return; fi; for x in "$@"; do case "$x" in "${c[@]}") echo "$x: independently usable; agent integration is protocol/adaptor based; Loom is optional";; *) echo "unknown component: $x" >&2; return 2;; esac; done; }
 launch_agent(){ local name="$1"; shift; local prof="$(active_profile)"; if [[ "${1:-}" == --profile ]]; then [[ $# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }; prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi; case "$prof" in personal|redhat);; *) echo "ERROR: invalid profile '$prof'" >&2; exit 2;; esac; local pd="$ROOT/config/profiles/$prof"; [[ -f "$pd/profile.sh" ]] || { echo "ERROR: profile '$prof' is not installed" >&2; exit 1; }; source "$pd/profile.sh" "$prof"; local cmd; cmd="$(agent_path "$name")" || { echo "ERROR: unknown agent '$name'" >&2; exit 2; }; command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: agent '$cmd' is not installed or not on PATH" >&2; exit 127; }; exec "$cmd" "$@"; }
 case "${1:-}" in
   ""|--help|-h|help) usage;;
@@ -25,11 +22,11 @@ case "${1:-}" in
   accounts) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" accounts "$@";;
   models) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" models "$@";;
   explain) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" explain "$@";;
-  components) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" components "$@";;
-  agents) shift; if [[ "${1:-}" == setup ]]; then shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/agent_setup.py" "${1:-}" "${@:2}"; fi; printf '%s\n' claude-code cursor opencode crush codex aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
+  components) shift; components "$@";;
+  agents) shift; if [[ "${1:-}" == setup ]]; then shift; exec "$ROOT/venv/bin/python" "$ROOT/agent_setup.py" "${1:-}" "${@:2}"; fi; printf '%s\n' claude-code cursor opencode crush codex aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
   mcp-config) shift; exec "$ROOT/venv/bin/python" "$ROOT/mcp.py" "$@";;
-  setup) shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/setup.py" "$@";;
-  tui) exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/tui.py" "$@";;
+  setup) shift; exec "$ROOT/venv/bin/python" "$ROOT/setup.py" "$@";;
+  tui) exec "$ROOT/venv/bin/python" "$ROOT/tui.py" "$@";;
   update|reinstall) ACTION="$1"; shift; [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall) || EXTRA=(); exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@";;
   clean) exec "$ROOT/coding-agent-setup/scripts/install.sh" --clean "$@";;
   doctor) exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" doctor;;

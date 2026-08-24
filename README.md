@@ -2,7 +2,7 @@
 
 Interactive TUI builder for configuring AI coding agents with [FlossWare](https://github.com/FlossWare) AI libraries.
 
-Generates custom configs for **Claude Code**, **Cursor**, and **OpenCode/Codex** — wired to model-router-ai, resilience-ai, structured-output-ai, and the rest of the FlossWare AI stack.
+Generates custom configs for **Claude Code**, **Cursor**, and **OpenCode/Codex** with provider-neutral routing, resilience, structured output, and other FlossWare AI capabilities.
 
 ## Quick Start
 
@@ -17,31 +17,17 @@ python3 scripts/setup.py --theme borland-3d
 ./scripts/install.sh --agent all --repo /path/to/project
 ```
 
-Or one-liner install:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/scripts/install.sh | bash
-```
+For a convenient bootstrap, inspect `scripts/install.sh` first, then run it. The installer is designed to fail clearly on required setup failures rather than silently producing a partial installation.
 
 ## Interactive TUI
 
 The TUI walks through 5 steps:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ FlossWare AI — Coding Agent Setup                            │
-└──────────────────────────────────────────────────────────────┘
-
-  Configure AI coding agents with FlossWare libraries
-  github.com/FlossWare/coding-agent-setup
-  Theme: dark  (press 't' to change, Enter to start)
-```
-
 1. **Select Agents** — Claude Code, Cursor, OpenCode/Codex
-2. **FlossWare AI Capabilities** — Pick from 9 composable libraries
-3. **Budget** — Free, Light ($10), Medium ($50), Custom
+2. **FlossWare AI Capabilities** — Pick from composable libraries
+3. **Budget** — Configure a spending policy: free, light, medium, or custom
 4. **Project Directory** — Where to generate configs
-5. **API Keys** — Status check for configured providers
+5. **API Keys** — Metadata-only status check for configured providers
 
 ### Generated Files
 
@@ -52,6 +38,8 @@ The TUI walks through 5 steps:
 | OpenCode | `AGENTS.md` | Stack, providers, install commands |
 | All | `ai_config.py` | Python config wiring selected capabilities |
 | All | `.flossware-ai.json` | Build manifest for reproducibility |
+
+Generated files contain configuration and instructions only. **API keys and other credential values are never written to generated project files, manifests, templates, logs, or documentation.**
 
 ## FlossWare AI Libraries
 
@@ -67,18 +55,22 @@ The TUI walks through 5 steps:
 | [rag-ai](https://github.com/FlossWare/rag-ai) | Document retrieval and hybrid search | No |
 | [genetic-optimizer-ai](https://github.com/FlossWare/genetic-optimizer-ai) | Parameter tuning via genetic algorithms | No |
 
-## API Keys
+## Provider Credentials
 
-Set at least one free provider key:
+Provider credentials are **optional** and depend on the routing policy you choose. The setup tool does not require a free provider and does not assume that free models are the only supported models.
 
-| Provider | Variable | Free Tier |
-|----------|----------|-----------|
-| Cohere | `COHERE_API_KEY` | Yes |
-| OpenRouter | `OPENROUTER_API_KEY` | Yes |
-| Gemini | `GEMINI_API_KEY` | Yes |
-| Groq | `GROQ_API_KEY` | No |
-| Cerebras | `CEREBRAS_API_KEY` | No |
-| HuggingFace | `HUGGINGFACE_API_KEY` | No |
+Supported provider environment variables include:
+
+| Provider | Variable |
+|----------|----------|
+| Cohere | `COHERE_API_KEY` |
+| OpenRouter | `OPENROUTER_API_KEY` |
+| Gemini | `GEMINI_API_KEY` |
+| Groq | `GROQ_API_KEY` |
+| Cerebras | `CEREBRAS_API_KEY` |
+| HuggingFace | `HUGGINGFACE_API_KEY` |
+
+The installer reports only whether a variable is **set**. It never prints the credential value. For secure credential handling, prefer the provider/router's supported secret-management mechanism or an OS/CI secret store. Do not put keys in `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.flossware-ai.json`, `ai_config.py`, source control, or logs.
 
 ## Themes
 
@@ -90,7 +82,7 @@ Press `t` on the welcome screen to preview and switch.
 
 ## Related
 
-- [FlossWare/personal-agent](https://github.com/FlossWare/personal-agent) — Worker/arbiter coding agent using these libraries
+- [FlossWare/coding-agent-ai](https://github.com/FlossWare/coding-agent-ai) — Worker/arbiter coding-agent runtime using these libraries
 - [FlossWare/curses-themes](https://github.com/FlossWare/curses-themes) — Terminal UI theming
 
 ## License

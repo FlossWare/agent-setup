@@ -4,6 +4,7 @@ set -euo pipefail
 AGENT="all"; PROFILE="personal"; REPO_DIR=""; REINSTALL=false; CLEAN=false
 INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware/ai}"; VENV="$INSTALL_ROOT/venv"; SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
 AI_REPO="https://github.com/FlossWare/coding-agent-ai.git"; SETUP_REPO="https://github.com/FlossWare/coding-agent-setup.git"; RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"
+USE_SOURCE="${FLOSSWARE_USE_SOURCE:-false}"
 usage(){ cat <<'EOF'
 Usage: ./scripts/install.sh [options]
   --agent, -a AGENT   Agent integration to configure. Default: all
@@ -14,6 +15,7 @@ Usage: ./scripts/install.sh [options]
   --help, -h          Show this help
 
 The canonical managed root is ~/.flossware/ai. Credential values are never copied or persisted.
+Artifacts are preferred; set FLOSSWARE_USE_SOURCE=true to force Git/source installation.
 EOF
 }
 while [[ $# -gt 0 ]]; do case "$1" in
@@ -24,11 +26,8 @@ while [[ $# -gt 0 ]]; do case "$1" in
 case "$PROFILE" in personal|redhat) ;; *) echo "ERROR: invalid profile '$PROFILE'" >&2; exit 2;; esac
 if [[ "$CLEAN" == true ]]; then
   printf '[FlossWare] Removing managed AI environment: %s\n' "$INSTALL_ROOT"
-  rm -rf -- "$INSTALL_ROOT"
-  rm -f -- "$HOME/.local/bin/flossware-ai"
-  for n in claude-code claude crush codex opencode cursor aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro; do :; done
-  printf '[FlossWare] Clean complete. Project files, native agent credentials, and provider credentials were not touched.\n'
-  exit 0
+  rm -rf -- "$INSTALL_ROOT"; rm -f -- "$HOME/.local/bin/flossware-ai"
+  printf '[FlossWare] Clean complete. Project files, native agent credentials, and provider credentials were not touched.\n'; exit 0
 fi
 case "$AGENT" in claude|claude-code|cursor|opencode|crush|codex|aider|cline|roo-code|gemini-cli|github-copilot|windsurf|amazon-q|kiro|all) ;; *) echo "ERROR: invalid agent '$AGENT'" >&2; exit 2;; esac
 if [[ "${OSTYPE:-}" != linux* ]] || [[ ! -r /etc/os-release ]]; then echo "ERROR: Linux is required." >&2; exit 1; fi
@@ -45,7 +44,16 @@ mkdir -p "$INSTALL_ROOT"
 if [[ "$REINSTALL" == true ]]; then log "Reinstall requested: removing only managed FlossWare AI artifacts"; rm -rf -- "$VENV" "$SETUP_DIR" "$INSTALL_ROOT/bin"; fi
 [[ -d "$VENV" ]] || { log "Creating isolated Python environment: $VENV"; python3 -m venv "$VENV"; }
 source "$VENV/bin/activate"; python -m pip install --upgrade pip setuptools wheel fastmcp
-log "Installing coding-agent-ai from $RELEASE_REF"; python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"
+if [[ "$USE_SOURCE" == true ]]; then
+  log "Source mode enabled: installing coding-agent-ai from $RELEASE_REF"
+  python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"
+else
+  log "Installing coding-agent-ai from published artifacts when available"
+  if ! python -m pip install --upgrade --prefer-binary "coding-agent-ai[all,tui]"; then
+    log "Published artifact unavailable or incomplete; falling back to source $RELEASE_REF"
+    python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"
+  fi
+fi
 log "Installing coding-agent-setup from $RELEASE_REF"
 if [[ -d "$SETUP_DIR/.git" ]]; then git -C "$SETUP_DIR" fetch --force origin "$RELEASE_REF"; git -C "$SETUP_DIR" checkout --force "$RELEASE_REF"; git -C "$SETUP_DIR" reset --hard "origin/$RELEASE_REF" 2>/dev/null || true; else git clone --depth 1 --branch "$RELEASE_REF" "$SETUP_REPO" "$SETUP_DIR"; fi
 for required in scripts/setup.py scripts/profile.sh scripts/flossware-ai scripts/router_mcp.py scripts/discovery.py scripts/mcp.py scripts/tui.py scripts/agent_setup.py; do [[ -f "$SETUP_DIR/$required" ]] || fail "missing $required"; done

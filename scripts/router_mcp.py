@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""FlossWare policy-aware MCP bridge to model-router-ai.
+"""Policy-aware MCP bridge to the FlossWare model router.
 
-Personal mode exposes only providers whose credentials are present in the
-process environment. Red Hat mode deliberately refuses to expose this
-personal-provider router; approved Anthropic access remains in the native
-Red Hat agent authentication path.
+The MCP server is an external process owned by FlossWare. Agents are MCP
+clients. Provider credentials are inherited from the environment and are
+never copied into MCP or agent configuration.
 """
 from __future__ import annotations
 
@@ -25,22 +24,35 @@ from model_router_ai import (
     ProviderRouter,
     ThompsonSamplingSelector,
 )
+from model_router_ai.discovery import discover_accounts
 
 PROFILE = os.environ.get("FLOSSWARE_PROFILE", "personal")
 mcp = FastMCP("flossware-model-router")
 _router = None
 _lock = asyncio.Lock()
 
-# Provider definitions are intentionally limited to credentials supplied by
-# the invoking environment. No credential file is read or written here.
+# Provider factories are deliberately keyed by provider, while credentials
+# and account identity come from discovery. This permits multiple accounts
+# for the same provider without duplicating routing logic.
 PROVIDERS = {
-    "groq": ("GROQ_API_KEY", lambda: OpenAICompatProvider("groq")),
-    "openrouter": ("OPENROUTER_API_KEY", lambda: OpenAICompatProvider("openrouter", free_only=True)),
-    "gemini": ("GEMINI_API_KEY", GeminiProvider),
-    "cohere": ("COHERE_API_KEY", CohereProvider),
-    "cerebras": ("CEREBRAS_API_KEY", lambda: OpenAICompatProvider("cerebras")),
-    "openai": ("OPENAI_API_KEY", lambda: OpenAICompatProvider("openai")),
+    "groq": lambda: OpenAICompatProvider("groq"),
+    "openrouter": lambda: OpenAICompatProvider("openrouter", free_only=False),
+    "gemini": GeminiProvider,
+    "cohere": CohereProvider,
+    "cerebras": lambda: OpenAICompatProvider("cerebras"),
+    "openai": lambda: OpenAICompatProvider("openai"),
+    "nvidia": lambda: OpenAICompatProvider("nvidia"),
+    "deepinfra": lambda: OpenAICompatProvider("deepinfra"),
+    "huggingface": lambda: OpenAICompatProvider("huggingface"),
 }
+
+
+def _account_key(account: dict) -> str:
+    source = account.get("credential_source", "")
+    prefix = "environment:"
+    if not source.startswith(prefix):
+        return ""
+    return os.environ.get(source[len(prefix):], "")
 
 
 async def get_router():
@@ -50,21 +62,33 @@ async def get_router():
     if PROFILE == "redhat":
         raise RuntimeError(
             "FlossWare personal model router is disabled in the redhat profile; "
-            "use the approved native Anthropic agent configuration."
+            "use the approved native Red Hat agent authentication path."
         )
     async with _lock:
         if _router is not None:
             return _router
+
         base = ProviderRouter()
         allowed_models: list[str] = []
-        for provider, (env_name, factory) in PROVIDERS.items():
-            key = os.environ.get(env_name, "")
-            if not key:
+        for account in discover_accounts():
+            provider_name = account["provider"]
+            factory = PROVIDERS.get(provider_name)
+            key = _account_key(account)
+            if factory is None or not key:
                 continue
-            base.add_provider(factory(), api_key=key)
-            allowed_models.append(f"{provider}:*")
+            # account_name is now part of the router endpoint identity.
+            base.add_provider(
+                factory(),
+                api_key=key,
+                account_name=account["id"],
+            )
+            allowed_models.append(f"{provider_name}:*")
+
         if not allowed_models:
-            raise RuntimeError("No configured personal model providers were found in the environment")
+            raise RuntimeError(
+                "No configured personal model accounts were found in the environment"
+            )
+
         routed = ThompsonSamplingSelector(base)
         routed = LatencyOptimizer(routed)
         routed = CostAware(routed, prefer_free=True)
@@ -80,7 +104,13 @@ async def list_models() -> str:
     models = await router.list_models()
     return json.dumps(
         [
-            {"model_id": m.model_id, "provider": m.provider, "context_window": m.context_window}
+            {
+                "model_id": m.model_id,
+                "provider": m.provider,
+                "account": m.account_name,
+                "context_window": m.context_window,
+                "tags": m.tags,
+            }
             for m in models
         ],
         indent=2,
@@ -88,14 +118,19 @@ async def list_models() -> str:
 
 
 @mcp.tool()
-async def chat(prompt: str, model: str | None = None, system_prompt: str | None = None) -> str:
-    """Route a prompt through FlossWare's personal model policy."""
+async def chat(
+    prompt: str,
+    model: str | None = None,
+    account: str | None = None,
+    system_prompt: str | None = None,
+) -> str:
+    """Route a prompt through FlossWare's active account/profile policy."""
     router = await get_router()
     messages = []
     if system_prompt:
         messages.append(ChatMessage(role="system", content=system_prompt))
     messages.append(ChatMessage(role="user", content=prompt))
-    response = await router.chat(messages, model=model)
+    response = await router.chat(messages, model=model, account=account)
     return json.dumps(
         {
             "content": response.content,
@@ -111,6 +146,6 @@ async def chat(prompt: str, model: str | None = None, system_prompt: str | None 
 
 if __name__ == "__main__":
     if "--help" in sys.argv:
-        print("Run the FlossWare model router as an MCP server on stdio.")
+        print("Run the external FlossWare model router as an MCP server on stdio.")
         raise SystemExit(0)
     mcp.run()

@@ -20,7 +20,39 @@ For reproducibility, pin a reviewed release or commit:
 FLOSSWARE_RELEASE_REF=<reviewed-ref> ./scripts/install.sh
 ```
 
-See [docs/platforms/fedora.md](docs/platforms/fedora.md) for the complete installation and dogfood procedure.
+## FlossWare as the agent model layer
+
+FlossWare is not intended to replace every coding agent's native UI or authentication. Instead, it provides a common policy-aware model router exposed through MCP. Agents that support MCP can consume the same FlossWare account/profile/model layer without receiving provider secrets.
+
+```text
+coding agent
+     |
+     | MCP (stdio)
+     v
+FlossWare model router
+     |
+     +-- active profile
+     +-- account/model discovery
+     +-- policy and budget
+     +-- provider routing/failover
+     |
+     +--> OpenAI / OpenRouter / Groq / Cerebras / etc.
+```
+
+The router inherits credentials from the invoking profile environment. Credential values are never copied into MCP configuration.
+
+Generate an agent-specific MCP definition without overwriting an existing config:
+
+```bash
+flossware-ai mcp-config claude
+flossware-ai mcp-config opencode
+flossware-ai mcp-config crush
+flossware-ai mcp-config codex
+```
+
+OpenCode's current configuration supports a local MCP server under `mcp.servers`; Claude Code uses the standard `.mcp.json` shape. The generator emits the local FlossWare router command and contains no provider secrets. Agent-specific adapters can consume the same generated server definition.
+
+The active profile controls which credentials/providers the router may use. `personal` is for personal accounts and free/paid access; `redhat` deliberately blocks the personal router and leaves approved Red Hat authentication to the native approved-agent path.
 
 ## Interactive TUI
 
@@ -50,7 +82,7 @@ The agent selector is backed by an adapter registry rather than hard-coded TUI b
 | Roo Code | `.roo/rules/FlossWare.md` | Project rules |
 | Gemini CLI | `GEMINI.md` | Project instructions |
 | GitHub Copilot | `.github/copilot-instructions.md` | Repository custom instructions |
-| Windsurf | `.windsurfrules` | Windsurf project rules |
+| Windsurf | `.windsurfrules` | Project rules |
 | Amazon Q Developer | `.amazonq/rules/FlossWare.md` | Project rules |
 | Kiro | `.kiro/steering/FlossWare.md` | Workspace steering |
 
@@ -58,7 +90,22 @@ Shared `AGENTS.md` consumers intentionally use one common project instruction fi
 
 Existing user-owned instruction/configuration files are preserved. Generated files are created only when absent, making setup safe to rerun.
 
-### Generated Files
+## Accounts, models, and profiles
+
+```bash
+flossware-ai accounts
+flossware-ai accounts --verify
+flossware-ai models --refresh
+flossware-ai models --available
+flossware-ai models --free
+flossware-ai explain <model-id>
+```
+
+An account is distinct from a provider. Multiple accounts may use the same provider. `~/.flossware/ai/config/accounts.toml` contains account labels and credential-source references only. Actual credentials remain in environment/native credential stores.
+
+`configured` means a credential source was found. `discovered` means an authenticated provider advertised the model. `available` means the model was discovered and is allowed by the active FlossWare profile.
+
+## Generated Files
 
 | Agent | File | Contents |
 |-------|------|----------|
@@ -96,25 +143,15 @@ Generated files contain configuration and instructions only. **API keys and othe
 
 Provider credentials are **optional**. The setup tool does not require or prefer any provider, vendor, hosting topology, or pricing tier.
 
-Supported provider environment variables currently include:
-
-| Provider | Variable |
-|----------|----------|
-| Cohere | `COHERE_API_KEY` |
-| OpenRouter | `OPENROUTER_API_KEY` |
-| Gemini | `GEMINI_API_KEY` |
-| Groq | `GROQ_API_KEY` |
-| Cerebras | `CEREBRAS_API_KEY` |
-| HuggingFace | `HUGGINGFACE_API_KEY` |
-
 The installer reports only whether a variable is **set**. It never prints the credential value. Prefer the provider/router's supported authentication mechanism, an existing authenticated CLI session where available, or an OS/CI secret store. Do not put keys in `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.flossware-ai.json`, `ai_config.py`, source control, or logs.
 
 ## Architecture
 
 ```text
 request
-  -> policy / model router
-  -> provider-neutral contract
+  -> agent adapter / MCP
+  -> FlossWare policy / model router
+  -> account + provider selection
   -> cross-cutting decorators
   -> provider adapter
   -> model/runtime
@@ -133,6 +170,7 @@ Theme support is optional. The TUI has a built-in fallback palette and does not 
 ## Related
 
 - [FlossWare/coding-agent-ai](https://github.com/FlossWare/coding-agent-ai) — Provider-neutral worker/arbiter coding-agent runtime
+- [FlossWare/model-router-ai](https://github.com/FlossWare/model-router-ai) — Provider/account/model routing and policy
 - [FlossWare/curses-themes](https://github.com/FlossWare/curses-themes) — Terminal UI theming
 
 ## License

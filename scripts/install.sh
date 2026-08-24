@@ -148,6 +148,39 @@ exec python "$SETUP_DIR/scripts/setup.py" "\$@"
 EOF
 chmod 700 "$LAUNCHER"
 
+# Profile-aware agent wrappers. These do not contain credentials; they only
+# constrain the environment before handing control to the native agent.
+for spec in \
+  "claude:claude" \
+  "crush:crush" \
+  "codex:codex" \
+  "opencode:opencode" \
+  "cursor:cursor" \
+  "aider:aider" \
+  "cline:cline" \
+  "gemini-cli:gemini"; do
+  NAME="${spec%%:*}"
+  COMMAND="${spec#*:}"
+  WRAPPER="${HOME}/.local/bin/flossware-${NAME}"
+  cat > "$WRAPPER" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+PROFILE="${PROFILE}"
+if [[ "\${1:-}" == "--profile" ]]; then
+  [[ \$# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }
+  PROFILE="\$2"
+  shift 2
+elif [[ "\${1:-}" == --profile=* ]]; then
+  PROFILE="\${1#--profile=}"
+  shift
+fi
+case "\$PROFILE" in personal|redhat) ;; *) echo "ERROR: invalid profile '\$PROFILE'" >&2; exit 2 ;; esac
+source "$INSTALL_ROOT/profiles/\$PROFILE/profile.sh" "\$PROFILE"
+exec "$COMMAND" "\$@"
+EOF
+  chmod 700 "$WRAPPER"
+done
+
 if [[ -n "$REPO_DIR" ]]; then
     [[ -d "$REPO_DIR/.git" ]] || fail "--repo must point to a Git repository: $REPO_DIR"
     REPO_DIR="$(cd "$REPO_DIR" && pwd)"
@@ -164,4 +197,4 @@ PY
 
 log "Installation complete"
 printf '%s\n' "Environment: $VENV" "Setup:       $SETUP_DIR" "Profile:     $PROFILE" "Launcher:    $LAUNCHER" "Ref:         $RELEASE_REF"
-printf '%s\n' "" "Run: $LAUNCHER --profile $PROFILE" "Run '$LAUNCHER --help' for help."
+printf '%s\n' "" "Run: $LAUNCHER --profile $PROFILE" "Agent wrappers: ~/.local/bin/flossware-{claude,crush,codex,opencode,...}" "Run '$LAUNCHER --help' for help."

@@ -1,42 +1,47 @@
 # coding-agent-setup
 
-Interactive TUI builder for configuring AI coding agents with [FlossWare](https://github.com/FlossWare) AI libraries.
+Interactive TUI builder and Fedora installer for configuring AI coding agents with [FlossWare](https://github.com/FlossWare) AI libraries.
 
-Generates custom configs for **Claude Code**, **Cursor**, and **OpenCode/Codex** with provider-neutral routing, resilience, structured output, and other FlossWare AI capabilities.
+The current dogfood milestone supports **Fedora Linux as the Tier-1 installation target**. The setup layer is provider-neutral and pricing-neutral. Provider/model selection is runtime policy driven.
 
-## Quick Start
+## Quick Start on Fedora
 
 ```bash
-# Interactive TUI
-python3 scripts/setup.py
+# From a checkout of this repository
+./scripts/install.sh
 
-# With a specific theme
-python3 scripts/setup.py --theme borland-3d
-
-# Non-interactive
-./scripts/install.sh --agent all --repo /path/to/project
+# Launch the interactive TUI
+~/.local/bin/flossware-setup
 ```
 
-For a convenient bootstrap, inspect `scripts/install.sh` first, then run it. The installer is designed to fail clearly on required setup failures rather than silently producing a partial installation.
+For reproducibility, pin a reviewed release or commit:
+
+```bash
+FLOSSWARE_RELEASE_REF=<reviewed-ref> ./scripts/install.sh
+```
+
+See [docs/platforms/fedora.md](docs/platforms/fedora.md) for the complete installation and dogfood procedure.
 
 ## Interactive TUI
 
-The TUI walks through 5 steps:
+The TUI walks through:
 
-1. **Select Agents** — Claude Code, Cursor, OpenCode/Codex
-2. **FlossWare AI Capabilities** — Pick from composable libraries
-3. **Budget** — Configure a spending policy: free, light, medium, or custom
+1. **Select Agents** — Claude Code, Cursor, OpenCode
+2. **FlossWare AI Capabilities** — Pick composable libraries
+3. **Budget Policy** — Strict, light, medium, or custom policy
 4. **Project Directory** — Where to generate configs
-5. **API Keys** — Metadata-only status check for configured providers
+5. **Provider Credentials** — Metadata-only status check for configured providers
+
+Credentials are optional. The TUI never displays or writes credential values.
 
 ### Generated Files
 
 | Agent | File | Contents |
 |-------|------|----------|
-| Claude Code | `CLAUDE.md` | AI stack, routing, providers, usage examples |
+| Claude Code | `CLAUDE.md` | AI stack, routing, providers, usage guidance |
 | Cursor | `.cursorrules` | Libraries, providers, guidelines |
-| OpenCode | `AGENTS.md` | Stack, providers, install commands |
-| All | `ai_config.py` | Python config wiring selected capabilities |
+| OpenCode | `AGENTS.md` | Stack, providers, install guidance |
+| All | `ai_config.py` | Python configuration wiring selected capabilities |
 | All | `.flossware-ai.json` | Build manifest for reproducibility |
 
 Generated files contain configuration and instructions only. **API keys and other credential values are never written to generated project files, manifests, templates, logs, or documentation.**
@@ -45,7 +50,7 @@ Generated files contain configuration and instructions only. **API keys and othe
 
 | Library | What it does | Default |
 |---------|-------------|---------|
-| [model-router-ai](https://github.com/FlossWare/model-router-ai) | LLM routing, provider failover, cost awareness | Yes |
+| [model-router-ai](https://github.com/FlossWare/model-router-ai) | LLM routing, provider failover, capability and cost awareness | Yes |
 | [resilience-ai](https://github.com/FlossWare/resilience-ai) | Retry, circuit breaker, timeout patterns | Yes |
 | [structured-output-ai](https://github.com/FlossWare/structured-output-ai) | Schema-validated JSON from LLMs | Yes |
 | [consensus-ai](https://github.com/FlossWare/consensus-ai) | Multi-model voting for critical decisions | No |
@@ -57,9 +62,9 @@ Generated files contain configuration and instructions only. **API keys and othe
 
 ## Provider Credentials
 
-Provider credentials are **optional** and depend on the routing policy you choose. The setup tool does not require a free provider and does not assume that free models are the only supported models.
+Provider credentials are **optional**. The setup tool does not require or prefer any provider, vendor, hosting topology, or pricing tier.
 
-Supported provider environment variables include:
+Supported provider environment variables currently include:
 
 | Provider | Variable |
 |----------|----------|
@@ -70,7 +75,20 @@ Supported provider environment variables include:
 | Cerebras | `CEREBRAS_API_KEY` |
 | HuggingFace | `HUGGINGFACE_API_KEY` |
 
-The installer reports only whether a variable is **set**. It never prints the credential value. For secure credential handling, prefer the provider/router's supported secret-management mechanism or an OS/CI secret store. Do not put keys in `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.flossware-ai.json`, `ai_config.py`, source control, or logs.
+The installer reports only whether a variable is **set**. It never prints the credential value. Prefer the provider/router's supported authentication mechanism, an existing authenticated CLI session where available, or an OS/CI secret store. Do not put keys in `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.flossware-ai.json`, `ai_config.py`, source control, or logs.
+
+## Architecture
+
+```text
+request
+  -> policy / model router
+  -> provider-neutral contract
+  -> cross-cutting decorators
+  -> provider adapter
+  -> model/runtime
+```
+
+Cost is a routing attribute, not an architectural identity. Provider-specific integrations remain behind provider contracts.
 
 ## Themes
 
@@ -78,11 +96,11 @@ The installer reports only whether a variable is **set**. It never prints the cr
 
 `dark` `light` `default` `borland-3d` `dos` `dbase-iii` `dbase-iv` `dbase-iv-3d` `ti-99-4a` `trs-80`
 
-Press `t` on the welcome screen to preview and switch.
+Theme support is optional. The TUI has a built-in fallback palette and does not install a theme package during startup.
 
 ## Related
 
-- [FlossWare/coding-agent-ai](https://github.com/FlossWare/coding-agent-ai) — Worker/arbiter coding-agent runtime using these libraries
+- [FlossWare/coding-agent-ai](https://github.com/FlossWare/coding-agent-ai) — Provider-neutral worker/arbiter coding-agent runtime
 - [FlossWare/curses-themes](https://github.com/FlossWare/curses-themes) — Terminal UI theming
 
 ## License

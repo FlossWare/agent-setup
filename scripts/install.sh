@@ -72,7 +72,7 @@ if [[ "$REINSTALL" == true ]]; then
 fi
 if [[ ! -d "$VENV" ]]; then log "Creating isolated Python environment: $VENV"; python3 -m venv "$VENV"; fi
 source "$VENV/bin/activate"
-python -m pip install --upgrade pip setuptools wheel
+python -m pip install --upgrade pip setuptools wheel fastmcp
 log "Installing coding-agent-ai from $RELEASE_REF"
 python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"
 log "Installing coding-agent-setup from $RELEASE_REF"
@@ -85,13 +85,17 @@ else
 fi
 [[ -f "$SETUP_DIR/scripts/setup.py" ]] || fail "coding-agent-setup checkout is missing scripts/setup.py"
 [[ -f "$SETUP_DIR/scripts/profile.sh" ]] || fail "coding-agent-setup checkout is missing scripts/profile.sh"
+[[ -f "$SETUP_DIR/scripts/flossware-ai" ]] || fail "coding-agent-setup checkout is missing scripts/flossware-ai"
+[[ -f "$SETUP_DIR/scripts/router_mcp.py" ]] || fail "coding-agent-setup checkout is missing scripts/router_mcp.py"
 [[ -f "$SETUP_DIR/profiles/$PROFILE.toml" ]] || fail "coding-agent-setup checkout is missing profiles/$PROFILE.toml"
-python -m compileall -q "$SETUP_DIR/scripts/setup.py"
+python -m compileall -q "$SETUP_DIR/scripts/setup.py" "$SETUP_DIR/scripts/router_mcp.py"
 PROFILE_DIR="$INSTALL_ROOT/config/profiles/$PROFILE"
 mkdir -p "$PROFILE_DIR" "$INSTALL_ROOT/bin" "$INSTALL_ROOT/state"
 cp "$SETUP_DIR/scripts/profile.sh" "$PROFILE_DIR/profile.sh"
 cp "$SETUP_DIR/profiles/$PROFILE.toml" "$PROFILE_DIR/profile.toml"
-chmod 700 "$PROFILE_DIR/profile.sh"
+cp "$SETUP_DIR/scripts/flossware-ai" "$INSTALL_ROOT/bin/flossware-ai"
+cp "$SETUP_DIR/scripts/router_mcp.py" "$INSTALL_ROOT/router_mcp.py"
+chmod 700 "$PROFILE_DIR/profile.sh" "$INSTALL_ROOT/bin/flossware-ai"
 printf '%s\n' "$PROFILE" > "$INSTALL_ROOT/state/active-profile"
 cat > "$PROFILE_DIR/profile.json" <<EOF
 {
@@ -101,45 +105,16 @@ cat > "$PROFILE_DIR/profile.json" <<EOF
   "credential_source": "native-agent-store-or-environment"
 }
 EOF
-# Agent wrappers live under ~/.flossware/ai/bin. A single stable shim is placed
-# in ~/.local/bin so the FlossWare namespace is convenient without owning agents.
-LAUNCHER="$INSTALL_ROOT/bin/flossware-ai"
-cat > "$LAUNCHER" <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-INSTALL_ROOT="${INSTALL_ROOT}"
-PROFILE="${PROFILE}"
-if [[ "\${1:-}" == "--profile" ]]; then
-  [[ \$# -ge 2 ]] || { echo "ERROR: --profile requires personal or redhat" >&2; exit 2; }
-  PROFILE="\$2"; shift 2
-elif [[ "\${1:-}" == --profile=* ]]; then
-  PROFILE="\${1#--profile=}"; shift
-fi
-case "\$PROFILE" in personal|redhat) ;; *) echo "ERROR: invalid profile '\$PROFILE'" >&2; exit 2 ;; esac
-source "$INSTALL_ROOT/config/profiles/\$PROFILE/profile.sh" "\$PROFILE"
-exec "$INSTALL_ROOT/venv/bin/python" "$INSTALL_ROOT/coding-agent-setup/scripts/setup.py" "\$@"
-EOF
-chmod 700 "$LAUNCHER"
 for spec in "claude:claude" "crush:crush" "codex:codex" "opencode:opencode" "cursor:cursor" "aider:aider" "cline:cline" "roo-code:roo" "gemini-cli:gemini" "github-copilot:gh" "windsurf:windsurf" "amazon-q:q" "kiro:kiro"; do
   NAME="${spec%%:*}"; COMMAND="${spec#*:}"; WRAPPER="$INSTALL_ROOT/bin/$NAME"
   cat > "$WRAPPER" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 INSTALL_ROOT="${INSTALL_ROOT}"
-PROFILE="${PROFILE}"
-if [[ "\${1:-}" == "--profile" ]]; then
-  [[ \$# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }
-  PROFILE="\$2"; shift 2
-elif [[ "\${1:-}" == --profile=* ]]; then
-  PROFILE="\${1#--profile=}"; shift
-fi
-case "\$PROFILE" in personal|redhat) ;; *) echo "ERROR: invalid profile '\$PROFILE'" >&2; exit 2 ;; esac
-source "$INSTALL_ROOT/config/profiles/\$PROFILE/profile.sh" "\$PROFILE"
-exec "$COMMAND" "\$@"
+exec "$INSTALL_ROOT/bin/flossware-ai" "$NAME" "\$@"
 EOF
   chmod 700 "$WRAPPER"
 done
-# Convenience command in PATH. It points into the canonical AI tree.
 PATH_SHIM="${HOME}/.local/bin/flossware-ai"
 mkdir -p "$(dirname "$PATH_SHIM")"
 cat > "$PATH_SHIM" <<EOF
@@ -155,11 +130,9 @@ fi
 log "Running credential-boundary validation"
 python - <<'PY'
 import os
-# Presence only. Never print values. Personal profile intentionally inherits
-# native environment credentials; redhat profile.sh removes non-Anthropic ones.
 vars = ("COHERE_API_KEY", "OPENROUTER_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "HUGGINGFACE_API_KEY", "ANTHROPIC_API_KEY")
 print(f"credential presence check: PASS ({sum(bool(os.environ.get(v)) for v in vars)} configured in installer environment; values not displayed or persisted)")
 PY
 log "Installation complete"
 printf '%s\n' "AI root:     $INSTALL_ROOT" "Environment: $VENV" "Setup:       $SETUP_DIR" "Profile:     $PROFILE" "Launcher:    $PATH_SHIM" "Ref:         $RELEASE_REF"
-printf '%s\n' "" "Run: flossware-ai --profile $PROFILE" "Agents: $INSTALL_ROOT/bin/{claude,crush,codex,opencode,...}" "Reinstall: ./scripts/install.sh --reinstall"
+printf '%s\n' "" "Run: flossware-ai --profile $PROFILE" "Agents: $INSTALL_ROOT/bin/{claude,crush,codex,opencode,...}" "Router MCP: flossware-ai router" "Reinstall: ./scripts/install.sh --reinstall"

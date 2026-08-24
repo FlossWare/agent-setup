@@ -6,19 +6,9 @@ Usage: flossware-ai <command> [options]
 
 Commands:
   setup | tui | update | reinstall | clean | doctor | profile [name]
-  providers                 List provider definitions and configuration status
-  accounts [--verify]       List discovered accounts without secrets
-  models [--refresh]        Discover/list models permitted by the active profile
-  models --free             Show only free-capable models
-  models --provider NAME    Show models from one provider
-  explain MODEL             Explain model access without exposing credentials
-  components                List independently usable FlossWare AI capabilities
-  components <name>         Show/configure one capability
-  agents                    List all supported coding-agent integrations
-  agents setup AGENT        Generate safe project integration for an agent
-  mcp-config AGENT          Print safe MCP config for an agent
-  router                    Run the FlossWare model-router MCP server
-  <agent>                   Launch an agent through the active profile
+  providers | accounts [--verify] | models [--refresh|--free|--provider NAME]
+  explain MODEL | components [NAME] | agents [setup AGENT] | mcp-config AGENT
+  router | <agent>
 
 Configuration is shared under ~/.flossware/ai. Credentials are referenced, never copied.
 Loom is the full orchestration platform; these commands configure individual FlossWare pieces.
@@ -36,7 +26,7 @@ case "${1:-}" in
   models) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" models "$@";;
   explain) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" explain "$@";;
   components) shift; exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" components "$@";;
-  agents) shift; if [[ "${1:-}" == setup ]]; then shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/setup.py" --agent "${1:-}" "${@:2}"; fi; printf '%s\n' claude-code cursor opencode crush codex aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
+  agents) shift; if [[ "${1:-}" == setup ]]; then shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/agent_setup.py" "${1:-}" "${@:2}"; fi; printf '%s\n' claude-code cursor opencode crush codex aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
   mcp-config) shift; exec "$ROOT/venv/bin/python" "$ROOT/mcp.py" "$@";;
   setup) shift; exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/setup.py" "$@";;
   tui) exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/tui.py" "$@";;

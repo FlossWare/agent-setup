@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Non-interactive agent integration helper."""
 from __future__ import annotations
-import argparse
-import importlib.util
+import argparse, importlib.util, sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("flossware_setup", ROOT / "setup.py")
 if spec is None or spec.loader is None:
     raise SystemExit("unable to load setup.py")
 mod = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = mod
 spec.loader.exec_module(mod)
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Configure one coding agent with FlossWare AI")
 parser.add_argument("agent")
 parser.add_argument("--repo", default=".")
 parser.add_argument("--capability", action="append", dest="capabilities")

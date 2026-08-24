@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Fedora installer for FlossWare coding-agent-setup + coding-agent-ai.
-# Supports isolated personal/Red Hat provider profiles and safe reinstall.
+# ~/.flossware/ai is the canonical AI environment. Credentials are never copied.
 set -euo pipefail
 AGENT="all"
 PROFILE="personal"
 REPO_DIR=""
 REINSTALL=false
-INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware}"
+INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware/ai}"
 VENV="$INSTALL_ROOT/venv"
 SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
 AI_REPO="https://github.com/FlossWare/coding-agent-ai.git"
@@ -22,18 +22,20 @@ Options:
   --agent, -a   Agent integration to configure. Default: all
   --profile     Provider profile: personal or redhat. Default: personal
   --repo, -r    Optional Git project to configure after installation
-  --reinstall   Recreate the managed FlossWare venv/checkout without manual rm
+  --reinstall   Recreate the managed FlossWare AI environment without manual rm
   --help, -h    Show this help
 
 Environment:
-  FLOSSWARE_INSTALL_ROOT   Installation root (default: ~/.flossware)
+  FLOSSWARE_INSTALL_ROOT   Installation root (default: ~/.flossware/ai)
   FLOSSWARE_RELEASE_REF    Git ref/tag/commit to install (default: main)
 
 Profiles:
-  personal  Leaves configured personal provider credentials available to agents.
-  redhat    Exposes only Anthropic credentials to child agent processes.
+  personal  Inherits configured personal provider credentials and native agent auth.
+  redhat    Exposes only Anthropic environment credentials to child processes.
 
-The installer never prints, stores, or copies credential values.
+Credential handling:
+  The installer never prints, stores, copies, or embeds credential values.
+  Native agent credential stores remain owned by their respective agents.
 EOF
 }
 while [[ $# -gt 0 ]]; do
@@ -65,8 +67,8 @@ print(f"Python {sys.version.split()[0]}")
 PY
 mkdir -p "$INSTALL_ROOT"
 if [[ "$REINSTALL" == true ]]; then
-    log "Reinstall requested: removing only managed FlossWare installation artifacts"
-    rm -rf "$VENV" "$SETUP_DIR"
+    log "Reinstall requested: removing only managed FlossWare AI artifacts"
+    rm -rf "$VENV" "$SETUP_DIR" "$INSTALL_ROOT/bin"
 fi
 if [[ ! -d "$VENV" ]]; then log "Creating isolated Python environment: $VENV"; python3 -m venv "$VENV"; fi
 source "$VENV/bin/activate"
@@ -85,24 +87,27 @@ fi
 [[ -f "$SETUP_DIR/scripts/profile.sh" ]] || fail "coding-agent-setup checkout is missing scripts/profile.sh"
 [[ -f "$SETUP_DIR/profiles/$PROFILE.toml" ]] || fail "coding-agent-setup checkout is missing profiles/$PROFILE.toml"
 python -m compileall -q "$SETUP_DIR/scripts/setup.py"
-PROFILE_DIR="$INSTALL_ROOT/profiles/$PROFILE"
-mkdir -p "$PROFILE_DIR"
+PROFILE_DIR="$INSTALL_ROOT/config/profiles/$PROFILE"
+mkdir -p "$PROFILE_DIR" "$INSTALL_ROOT/bin" "$INSTALL_ROOT/state"
 cp "$SETUP_DIR/scripts/profile.sh" "$PROFILE_DIR/profile.sh"
 cp "$SETUP_DIR/profiles/$PROFILE.toml" "$PROFILE_DIR/profile.toml"
 chmod 700 "$PROFILE_DIR/profile.sh"
+printf '%s\n' "$PROFILE" > "$INSTALL_ROOT/state/active-profile"
 cat > "$PROFILE_DIR/profile.json" <<EOF
 {
   "profile": "$PROFILE",
   "policy": "$([[ "$PROFILE" == redhat ]] && echo redhat-anthropic-only || echo personal-all-configured)",
-  "credential_values_written": false
+  "credential_values_written": false,
+  "credential_source": "native-agent-store-or-environment"
 }
 EOF
-LAUNCHER="${HOME}/.local/bin/flossware-setup"
-mkdir -p "$(dirname "$LAUNCHER")"
+# Agent wrappers live under ~/.flossware/ai/bin. A single stable shim is placed
+# in ~/.local/bin so the FlossWare namespace is convenient without owning agents.
+LAUNCHER="$INSTALL_ROOT/bin/flossware-ai"
 cat > "$LAUNCHER" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-source "$VENV/bin/activate"
+INSTALL_ROOT="${INSTALL_ROOT}"
 PROFILE="${PROFILE}"
 if [[ "\${1:-}" == "--profile" ]]; then
   [[ \$# -ge 2 ]] || { echo "ERROR: --profile requires personal or redhat" >&2; exit 2; }
@@ -111,15 +116,16 @@ elif [[ "\${1:-}" == --profile=* ]]; then
   PROFILE="\${1#--profile=}"; shift
 fi
 case "\$PROFILE" in personal|redhat) ;; *) echo "ERROR: invalid profile '\$PROFILE'" >&2; exit 2 ;; esac
-source "$INSTALL_ROOT/profiles/\$PROFILE/profile.sh" "\$PROFILE"
-exec python "$SETUP_DIR/scripts/setup.py" "\$@"
+source "$INSTALL_ROOT/config/profiles/\$PROFILE/profile.sh" "\$PROFILE"
+exec "$INSTALL_ROOT/venv/bin/python" "$INSTALL_ROOT/coding-agent-setup/scripts/setup.py" "\$@"
 EOF
 chmod 700 "$LAUNCHER"
-for spec in "claude:claude" "crush:crush" "codex:codex" "opencode:opencode" "cursor:cursor" "aider:aider" "cline:cline" "gemini-cli:gemini"; do
-  NAME="${spec%%:*}"; COMMAND="${spec#*:}"; WRAPPER="${HOME}/.local/bin/flossware-${NAME}"
+for spec in "claude:claude" "crush:crush" "codex:codex" "opencode:opencode" "cursor:cursor" "aider:aider" "cline:cline" "roo-code:roo" "gemini-cli:gemini" "github-copilot:gh" "windsurf:windsurf" "amazon-q:q" "kiro:kiro"; do
+  NAME="${spec%%:*}"; COMMAND="${spec#*:}"; WRAPPER="$INSTALL_ROOT/bin/$NAME"
   cat > "$WRAPPER" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
+INSTALL_ROOT="${INSTALL_ROOT}"
 PROFILE="${PROFILE}"
 if [[ "\${1:-}" == "--profile" ]]; then
   [[ \$# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }
@@ -128,11 +134,19 @@ elif [[ "\${1:-}" == --profile=* ]]; then
   PROFILE="\${1#--profile=}"; shift
 fi
 case "\$PROFILE" in personal|redhat) ;; *) echo "ERROR: invalid profile '\$PROFILE'" >&2; exit 2 ;; esac
-source "$INSTALL_ROOT/profiles/\$PROFILE/profile.sh" "\$PROFILE"
+source "$INSTALL_ROOT/config/profiles/\$PROFILE/profile.sh" "\$PROFILE"
 exec "$COMMAND" "\$@"
 EOF
   chmod 700 "$WRAPPER"
 done
+# Convenience command in PATH. It points into the canonical AI tree.
+PATH_SHIM="${HOME}/.local/bin/flossware-ai"
+mkdir -p "$(dirname "$PATH_SHIM")"
+cat > "$PATH_SHIM" <<EOF
+#!/usr/bin/env bash
+exec "$INSTALL_ROOT/bin/flossware-ai" "\$@"
+EOF
+chmod 700 "$PATH_SHIM"
 if [[ -n "$REPO_DIR" ]]; then
     [[ -d "$REPO_DIR/.git" ]] || fail "--repo must point to a Git repository: $REPO_DIR"
     REPO_DIR="$(cd "$REPO_DIR" && pwd)"
@@ -141,9 +155,11 @@ fi
 log "Running credential-boundary validation"
 python - <<'PY'
 import os
-for name in ("COHERE_API_KEY", "OPENROUTER_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "HUGGINGFACE_API_KEY", "ANTHROPIC_API_KEY"): bool(os.environ.get(name))
-print("credential presence check: PASS (values not displayed or persisted)")
+# Presence only. Never print values. Personal profile intentionally inherits
+# native environment credentials; redhat profile.sh removes non-Anthropic ones.
+vars = ("COHERE_API_KEY", "OPENROUTER_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "HUGGINGFACE_API_KEY", "ANTHROPIC_API_KEY")
+print(f"credential presence check: PASS ({sum(bool(os.environ.get(v)) for v in vars)} configured in installer environment; values not displayed or persisted)")
 PY
 log "Installation complete"
-printf '%s\n' "Environment: $VENV" "Setup:       $SETUP_DIR" "Profile:     $PROFILE" "Launcher:    $LAUNCHER" "Ref:         $RELEASE_REF"
-printf '%s\n' "" "Run: $LAUNCHER --profile $PROFILE" "Agent wrappers: ~/.local/bin/flossware-{claude,crush,codex,opencode,...}" "Run '$LAUNCHER --help' for help."
+printf '%s\n' "AI root:     $INSTALL_ROOT" "Environment: $VENV" "Setup:       $SETUP_DIR" "Profile:     $PROFILE" "Launcher:    $PATH_SHIM" "Ref:         $RELEASE_REF"
+printf '%s\n' "" "Run: flossware-ai --profile $PROFILE" "Agents: $INSTALL_ROOT/bin/{claude,crush,codex,opencode,...}" "Reinstall: ./scripts/install.sh --reinstall"

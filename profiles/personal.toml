@@ -1,0 +1,27 @@
+# FlossWare personal policy profile.
+# No credential values belong in this file.
+profile = "personal"
+
+[model_policy]
+allowed_providers = ["*configured*"]
+credential_env = [
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "GEMINI_API_KEY",
+  "GROQ_API_KEY",
+  "CEREBRAS_API_KEY",
+  "COHERE_API_KEY",
+  "HUGGINGFACE_API_KEY",
+  "HF_TOKEN",
+]
+allow_local_models = true
+allow_unconfigured_providers = false
+
+[flossware]
+router = true
+resilience = true
+consensus = true
+evaluation = true
+observability = true
+security = true

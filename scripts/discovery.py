@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""Safe provider/account/model discovery for flossware-ai.
-
-Credential values are never printed or persisted. The inventory contains
-public model metadata plus capability status only.
-
-Status semantics:
-  configured  = usable provider/account credential was detected
-  discovered  = provider authenticated and advertised the model
-  available   = discovered and permitted by the active profile
-"""
+"""Safe provider/account/model discovery for flossware-ai."""
 from __future__ import annotations
 
 import argparse
@@ -80,7 +71,7 @@ def load_models(refresh: bool):
 
 
 def model_status(model: dict, configured: bool, prof: str) -> tuple[str, str, str]:
-    """Return configured/access/policy status for a discovered model.
+    """Return CONFIGURED, DISCOVERED/UNCONFIRMED, and policy status.
 
     A model returned by an authenticated provider's model endpoint is treated
     as access-confirmed. Profile policy is evaluated separately.
@@ -88,8 +79,11 @@ def model_status(model: dict, configured: bool, prof: str) -> tuple[str, str, st
     discovered = bool(model.get("id"))
     policy = permitted(model.get("provider", ""), prof)
     access = configured and discovered
-    status = "available" if access and policy else "blocked by profile" if access else "unavailable"
-    return ("yes" if configured else "no", "confirmed" if access else "not confirmed", "allowed" if policy else "blocked")
+    return (
+        "yes" if configured else "no",
+        "confirmed" if access else "not confirmed",
+        "allowed" if policy else "blocked",
+    )
 
 
 def models(refresh: bool, free_only: bool, provider: str | None, available_only: bool) -> None:
@@ -109,7 +103,7 @@ def models(refresh: bool, free_only: bool, provider: str | None, available_only:
         rows.append((m, cfg, access, policy))
 
     print(f"FlossWare AI | Models | profile: {prof}\n")
-    print("Status: CONFIGURED = credential detected; DISCOVERED = provider authenticated and advertised model; AVAILABLE = discovered + policy allowed.\n")
+    print("CONFIGURED = credential detected; DISCOVERED = authenticated provider advertised model; AVAILABLE = discovered + profile policy allowed.\n")
     if not rows:
         print("No models in the requested inventory.")
         return
@@ -118,7 +112,8 @@ def models(refresh: bool, free_only: bool, provider: str | None, available_only:
     for m, cfg, access, policy in sorted(rows, key=lambda x: (x[0].get("provider", ""), x[0].get("id", ""))):
         status = "AVAILABLE" if access == "confirmed" and policy == "allowed" else "BLOCKED" if policy == "blocked" and access == "confirmed" else "UNAVAILABLE"
         print(f'{m.get("provider", ""):<14} {m.get("id", ""):<56} {cfg:<11} {access:<14} {policy:<10} {status}')
-    print(f"\n{len(rows)} model(s) in inventory; {sum(1 for _, _, a, p in rows if a == "confirmed" and p == "allowed")} available to the active profile.")
+    available_count = sum(1 for _, _, a, p in rows if a == "confirmed" and p == "allowed")
+    print(f"\n{len(rows)} model(s) in inventory; {available_count} available to the active profile.")
 
 
 def explain(model_id: str) -> None:

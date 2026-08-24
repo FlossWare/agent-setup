@@ -52,7 +52,7 @@ agent_path() {
     cursor) echo cursor ;;
     aider) echo aider ;;
     cline) echo cline ;;
-    roo-code) echo roo-code ;;
+    roo-code) echo roo ;;
     gemini-cli) echo gemini ;;
     github-copilot) echo gh ;;
     windsurf) echo windsurf ;;
@@ -95,16 +95,16 @@ case "${1:-}" in
     shift
     exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/setup.py" "$@"
     ;;
-  update)
-    exec "$ROOT/coding-agent-setup/scripts/install.sh" "$@"
-    ;;
-  reinstall)
-    exec "$ROOT/coding-agent-setup/scripts/install.sh" --reinstall "${@:2}"
+  update|reinstall)
+    ACTION="$1"; shift
+    if [[ "$ACTION" == reinstall ]]; then EXTRA=(--reinstall); else EXTRA=(); fi
+    exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@"
     ;;
   doctor)
     echo "FlossWare AI root: $ROOT"
     echo "Active profile:    $(active_profile)"
     [[ -x "$ROOT/venv/bin/python" ]] && echo "Python environment: PASS" || echo "Python environment: FAIL"
+    [[ -x "$ROOT/router_mcp.py" ]] && echo "Router bridge:      PASS" || echo "Router bridge:      FAIL"
     for a in claude crush codex opencode cursor aider cline roo-code gemini-cli; do
       command -v "$a" >/dev/null 2>&1 && echo "Agent $a: PASS" || echo "Agent $a: not installed"
     done
@@ -113,10 +113,11 @@ case "${1:-}" in
   router)
     shift
     prof="$(active_profile)"
-    if [[ "${1:-}" == --profile ]]; then prof="$2"; shift 2; fi
+    if [[ "${1:-}" == --profile ]]; then prof="$2"; shift 2
+    elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi
     case "$prof" in personal|redhat) ;; *) echo "ERROR: invalid profile '$prof'" >&2; exit 2 ;; esac
     source "$ROOT/config/profiles/$prof/profile.sh" "$prof"
-    exec "$ROOT/venv/bin/python" "$ROOT/coding-agent-setup/scripts/router_mcp.py" "$@"
+    exec "$ROOT/venv/bin/python" "$ROOT/router_mcp.py" "$@"
     ;;
   *)
     launch_agent "$1" "${@:2}"

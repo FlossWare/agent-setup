@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Safe provider/account/model discovery for flossware-ai.
 
-Never prints or persists credential values. Model results are cached locally
-under ~/.flossware/ai/cache/models and contain public model metadata only.
+Credential values are never printed or persisted. The inventory contains
+public model metadata plus capability status only.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
-import sys
 import time
 from pathlib import Path
 
@@ -20,33 +19,45 @@ CACHE = ROOT / "cache" / "models.json"
 
 
 def profile() -> str:
-    return (ROOT / "state" / "active-profile").read_text().strip() if (ROOT / "state" / "active-profile").exists() else "personal"
+    p = ROOT / "state" / "active-profile"
+    return p.read_text().strip() if p.exists() else "personal"
 
 
 def permitted(provider: str, prof: str) -> bool:
     return prof == "personal" or provider == "anthropic"
 
 
+def account_map():
+    return {a["provider"]: a for a in discover_accounts()}
+
+
 def providers() -> None:
-    configured = {a["provider"] for a in discover_accounts()}
+    configured = account_map()
+    print(f"FlossWare AI | Providers | profile: {profile()}\n")
+    print(f'{"Provider":<14} {"Name":<20} Status')
+    print("-" * 55)
     for p in provider_definitions():
         status = "configured" if p["id"] in configured else "not configured"
-        print(f'{p["id"]:<14} {p["name"]:<18} {status}')
+        if not permitted(p["id"], profile()) and status == "configured":
+            status = "configured / blocked by profile"
+        print(f'{p["id"]:<14} {p["name"]:<20} {status}')
 
 
 def accounts() -> None:
     found = discover_accounts()
+    prof = profile()
+    print(f"FlossWare AI | Accounts | profile: {prof}\n")
     if not found:
         print("No providers configured in the current environment.")
         return
-    prof = profile()
+    print(f'{"Provider":<14} {"Account":<24} {"Credential":<12} Status')
+    print("-" * 70)
     for a in found:
         allowed = permitted(a["provider"], prof)
-        print(f'{a["provider"]:<14} {a["id"]:<22} configured  {"allowed" if allowed else "blocked by profile"}')
+        print(f'{a["provider"]:<14} {a["id"]:<24} {a.get("auth_type", "configured"):<12} {"allowed" if allowed else "blocked by profile"}')
 
 
-def models(refresh: bool) -> None:
-    prof = profile()
+def load_models(refresh: bool):
     if refresh or not CACHE.exists():
         found = discover_all_models()
         CACHE.parent.mkdir(parents=True, exist_ok=True)
@@ -55,19 +66,66 @@ def models(refresh: bool) -> None:
             CACHE.chmod(0o600)
         except OSError:
             pass
-    else:
-        try:
-            found = json.loads(CACHE.read_text()).get("models", [])
-        except (OSError, json.JSONDecodeError):
-            found = []
+        return found
+    try:
+        return json.loads(CACHE.read_text()).get("models", [])
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def models(refresh: bool, free_only: bool, provider: str | None) -> None:
+    prof = profile()
+    found = load_models(refresh)
     visible = [m for m in found if permitted(m.get("provider", ""), prof)]
+    if provider:
+        visible = [m for m in visible if m.get("provider") == provider]
+    if free_only:
+        visible = [m for m in visible if m.get("free_capable", False)]
+    print(f"FlossWare AI | Available Models | profile: {prof}\n")
     if not visible:
         print("No models discovered for the active profile.")
         return
-    print(f'{"Provider":<14} {"Model":<60} {"Free-capable":<12}')
-    print("-" * 88)
+    print(f'{"Provider":<14} {"Model":<60} {"Access":<10} {"Cost":<12}')
+    print("-" * 100)
     for m in sorted(visible, key=lambda x: (x.get("provider", ""), x.get("id", ""))):
-        print(f'{m.get("provider", ""):<14} {m.get("id", ""):<60} {str(m.get("free_capable", False)):<12}')
+        cost = "free-capable" if m.get("free_capable", False) else "paid/unknown"
+        access = "available" if m.get("available", True) else "discovered"
+        print(f'{m.get("provider", ""):<14} {m.get("id", ""):<60} {access:<10} {cost:<12}')
+    print(f"\n{len(visible)} model(s) visible to the active profile.")
+
+
+def explain(model_id: str) -> None:
+    prof = profile()
+    found = load_models(False)
+    matches = [m for m in found if m.get("id") == model_id]
+    if not matches:
+        print(f"Model not found in inventory: {model_id}")
+        print("Run: flossware-ai models --refresh")
+        return
+    for m in matches:
+        provider = m.get("provider", "unknown")
+        print(f"Model:       {m.get('id', model_id)}")
+        print(f"Provider:    {provider}")
+        print(f"Profile:     {prof}")
+        print(f"Credential:  {'configured' if provider in account_map() else 'not configured'}")
+        print(f"Policy:      {'allowed' if permitted(provider, prof) else 'blocked by profile'}")
+        print(f"Access:      {'available' if m.get('available', True) else 'discovered only'}")
+        print(f"Free:        {'yes' if m.get('free_capable', False) else 'no/unknown'}")
+        print("Credential value: not displayed")
+
+
+def doctor() -> int:
+    prof = profile()
+    accounts_found = account_map()
+    models_found = load_models(False)
+    visible = [m for m in models_found if permitted(m.get("provider", ""), prof)]
+    print(f"FlossWare AI | Doctor | profile: {prof}\n")
+    print(f"Provider definitions: {len(provider_definitions())}")
+    print(f"Configured accounts:  {len(accounts_found)}")
+    print(f"Visible models:      {len(visible)}")
+    print(f"Model cache:         {'present' if CACHE.exists() else 'not populated'}")
+    print("Credential values:   not displayed")
+    return 0
 
 
 def main() -> int:
@@ -77,10 +135,17 @@ def main() -> int:
     sub.add_parser("accounts")
     m = sub.add_parser("models")
     m.add_argument("--refresh", action="store_true")
+    m.add_argument("--free", action="store_true", dest="free_only")
+    m.add_argument("--provider")
+    e = sub.add_parser("explain")
+    e.add_argument("model")
+    sub.add_parser("doctor")
     args = parser.parse_args()
     if args.command == "providers": providers()
     elif args.command == "accounts": accounts()
-    else: models(args.refresh)
+    elif args.command == "models": models(args.refresh, args.free_only, args.provider)
+    elif args.command == "explain": explain(args.model)
+    else: return doctor()
     return 0
 
 

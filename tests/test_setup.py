@@ -34,6 +34,9 @@ def test_agent_registry_contains_expected_agents() -> None:
         "roo-code",
         "gemini-cli",
         "github-copilot",
+        "windsurf",
+        "amazon-q",
+        "kiro",
     } <= ids
     assert len(ids) == len(MODULE.AGENT_ADAPTERS)
 
@@ -63,6 +66,17 @@ def test_generated_configuration_never_contains_credential_value(tmp_path, monke
         path = tmp_path / relative
         assert path.exists()
         assert secret not in path.read_text(encoding="utf-8")
+
+
+def test_all_adapters_generate_their_declared_targets(tmp_path) -> None:
+    (tmp_path / ".git").mkdir()
+    cfg = MODULE.Config(agents=list(range(len(MODULE.AGENT_ADAPTERS))), capabilities=[0], repo_dir=str(tmp_path))
+
+    MODULE.generate_artifacts(cfg)
+
+    for adapter in MODULE.AGENT_ADAPTERS:
+        for relative in adapter.files:
+            assert (tmp_path / relative).exists(), f"missing target for {adapter.id}: {relative}"
 
 
 def test_generated_configuration_contains_environment_name_only(tmp_path, monkeypatch) -> None:

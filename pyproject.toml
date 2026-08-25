@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,19 +8,23 @@ version = "0.1.0"
 description = "Interactive TUI builder for configuring AI coding agents with FlossWare AI libraries"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 
-dependencies = [
-    "curses-themes @ git+https://github.com/FlossWare/curses-themes.git@b611725c54fd6aab8170e6e1735fc818127065ac",
-]
+[tool.setuptools]
+py-modules = ["setup"]
+
+[project.dependencies]
 
 [project.optional-dependencies]
 core = [
+    "curses-themes @ git+https://github.com/FlossWare/curses-themes.git@b611725c54fd6aab8170e6e1735fc818127065ac",
     "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git@e35f2cca34a34683a7a02b74d673012f122279c1",
     "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git@b4a11f80bfe4b9a879b95b724d143d92cb548c47",
     "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git@9584f13877afa60307a9f9bca950caef0ff3b542",
 ]
 all = [
+    "curses-themes @ git+https://github.com/FlossWare/curses-themes.git@b611725c54fd6aab8170e6e1735fc818127065ac",
     "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git@e35f2cca34a34683a7a02b74d673012f122279c1",
     "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git@b4a11f80bfe4b9a879b95b724d143d92cb548c47",
     "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git@9584f13877afa60307a9f9bca950caef0ff3b542",

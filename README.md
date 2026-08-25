@@ -31,13 +31,14 @@ Agent
   +--> Loom AI (complete orchestration platform)
 ```
 
-The setup layer provides common configuration, profiles, account/model discovery, credential-source references, MCP integration, CLI, and the operator Setup TUI. It does not copy provider secrets into generated files.
+The setup layer provides common configuration, profiles, account/model discovery, credential-source references, MCP integration, CLI, and the operator Setup TUI. It does not copy provider secrets or human identity data into generated files.
 
 ## Documentation
 
 - [`docs/setup-tui.md`](docs/setup-tui.md) — complete Setup TUI operator guide
 - [`docs/agent-integrations.md`](docs/agent-integrations.md) — coding-agent and MCP integration model
 - [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md) — profiles, multiple accounts, credential safety, and status states
+- [`docs/privacy.md`](docs/privacy.md) — mandatory non-PII and secret-handling invariant
 - [`docs/artifacts.md`](docs/artifacts.md) — artifact-first installation and source fallback
 - [`docs/platforms.md`](docs/platforms.md) — Fedora/RHEL, Debian, FreeBSD, Termux, and Windows support
 - [`docs/decorators.md`](docs/decorators.md) — declarative decorator pipeline and ordering
@@ -66,7 +67,7 @@ Supported agents include Claude Code, Cursor, OpenCode, Crush, Codex, Aider, Cli
 
 ## Profiles and accounts
 
-Profiles currently include `personal` and `redhat`. An account is distinct from a provider, so multiple accounts can reference the same provider. Account metadata stores labels and credential-source references only. Actual credentials remain in environment/native credential stores.
+Profiles currently include `personal` and `redhat`. An account is distinct from a provider, so multiple accounts can reference the same provider. Account metadata uses opaque local aliases and credential-source references only. Actual credentials and human identity data remain outside FlossWare managed configuration.
 
 Status vocabulary:
 
@@ -78,7 +79,7 @@ Status vocabulary:
 - **active**: selected for the current workload
 - **blocked**: policy or platform prevents use
 
-See [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md).
+See [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md) and [`docs/privacy.md`](docs/privacy.md).
 
 ## Cross-cutting decorators
 
@@ -86,7 +87,7 @@ FlossWare uses explicitly enabled decorators/interceptors/middleware for cross-c
 
 The TUI configures these declaratively under **Components → Cross-Cutting Behavior**. Users can enable/disable decorators, edit their policy settings, and reorder the stack when ordering affects semantics. The runtime translates that policy into the appropriate decorator/interceptor/middleware implementation.
 
-Decorator configuration is provider-neutral and contains no secrets. Profile defaults may supply policy, while component configuration provides explicit opt-in or override.
+Decorator configuration is provider-neutral and contains no secrets or human identity data. Profile defaults may supply policy, while component configuration provides explicit opt-in or override.
 
 ## Container runtimes
 
@@ -100,9 +101,13 @@ Every major TUI selection has a contextual status/description panel explaining w
 
 Loom itself has a headless core plus its own optional curses-themes-based operator TUI.
 
-## Credential safety
+## Privacy and credential safety
 
-API keys and other credential values are never written to `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.flossware-ai.json`, generated Python, logs, or MCP definitions. Agent-native authentication remains owned by the agent; FlossWare maintains only safe references and policy metadata.
+FlossWare managed configuration is **non-identifying and secret-free**. API keys, OAuth tokens, passwords, cookies, email addresses, employee/customer identifiers, phone numbers, and other PII are not persisted in profiles, account metadata, generated agent files, MCP definitions, logs, or diagnostics.
+
+Credential references such as `environment:OPENAI_API_KEY` identify where a secret is obtained; they are not secret values. Account aliases must be opaque local identifiers, such as `openai-personal-1`, rather than human names, emails, or employee identifiers.
+
+See [`docs/privacy.md`](docs/privacy.md).
 
 ## Related repositories
 

@@ -14,14 +14,27 @@ def test_agent_ids_unique():
     assert len(ids) == len(set(ids))
 
 
-def test_agent_fields_complete():
+def test_agent_ids_nonempty():
     for agent in AGENTS:
         assert agent.id
+
+
+def test_agent_names_nonempty():
+    for agent in AGENTS:
         assert agent.name.strip()
+
+
+def test_agent_descriptions_nonempty():
+    for agent in AGENTS:
         assert agent.description.strip()
+
+
+def test_agent_files_are_relative_paths():
+    for agent in AGENTS:
         assert agent.files
         for rel in agent.files:
-            assert isinstance(rel, str) and rel
+            assert isinstance(rel, str)
+            assert rel
             assert not rel.startswith("/")
 
 

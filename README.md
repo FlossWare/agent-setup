@@ -33,6 +33,14 @@ Agent
 
 The setup layer provides common configuration, profiles, account/model discovery, credential-source references, MCP integration, CLI, and the operator Setup TUI. It does not copy provider secrets or human identity data into generated files.
 
+## TUI preview
+
+`flossware-ai tui` is a terminal-based operator interface. The preview below is a **representative terminal-state rendering based on the repository's documented TUI transcripts**, not a desktop GUI mockup. Actual appearance varies with terminal size, font, and platform.
+
+![FlossWare AI Setup TUI preview](screenshots/tui-preview.svg)
+
+The repository also keeps the underlying terminal-state transcripts in [`screenshots/`](screenshots/).
+
 ## Documentation
 
 - [`docs/setup-tui.md`](docs/setup-tui.md) — complete Setup TUI operator guide

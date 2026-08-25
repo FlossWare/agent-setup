@@ -7,6 +7,7 @@ Commands:
   setup | tui | update | reinstall | clean | doctor | profile [name]
   providers | accounts [--verify] | models [--refresh|--free|--provider NAME]
   explain MODEL | components [NAME] | agents [setup AGENT] | mcp-config AGENT | router
+  runtime list|status|select auto|podman|docker|native|effective
   <agent>
 EOF
 }
@@ -25,6 +26,7 @@ case "${1:-}" in
   components) shift; components "$@";;
   agents) shift; if [[ "${1:-}" == setup ]]; then shift; exec "$ROOT/venv/bin/python" "$ROOT/agent_setup.py" "${1:-}" "${@:2}"; fi; printf '%s\n' claude-code cursor opencode crush codex aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
   mcp-config) shift; exec "$ROOT/venv/bin/python" "$ROOT/mcp.py" "$@";;
+  runtime) shift; exec "$ROOT/venv/bin/python" "$ROOT/runtime.py" "$@";;
   setup) shift; exec "$ROOT/venv/bin/python" "$ROOT/setup.py" "$@";;
   tui) exec "$ROOT/venv/bin/python" "$ROOT/tui.py" "$@";;
   update|reinstall) ACTION="$1"; shift; [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall) || EXTRA=(); exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@";;

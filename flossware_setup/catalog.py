@@ -32,7 +32,12 @@ AGENTS: tuple[AgentAdapter, ...] = (
     AgentAdapter("roo-code", "Roo Code", "Roo Code project rules", (".roo/rules/FlossWare.md",)),
     AgentAdapter("gemini-cli", "Gemini CLI", "Gemini project instructions", ("GEMINI.md",)),
     AgentAdapter("github-copilot", "GitHub Copilot", "GitHub repository instructions", (".github/copilot-instructions.md",)),
-    AgentAdapter("windsurf", "Windsurf", "Windsurf project rules", (".windsurfrules",)),
+    AgentAdapter(
+        "windsurf",
+        "Windsurf (Devin Desktop)",
+        "Devin Desktop project rules (.devin/rules preferred; legacy Windsurf paths still read)",
+        (".devin/rules/FlossWare.md",),
+    ),
     AgentAdapter("amazon-q", "Amazon Q Developer", "Amazon Q project rules", (".amazonq/rules/FlossWare.md",)),
     AgentAdapter("kiro", "Kiro", "Kiro workspace steering", (".kiro/steering/FlossWare.md",)),
 )

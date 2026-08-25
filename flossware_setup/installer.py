@@ -16,8 +16,10 @@ def install_packages(capability_indexes: list[int]) -> None:
             capture_output=True,
             text=True,
             timeout=180,
+            check=False,  # we inspect returncode and raise a domain-specific error
         )
         if result.returncode != 0:
+            detail = result.stderr[-1200:] if result.stderr else ""
             raise RuntimeError(
-                f"Required library failed to install: {package}\n{result.stderr[-1200:]}"
+                f"Required library failed to install: {package}\n{detail}"
             )

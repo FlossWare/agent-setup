@@ -3,6 +3,9 @@
 
 The TUI is provider-neutral: credentials are optional, budget is a policy,
 and generated artifacts never contain credential values.
+
+The TUI supports both keyboard and mouse interaction when the terminal
+provides curses mouse events. Keyboard operation remains fully supported.
 """
 
 from __future__ import annotations
@@ -117,6 +120,33 @@ def palette():
     curses.init_pair(6, curses.COLOR_MAGENTA, -1)
 
 
+def enable_mouse(win):
+    """Enable terminal mouse reporting when the curses implementation supports it."""
+    try:
+        mask = curses.ALL_MOUSE_EVENTS
+        if hasattr(curses, "REPORT_MOUSE_POSITION"):
+            mask |= curses.REPORT_MOUSE_POSITION
+        curses.mousemask(mask)
+        if hasattr(curses, "mouseinterval"):
+            curses.mouseinterval(200)
+        return True
+    except (AttributeError, curses.error):
+        return False
+
+
+def mouse_click(event):
+    """Return (x, y) for a primary-button click, otherwise None."""
+    try:
+        _, x, y, _, bstate = curses.getmouse()
+    except curses.error:
+        return None
+    clicked = getattr(curses, "BUTTON1_CLICKED", 0)
+    pressed = getattr(curses, "BUTTON1_PRESSED", 0)
+    if bstate & (clicked | pressed):
+        return x, y
+    return None
+
+
 def add(win, y, x, text, pair=5, attr=0):
     h, w = win.getmaxyx()
     if 0 <= y < h and x < w - 1:
@@ -141,10 +171,9 @@ def menu(win, title, items, selected=None, multi=True):
     cursor = 0
     while True:
         y = header(win, title)
-        h, w = win.getmaxyx()
-        for i, item in enumerate(items):
-            if y + i >= h - 3:
-                break
+        h, _ = win.getmaxyx()
+        visible = min(len(items), max(0, h - y - 3))
+        for i, item in enumerate(items[:visible]):
             name, desc = item[0], item[1]
             mark = "[x]" if i in selected else "[ ]" if multi else "(o)" if i == cursor else "( )"
             prefix = "> " if i == cursor else "  "
@@ -152,13 +181,29 @@ def menu(win, title, items, selected=None, multi=True):
             add(win, y + i, 5, mark, 2 if i in selected or (not multi and i == cursor) else 3)
             add(win, y + i, 10, name, 1 if i == cursor else 5, curses.A_BOLD if i == cursor else 0)
             add(win, y + i, 10 + len(name) + 3, desc, 5)
-        add(win, h - 2, 2, "↑/↓ navigate  Space toggle  Enter confirm  a all  n none  q quit", 6)
+        add(win, h - 2, 2, "↑/↓ navigate  Space/click toggle  Enter confirm  a all  n none  q quit", 6)
         win.refresh()
         key = win.getch()
+        if key == curses.KEY_MOUSE:
+            click = mouse_click(key)
+            if click is None:
+                continue
+            _, click_y = click
+            clicked_index = click_y - y
+            if 0 <= clicked_index < visible:
+                cursor = clicked_index
+                if multi:
+                    if cursor in selected:
+                        selected.remove(cursor)
+                    else:
+                        selected.add(cursor)
+                else:
+                    return cursor
+            continue
         if key in (curses.KEY_UP, ord('k')):
             cursor = max(0, cursor - 1)
         elif key in (curses.KEY_DOWN, ord('j')):
-            cursor = min(len(items) - 1, cursor + 1)
+            cursor = min(max(0, len(items) - 1), cursor + 1)
         elif multi and key == ord(' '):
             if cursor in selected:
                 selected.remove(cursor)
@@ -314,22 +359,31 @@ def run(stdscr, theme_name):
     curses.curs_set(0)
     stdscr.keypad(True)
     palette()
+    mouse_enabled = enable_mouse(stdscr)
     external_theme = load_theme(theme_name)
     cfg = Config(theme=theme_name)
     y = header(stdscr, "Coding Agent Setup")
     add(stdscr, y, 2, "Configure supported coding agents with FlossWare AI.", 5)
     add(stdscr, y + 2, 2, "Provider-neutral. Credentials optional. Budget is a policy.", 2)
-    add(stdscr, y + 4, 2, "Press Enter to start, t for theme selection, q to quit.", 6)
+    add(stdscr, y + 4, 2, "Press Enter or click to start, t for theme selection, q to quit.", 6)
+    if mouse_enabled:
+        add(stdscr, y + 6, 2, "Mouse input enabled: click rows to select/toggle.", 2)
     stdscr.refresh()
     key = stdscr.getch()
-    if key in (ord('q'), 27):
+    if key == curses.KEY_MOUSE:
+        click = mouse_click(key)
+        if click is None:
+            return
+    elif key in (ord('q'), 27):
         return
-    if key == ord('t') and external_theme:
+    elif key == ord('t') and external_theme:
         add(stdscr, y + 6, 2, "Theme loaded from FlossWare/curses-themes. Use --theme NAME to choose another.", 1)
         stdscr.refresh()
         stdscr.getch()
 
     agents = menu(stdscr, "Select Coding Agents", [(a.name, a.description) for a in AGENT_ADAPTERS], multi=True)
+    if agents is None:
+        return
     if not agents:
         return
     cfg.agents = agents

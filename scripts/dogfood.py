@@ -191,7 +191,7 @@ def main() -> int:
             len(AGENTS) == 13,
             f"{len(AGENTS)} registered integrations (expected 13)",
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — import/catalog probe must not crash dogfood
         failures += not check("Agent catalog", False, str(exc))
 
     profile = os.environ.get("FLOSSWARE_PROFILE", "default")

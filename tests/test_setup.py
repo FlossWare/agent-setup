@@ -106,3 +106,57 @@ def test_generation_is_idempotent_and_preserves_existing_files(tmp_path) -> None
     MODULE.generate_artifacts(cfg)
 
     assert existing.read_text(encoding="utf-8") == "user-owned instructions\n"
+
+
+def test_cursor_writes_modern_mdc_rules(tmp_path) -> None:
+    (tmp_path / ".git").mkdir()
+    cursor = next(i for i, a in enumerate(MODULE.AGENT_ADAPTERS) if a.id == "cursor")
+    cfg = MODULE.Config(agents=[cursor], capabilities=[0], repo_dir=str(tmp_path))
+    MODULE.generate_artifacts(cfg)
+    mdc = tmp_path / ".cursor/rules/flossware-ai.mdc"
+    legacy = tmp_path / ".cursorrules"
+    assert mdc.exists()
+    assert legacy.exists()
+    text = mdc.read_text(encoding="utf-8")
+    assert "alwaysApply: true" in text
+    assert MODULE.SECTION_BEGIN in text
+    assert "FlossWare AI Integration" in text
+
+
+def test_marked_section_is_refreshed_without_duplication(tmp_path) -> None:
+    (tmp_path / ".git").mkdir()
+    agent = next(i for i, a in enumerate(MODULE.AGENT_ADAPTERS) if a.id == "claude-code")
+    cfg = MODULE.Config(agents=[agent], capabilities=[0], repo_dir=str(tmp_path))
+    MODULE.generate_artifacts(cfg)
+    path = tmp_path / "CLAUDE.md"
+    first = path.read_text(encoding="utf-8")
+    MODULE.generate_artifacts(cfg)
+    second = path.read_text(encoding="utf-8")
+    assert first == second
+    assert first.count(MODULE.SECTION_BEGIN) == 1
+    assert first.count(MODULE.SECTION_END) == 1
+
+
+def test_shared_agents_md_written_once_for_multiple_consumers(tmp_path) -> None:
+    (tmp_path / ".git").mkdir()
+    ids = {a.id: i for i, a in enumerate(MODULE.AGENT_ADAPTERS)}
+    selected = [ids["opencode"], ids["crush"], ids["codex"], ids["github-copilot"]]
+    cfg = MODULE.Config(agents=selected, capabilities=[0], repo_dir=str(tmp_path))
+    MODULE.generate_artifacts(cfg)
+    agents_md = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert agents_md.count(MODULE.SECTION_BEGIN) == 1
+    assert (tmp_path / ".github/copilot-instructions.md").exists()
+
+
+def test_tui_agent_list_matches_registry() -> None:
+    import importlib.util
+    from pathlib import Path as P
+    root = P(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("flossware_tui_agents", root / "scripts" / "tui.py")
+    tui = importlib.util.module_from_spec(spec)
+    # tui loads setup at import
+    import sys
+    sys.modules[spec.name] = tui
+    assert spec.loader is not None
+    spec.loader.exec_module(tui)
+    assert tui.AGENTS == [a.id for a in MODULE.AGENT_ADAPTERS]

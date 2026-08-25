@@ -41,20 +41,77 @@ class Config:
 
 
 def managed_root() -> Path:
-    """Managed install/runtime root (non-project state lives here)."""
-    return Path(os.environ.get("FLOSSWARE_AI_ROOT", Path.home() / ".flossware" / "ai"))
+    """Managed install/runtime root (non-project state lives here).
+
+    The directory need not exist yet; installers and set_active_project create it.
+    Relative or null-byte env values are ignored.
+    """
+    raw = os.environ.get("FLOSSWARE_AI_ROOT")
+    if raw and isinstance(raw, str):
+        text = raw.strip()
+        if text and "\0" not in text and os.path.isabs(text):
+            try:
+                return Path(os.path.normpath(text)).resolve()
+            except (OSError, RuntimeError, ValueError):
+                pass
+    return (Path.home() / ".flossware" / "ai").resolve()
 
 
 def active_project_path() -> Path:
     return managed_root() / "state" / "active-project"
 
 
+def _existing_absolute_dir(raw: str | Path) -> Path | None:
+    """Return *raw* as a resolved absolute directory, or None if unsafe/missing.
+
+    Rejects relative paths, null bytes, and non-directories so callers never
+    construct filesystem paths from unvalidated external/file-backed strings.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, Path):
+        try:
+            text = str(raw)
+        except (TypeError, ValueError):
+            return None
+    else:
+        if not isinstance(raw, str):
+            return None
+        text = raw.strip()
+    if not text or "\0" in text:
+        return None
+    # Require absolute form before any resolve() so relative/traversal inputs
+    # cannot be interpreted relative to an unexpected cwd.
+    if not os.path.isabs(text):
+        return None
+    try:
+        normalized = os.path.normpath(text)
+    except (TypeError, ValueError, OSError):
+        return None
+    if not os.path.isabs(normalized):
+        return None
+    if not os.path.isdir(normalized):
+        return None
+    try:
+        return Path(normalized).resolve(strict=True)
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
 def set_active_project(repo_dir: str | Path) -> None:
     """Remember the last configured project path (no secrets)."""
+    try:
+        preliminary = Path(repo_dir).resolve(strict=True)
+    except (OSError, RuntimeError, ValueError):
+        return
+    if not preliminary.is_dir():
+        return
+    resolved = _existing_absolute_dir(str(preliminary))
+    if resolved is None:
+        return
     path = active_project_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    resolved = str(Path(repo_dir).resolve())
-    path.write_text(resolved + "\n", encoding="utf-8")
+    path.write_text(str(resolved) + "\n", encoding="utf-8")
     try:
         path.chmod(0o600)
     except OSError:
@@ -67,15 +124,10 @@ def get_active_project() -> Path | None:
     if not path.is_file():
         return None
     try:
-        text = path.read_text(encoding="utf-8").strip()
+        stored = path.read_text(encoding="utf-8").strip()
     except OSError:
         return None
-    if not text:
-        return None
-    candidate = Path(text)
-    if candidate.is_dir():
-        return candidate.resolve()
-    return None
+    return _existing_absolute_dir(stored)
 
 
 def resolve_review_project(explicit: str | Path | None = None) -> Path:
@@ -84,7 +136,14 @@ def resolve_review_project(explicit: str | Path | None = None) -> Path:
     Prefer explicit path, then active-project state, then cwd.
     """
     if explicit is not None:
-        return Path(explicit).resolve()
+        try:
+            preliminary = Path(explicit).resolve(strict=True)
+        except (OSError, RuntimeError, ValueError):
+            return Path(".").resolve()
+        validated = _existing_absolute_dir(str(preliminary))
+        if validated is not None:
+            return validated
+        return Path(".").resolve()
     active = get_active_project()
     if active is not None:
         return active

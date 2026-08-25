@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import curses
 import sys
-from typing import Optional
 
 from flossware_setup.tui.input import enable_mouse
 from flossware_setup.tui.screens import (
@@ -70,7 +69,7 @@ def run(stdscr, theme_name: str = "dark") -> None:
                 error_screen(stdscr, str(exc))
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """CLI entry for the setup TUI."""
     args = list(sys.argv[1:] if argv is None else argv)
     theme_name = "dark"

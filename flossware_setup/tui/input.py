@@ -7,7 +7,6 @@ mouse events directly.
 from __future__ import annotations
 
 import curses
-from typing import Optional
 
 
 def enable_mouse() -> bool:
@@ -24,7 +23,7 @@ def enable_mouse() -> bool:
         return False
 
 
-def primary_click() -> Optional[tuple[int, int]]:
+def primary_click() -> tuple[int, int] | None:
     """Return (x, y) for a primary-button click/press, otherwise None.
 
     Call only after getch() returned KEY_MOUSE.

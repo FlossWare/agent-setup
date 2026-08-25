@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Compatibility entry point for the FlossWare coding-agent setup TUI.
 
 Implementation lives in the flossware_setup package. This script remains the

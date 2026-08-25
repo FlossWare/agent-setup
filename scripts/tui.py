@@ -33,7 +33,7 @@ DESCRIPTIONS={
 "auto":"Prefer Podman on Linux, otherwise the first healthy supported container runtime.",
 "podman":"Use Podman when installed and reachable.","docker":"Use Docker when installed and reachable.","native":"Do not use a container runtime.",
 }
-ROOT=Path(os.environ.get("FLOSSWARE_AI_ROOT",Path.home()/"\.flossware"/"ai"))
+ROOT=Path(os.environ.get("FLOSSWARE_AI_ROOT",Path.home()/".flossware"/"ai"))
 
 def run_menu(stdscr,title,items,multi=True,descriptions=None):
     pos,selected=0,set(); descriptions=descriptions or {}

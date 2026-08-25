@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=64"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "coding-agent-setup"
@@ -11,25 +11,25 @@ requires-python = ">=3.11"
 license = {text = "MIT"}
 
 dependencies = [
-    "curses-themes @ git+https://github.com/FlossWare/curses-themes.git",
+    "curses-themes @ git+https://github.com/FlossWare/curses-themes.git@b611725c54fd6aab8170e6e1735fc818127065ac",
 ]
 
 [project.optional-dependencies]
 core = [
-    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git",
-    "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git",
-    "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git",
+    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git@e35f2cca34a34683a7a02b74d673012f122279c1",
+    "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git@b4a11f80bfe4b9a879b95b724d143d92cb548c47",
+    "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git@9584f13877afa60307a9f9bca950caef0ff3b542",
 ]
 all = [
-    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git",
-    "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git",
-    "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git",
-    "consensus-ai @ git+https://github.com/FlossWare/consensus-ai.git",
-    "evaluation-ai @ git+https://github.com/FlossWare/evaluation-ai.git",
-    "observability-ai @ git+https://github.com/FlossWare/observability-ai.git",
-    "security-ai @ git+https://github.com/FlossWare/security-ai.git",
-    "rag-ai @ git+https://github.com/FlossWare/rag-ai.git",
-    "genetic-optimizer-ai @ git+https://github.com/FlossWare/genetic-optimizer-ai.git",
+    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git@e35f2cca34a34683a7a02b74d673012f122279c1",
+    "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git@b4a11f80bfe4b9a879b95b724d143d92cb548c47",
+    "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git@9584f13877afa60307a9f9bca950caef0ff3b542",
+    "consensus-ai @ git+https://github.com/FlossWare/consensus-ai.git@8a7c76893b76b26e097dffe4db578b64f0238996",
+    "evaluation-ai @ git+https://github.com/FlossWare/evaluation-ai.git@790d56dfb87c704a215253c94ee97408cc3dba51",
+    "observability-ai @ git+https://github.com/FlossWare/observability-ai.git@f2bf65b8d2318594727d6e7641eba897b07f201a",
+    "security-ai @ git+https://github.com/FlossWare/security-ai.git@7a19820af85af14818773ba579e42d8943654365",
+    "rag-ai @ git+https://github.com/FlossWare/rag-ai.git@3534aa7abab46c86cfc75366c6143a346851bc74",
+    "genetic-optimizer-ai @ git+https://github.com/FlossWare/genetic-optimizer-ai.git@8362844a46d7bbe26dcbff769c349ad24f863b7c",
 ]
 
 [project.urls]

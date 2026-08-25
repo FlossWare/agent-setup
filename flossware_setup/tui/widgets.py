@@ -81,6 +81,32 @@ def _handle_mouse_row(
     return cursor, selected_set, True
 
 
+def _dispatch_menu_key(
+    key: int,
+    multi: bool,
+    selected_set: set[int],
+    cursor: int,
+    item_count: int,
+) -> tuple[int, set[int], str]:
+    """Handle a non-mouse key. Returns (cursor, selected, action)."""
+    if is_up(key):
+        return max(0, cursor - 1), selected_set, "continue"
+    if is_down(key):
+        return min(max(0, item_count - 1), cursor + 1), selected_set, "continue"
+    if multi and key == ord(" "):
+        _toggle(selected_set, cursor)
+        return cursor, selected_set, "continue"
+    if multi and key == ord("a"):
+        return cursor, set(range(item_count)), "continue"
+    if multi and key == ord("n"):
+        return cursor, set(), "continue"
+    if is_confirm(key):
+        return cursor, selected_set, "confirm"
+    if is_cancel(key):
+        return cursor, selected_set, "cancel"
+    return cursor, selected_set, "continue"
+
+
 def menu(
     win,
     title: str,
@@ -130,19 +156,12 @@ def menu(
             if done:
                 return cursor
             continue
-        if is_up(key):
-            cursor = max(0, cursor - 1)
-        elif is_down(key):
-            cursor = min(max(0, len(items) - 1), cursor + 1)
-        elif multi and key == ord(" "):
-            _toggle(selected_set, cursor)
-        elif multi and key == ord("a"):
-            selected_set = set(range(len(items)))
-        elif multi and key == ord("n"):
-            selected_set = set()
-        elif is_confirm(key):
+        cursor, selected_set, action = _dispatch_menu_key(
+            key, multi, selected_set, cursor, len(items)
+        )
+        if action == "confirm":
             return sorted(selected_set) if multi else cursor
-        elif is_cancel(key):
+        if action == "cancel":
             return None
 
 

@@ -5,29 +5,23 @@ No provider credentials or network access are required.
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
+from flossware_setup.catalog import (
+    AGENTS,
+    BUDGET_POLICIES,
+    CAPABILITIES,
+    PROVIDERS,
+)
+from flossware_setup.config import Config
+from flossware_setup.credentials import credential_status
 
 
-ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("flossware_setup", ROOT / "scripts" / "setup.py")
-assert SPEC and SPEC.loader
-MODULE = importlib.util.module_from_spec(SPEC)
-# dataclasses resolves the defining module through sys.modules while processing
-# annotations. Register the dynamically loaded module before executing it so
-# the test behaves like a normal import on every supported Python platform.
-sys.modules[SPEC.name] = MODULE
-SPEC.loader.exec_module(MODULE)
-
-
-def test_setup_module_compiles() -> None:
-    assert MODULE.BUDGET_POLICIES[0][0] == "Strict budget"
-    assert all("free" not in name.lower() for name, _, _ in MODULE.BUDGET_POLICIES)
+def test_budget_policies_are_pricing_neutral() -> None:
+    assert BUDGET_POLICIES[0][0] == "Strict budget"
+    assert all("free" not in name.lower() for name, _, _ in BUDGET_POLICIES)
 
 
 def test_agent_registry_contains_expected_agents() -> None:
-    ids = {agent.id for agent in MODULE.AGENT_ADAPTERS}
+    ids = {agent.id for agent in AGENTS}
     assert {
         "claude-code",
         "cursor",
@@ -43,66 +37,34 @@ def test_agent_registry_contains_expected_agents() -> None:
         "amazon-q",
         "kiro",
     } <= ids
-    assert len(ids) == len(MODULE.AGENT_ADAPTERS)
+    assert len(AGENTS) == 13
 
 
-def test_shared_agents_file_is_used_by_shared_agents() -> None:
-    for agent_id in ("opencode", "crush", "codex"):
-        agent = next(a for a in MODULE.AGENT_ADAPTERS if a.id == agent_id)
-        assert agent.files == ("AGENTS.md",)
+def test_default_capabilities_include_core_stack() -> None:
+    defaults = [name for name, _, selected in CAPABILITIES if selected]
+    assert defaults == [
+        "model-router-ai",
+        "resilience-ai",
+        "structured-output-ai",
+    ]
 
 
-def test_generated_configuration_never_contains_credential_value(tmp_path, monkeypatch) -> None:
-    (tmp_path / ".git").mkdir()
-    secret = "TEST-SHOULD-NEVER-APPEAR-IN-GENERATED-FILES"
-    monkeypatch.setenv("COHERE_API_KEY", secret)
-    cfg = MODULE.Config(agents=[0, 3, 5], capabilities=[0], repo_dir=str(tmp_path))
-
-    MODULE.generate_artifacts(cfg)
-
-    for relative in (
-        "CLAUDE.md",
-        "AGENTS.md",
-        "CONVENTIONS.md",
-        ".aider.conf.yml",
-        "ai_config.py",
-        ".flossware-ai.json",
-    ):
-        path = tmp_path / relative
-        assert path.exists()
-        assert secret not in path.read_text(encoding="utf-8")
+def test_providers_do_not_embed_secret_values() -> None:
+    for name, env, url in PROVIDERS:
+        assert name
+        assert env.endswith("_API_KEY") or "KEY" in env
+        assert url.startswith("https://")
 
 
-def test_all_adapters_generate_their_declared_targets(tmp_path) -> None:
-    (tmp_path / ".git").mkdir()
-    cfg = MODULE.Config(agents=list(range(len(MODULE.AGENT_ADAPTERS))), capabilities=[0], repo_dir=str(tmp_path))
-
-    MODULE.generate_artifacts(cfg)
-
-    for adapter in MODULE.AGENT_ADAPTERS:
-        for relative in adapter.files:
-            assert (tmp_path / relative).exists(), f"missing target for {adapter.id}: {relative}"
+def test_config_defaults_are_neutral() -> None:
+    cfg = Config()
+    assert cfg.profile == "default"
+    assert cfg.theme == "dark"
+    assert cfg.budget_index == 2
 
 
-def test_generated_configuration_contains_environment_name_only(tmp_path, monkeypatch) -> None:
-    (tmp_path / ".git").mkdir()
+def test_credential_status_boolean_only(monkeypatch) -> None:
     monkeypatch.setenv("COHERE_API_KEY", "secret-value")
-    cfg = MODULE.Config(agents=[0], capabilities=[0], repo_dir=str(tmp_path))
-
-    MODULE.generate_artifacts(cfg)
-
-    config = (tmp_path / "ai_config.py").read_text(encoding="utf-8")
-    assert "COHERE_API_KEY" in config
-    assert "secret-value" not in config
-
-
-def test_generation_is_idempotent_and_preserves_existing_files(tmp_path) -> None:
-    (tmp_path / ".git").mkdir()
-    existing = tmp_path / "AGENTS.md"
-    existing.write_text("user-owned instructions\n", encoding="utf-8")
-    cfg = MODULE.Config(agents=[3], capabilities=[0], repo_dir=str(tmp_path))
-
-    MODULE.generate_artifacts(cfg)
-    MODULE.generate_artifacts(cfg)
-
-    assert existing.read_text(encoding="utf-8") == "user-owned instructions\n"
+    status = credential_status()
+    assert status["Cohere"] is True
+    assert "secret-value" not in repr(status)

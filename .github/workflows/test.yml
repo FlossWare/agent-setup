@@ -12,24 +12,32 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
         with:
           python-version: '3.11'
       - name: Syntax check
-        run: python -m compileall -q scripts
+        run: python -m compileall -q scripts flossware_setup
       - name: Install test dependencies
-        run: python -m pip install pytest build
+        run: python -m pip install 'pytest==8.3.5' 'build==1.2.2.post1'  # NOSONAR - pinned versions
       - name: Build Python package
         run: python -m build
+      - name: Install package (editable)
+        run: python -m pip install -e .  # NOSONAR - local package under test
       - name: Install Windows curses support
         if: runner.os == 'Windows'
         shell: pwsh
-        run: python -m pip install windows-curses
+        run: python -m pip install 'windows-curses==2.4.1'  # NOSONAR - pinned version
       - name: Run offline smoke tests
         run: pytest -q
       - name: Run dogfood acceptance checks
         run: python scripts/dogfood.py
+      - name: Verify CLI entry points
+        shell: bash
+        run: |
+          python scripts/setup.py --help
+          python -c "from flossware_setup.tui import main; assert callable(main)"
+          python -c "from flossware_setup.catalog import AGENTS; assert len(AGENTS) == 13"
       - name: Verify POSIX installer
         if: runner.os != 'Windows'
         run: test -x scripts/install.sh

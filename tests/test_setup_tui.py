@@ -1,7 +1,5 @@
 import importlib.util
-import json
 from pathlib import Path
-
 
 ROOT = Path(__file__).parents[1]
 spec = importlib.util.spec_from_file_location("flossware_setup_tui", ROOT / "scripts" / "setup_tui.py")

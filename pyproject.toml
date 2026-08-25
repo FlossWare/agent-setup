@@ -11,8 +11,11 @@ requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 
-[tool.setuptools]
-py-modules = ["setup"]
+[tool.setuptools.packages.find]
+include = ["flossware_setup*"]
+
+[project.scripts]
+flossware-setup = "flossware_setup.tui:main"
 
 [project.optional-dependencies]
 core = [

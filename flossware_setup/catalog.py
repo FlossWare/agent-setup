@@ -1,16 +1,27 @@
-"""Static, provider-neutral setup catalogs."""
+"""Static, provider-neutral setup catalogs.
+
+Domain data only: agent adapters, capabilities, budget policies, and providers.
+No I/O, no credentials, no UI.
+"""
+
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 FLOSSWARE_BASE = "https://github.com/FlossWare"
 
+
 @dataclass(frozen=True)
 class AgentAdapter:
+    """Metadata and project instruction targets for a coding agent."""
+
     id: str
     name: str
     description: str
     files: tuple[str, ...]
 
-AGENTS = (
+
+AGENTS: tuple[AgentAdapter, ...] = (
     AgentAdapter("claude-code", "Claude Code", "Anthropic project instructions", ("CLAUDE.md",)),
     AgentAdapter("cursor", "Cursor", "Cursor project rules", (".cursorrules",)),
     AgentAdapter("opencode", "OpenCode", "Shared agent instructions", ("AGENTS.md",)),
@@ -21,12 +32,19 @@ AGENTS = (
     AgentAdapter("roo-code", "Roo Code", "Roo Code project rules", (".roo/rules/FlossWare.md",)),
     AgentAdapter("gemini-cli", "Gemini CLI", "Gemini project instructions", ("GEMINI.md",)),
     AgentAdapter("github-copilot", "GitHub Copilot", "GitHub repository instructions", (".github/copilot-instructions.md",)),
-    AgentAdapter("windsurf", "Windsurf", "Windsurf project rules", (".windsurfrules",)),
+    # Catalog id remains "windsurf" for stable selection/state; product is Devin Desktop.
+    AgentAdapter(
+        "windsurf",
+        "Devin Desktop",
+        "Devin Desktop rules under .devin/rules/ (legacy Windsurf paths still read by the product)",
+        (".devin/rules/FlossWare.md",),
+    ),
     AgentAdapter("amazon-q", "Amazon Q Developer", "Amazon Q project rules", (".amazonq/rules/FlossWare.md",)),
     AgentAdapter("kiro", "Kiro", "Kiro workspace steering", (".kiro/steering/FlossWare.md",)),
 )
 
-CAPABILITIES = (
+# (id, description, selected_by_default)
+CAPABILITIES: tuple[tuple[str, str, bool], ...] = (
     ("model-router-ai", "LLM routing, provider failover, capability and cost awareness", True),
     ("resilience-ai", "Retry, circuit breakers, timeouts", True),
     ("structured-output-ai", "Schema-validated model output", True),
@@ -38,7 +56,7 @@ CAPABILITIES = (
     ("genetic-optimizer-ai", "Genetic optimization and task tuning", False),
 )
 
-CAPABILITY_REFS = {
+CAPABILITY_REFS: dict[str, str] = {
     "model-router-ai": "e35f2cca34a34683a7a02b74d673012f122279c1",
     "resilience-ai": "b4a11f80bfe4b9a879b95b724d143d92cb548c47",
     "structured-output-ai": "9584f13877afa60307a9f9bca950caef0ff3b542",
@@ -50,14 +68,16 @@ CAPABILITY_REFS = {
     "genetic-optimizer-ai": "8362844a46d7bbe26dcbff769c349ad24f863b7c",
 }
 
-BUDGET_POLICIES = (
+# (label, monthly_amount, description); amount < 0 means custom
+BUDGET_POLICIES: tuple[tuple[str, float, str], ...] = (
     ("Strict budget", 0.0, "Only providers/models permitted by a zero-cost policy"),
     ("Light", 10.0, "Up to $10/month"),
     ("Medium", 50.0, "Up to $50/month"),
     ("Custom", -1.0, "Set an explicit monthly ceiling"),
 )
 
-PROVIDERS = (
+# (display_name, env_var, docs_url)
+PROVIDERS: tuple[tuple[str, str, str], ...] = (
     ("Cohere", "COHERE_API_KEY", "https://dashboard.cohere.com/api-keys"),
     ("OpenRouter", "OPENROUTER_API_KEY", "https://openrouter.ai/keys"),
     ("Gemini", "GEMINI_API_KEY", "https://aistudio.google.com/apikey"),

@@ -1,0 +1,158 @@
+"""Installation package refs and project artifact generation.
+
+Generated files never contain credential values. Existing user instruction
+files are left untouched.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+from flossware_setup.catalog import (
+    AGENTS,
+    CAPABILITIES,
+    CAPABILITY_REFS,
+    FLOSSWARE_BASE,
+    PROVIDERS,
+    AgentAdapter,
+)
+from flossware_setup.config import Config, build_state_dict, resolve_budget
+from flossware_setup.credentials import credential_status, environment_names
+
+_AIDER_CONF = ".aider.conf.yml"
+_AIDER_READ_LINE = "read: CONVENTIONS.md"
+# Top-level YAML key "read:" (optional whitespace). Nested keys are ignored.
+_AIDER_READ_KEY = re.compile(r"^read\s*:", re.MULTILINE)
+
+
+def pip_packages(capability_indexes: list[int]) -> list[str]:
+    """Build pinned git+https install specs for selected capabilities."""
+    packages: list[str] = []
+    for index in capability_indexes:
+        name = CAPABILITIES[index][0]
+        ref = CAPABILITY_REFS[name]
+        packages.append(f"git+{FLOSSWARE_BASE}/{name}.git@{ref}")
+    return packages
+
+
+def _write_if_missing(path: Path, content: str) -> None:
+    """Create an instruction file without overwriting user configuration."""
+    if path.exists():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def ensure_aider_conf(repo: Path) -> None:
+    """Ensure Aider loads CONVENTIONS.md without clobbering user config.
+
+    - Missing .aider.conf.yml → create with ``read: CONVENTIONS.md``.
+    - Existing file without a top-level ``read:`` key → append the line.
+    - Existing file that already has ``read:`` → leave untouched.
+    """
+    path = repo / _AIDER_CONF
+    if not path.exists():
+        path.write_text(
+            f"# FlossWare AI conventions\n{_AIDER_READ_LINE}\n",
+            encoding="utf-8",
+        )
+        return
+    try:
+        body = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    if _AIDER_READ_KEY.search(body):
+        return
+    suffix = "" if body.endswith("\n") or not body else "\n"
+    path.write_text(
+        f"{body}{suffix}# FlossWare AI conventions\n{_AIDER_READ_LINE}\n",
+        encoding="utf-8",
+    )
+
+
+def _agent_content(base: list[str], adapter: AgentAdapter) -> str:
+    content = list(base)
+    if adapter.id == "aider":
+        content[0] = "# FlossWare AI Integration"
+        content.extend(["", "Aider: load this file as a read-only conventions file.", ""])
+    if adapter.id == "kiro":
+        content.insert(0, "---\ninclusion: always\n---")
+    if adapter.id == "windsurf":
+        # Devin Desktop directory rules support trigger frontmatter.
+        content.insert(0, "---\ntrigger: always_on\n---")
+    return "\n".join(content) + "\n"
+
+
+def generate_artifacts(config: Config) -> dict:
+    """Write project instruction files and config markers. No secrets."""
+    repo = Path(config.repo_dir).resolve()
+    if not (repo / ".git").exists():
+        raise ValueError(f"Not a git repository: {repo}")
+
+    policy_label, budget = resolve_budget(config)
+    provider_status = credential_status()
+    env_vars = environment_names()
+
+    install_lines = "\n".join(
+        f"python -m pip install {pkg}" for pkg in pip_packages(config.capabilities)
+    )
+    providers_md = "\n".join(
+        f"- {name}: `${env}` ({'configured' if provider_status[name] else 'not set'})"
+        for name, env, _ in PROVIDERS
+    )
+    base = [
+        "## FlossWare AI Integration",
+        "",
+        (
+            "This project uses provider-neutral FlossWare AI libraries. Provider selection "
+            "and spending are explicit policy decisions, not hard-coded vendor defaults."
+        ),
+        "",
+        "### Capabilities",
+        *[f"- {CAPABILITIES[i][0]}" for i in config.capabilities],
+        "",
+        f"### Budget policy: {policy_label}",
+        f"Monthly ceiling: ${budget:g}",
+        "",
+        "### Providers",
+        providers_md,
+        "",
+        (
+            "Credential values are never stored in generated files. Configure them through a "
+            "secure environment, OS secret store, CI secret store, or provider/router secret mechanism."
+        ),
+        "",
+        "### Install",
+        "```bash",
+        install_lines,
+        "```",
+        "",
+    ]
+
+    for index in config.agents:
+        adapter = AGENTS[index]
+        content = _agent_content(base, adapter)
+        for relative_path in adapter.files:
+            _write_if_missing(repo / relative_path, content)
+        if adapter.id == "aider":
+            ensure_aider_conf(repo)
+
+    state = build_state_dict(config)
+    active_providers = (
+        "ACTIVE_PROVIDERS = {k: bool(__import__('os').environ.get(v)) "
+        "for k, v in PROVIDER_ENV_VARS.items()}\n"
+    )
+    (repo / "ai_config.py").write_text(
+        (
+            "# Auto-generated by FlossWare/coding-agent-setup. No credential values are stored.\n"
+            f"MONTHLY_BUDGET = {budget!r}\n"
+            f"BUDGET_POLICY = {policy_label!r}\n"
+            f"PROVIDER_ENV_VARS = {env_vars!r}\n"
+            f"{active_providers}"
+        ),
+        encoding="utf-8",
+    )
+    (repo / ".flossware-ai.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    return state

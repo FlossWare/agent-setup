@@ -2,7 +2,6 @@ import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
-
 ROOT = Path(__file__).parents[1]
 spec = importlib.util.spec_from_file_location("flossware_tui", ROOT / "scripts" / "tui.py")
 tui = importlib.util.module_from_spec(spec)

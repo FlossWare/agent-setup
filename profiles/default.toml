@@ -1,0 +1,18 @@
+# Neutral starting policy profile for the public coding-agent-setup project.
+# No credential values belong in this file.
+# Users and organizations should create named profiles for their own policies.
+profile = "default"
+
+[model_policy]
+allowed_providers = ["*configured*"]
+credential_env = []
+allow_local_models = true
+allow_unconfigured_providers = false
+
+[flossware]
+router = true
+resilience = true
+consensus = true
+evaluation = true
+observability = true
+security = true

@@ -100,11 +100,10 @@ def menu(
         visible = min(len(items), max(0, h - y - 3))
         for i, item in enumerate(items[:visible]):
             name, desc = item[0], item[1]
-            mark = (
-                ("[x]" if i in selected_set else "[ ]")
-                if multi
-                else ("(o)" if i == cursor else "( )")
-            )
+            if multi:
+                mark = "[x]" if i in selected_set else "[ ]"
+            else:
+                mark = "(o)" if i == cursor else "( )"
             prefix = "> " if i == cursor else "  "
             active = i == cursor
             chosen = i in selected_set or (not multi and active)

@@ -73,6 +73,25 @@ def credentials_screen(win) -> None:
     win.getch()
 
 
+def _artifact_lines(repo_dir: str, state: dict) -> list[str]:
+    artifacts: list[str] = []
+    repo = Path(repo_dir).resolve()
+    for name in (".flossware-ai.json", "ai_config.py"):
+        if (repo / name).is_file():
+            artifacts.append(name)
+    configured = set(state.get("agents") or [])
+    for agent in AGENTS:
+        if agent.id in configured:
+            for rel in agent.files:
+                if (repo / rel).is_file():
+                    artifacts.append(rel)
+    if not artifacts:
+        return []
+    lines = ["", "Generated artifacts present:"]
+    lines.extend(f"  · {name}" for name in sorted(set(artifacts)))
+    return lines
+
+
 def review_screen(win, repo_dir: str = ".") -> None:
     """Review Current Configuration from persisted project state only."""
     y = header(win, "Review Current Configuration")
@@ -80,21 +99,7 @@ def review_screen(win, repo_dir: str = ".") -> None:
     state = load_project_state(repo_dir)
     lines = review_lines(repo_dir)
     if state:
-        artifacts = []
-        repo = Path(repo_dir).resolve()
-        for name in (".flossware-ai.json", "ai_config.py"):
-            if (repo / name).is_file():
-                artifacts.append(name)
-        for agent in AGENTS:
-            if agent.id in set(state.get("agents") or []):
-                for rel in agent.files:
-                    if (repo / rel).is_file():
-                        artifacts.append(rel)
-        if artifacts:
-            lines.append("")
-            lines.append("Generated artifacts present:")
-            for name in sorted(set(artifacts)):
-                lines.append(f"  · {name}")
+        lines.extend(_artifact_lines(repo_dir, state))
     for i, line in enumerate(lines[: max(1, h - y - 3)]):
         color = 2 if "✓" in line else 5
         add(win, y + i, 2, line, color)

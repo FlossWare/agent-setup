@@ -75,3 +75,11 @@ def test_providers_have_env_vars():
 def test_providers_have_https_urls():
     for name, env, url in PROVIDERS:
         assert url.startswith("https://")
+
+
+def test_no_agent_adapters_alias():
+    """AGENTS is the single public catalog name; no migration alias."""
+    from flossware_setup import catalog
+
+    assert hasattr(catalog, "AGENTS")
+    assert not hasattr(catalog, "AGENT_ADAPTERS")

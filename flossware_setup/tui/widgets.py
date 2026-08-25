@@ -183,22 +183,69 @@ def menu(
             return None
 
 
+def _redraw_input_line(win, row: int, buffer: str, cursor: int) -> None:
+    """Paint the editable buffer and place the terminal cursor."""
+    _, w = win.getmaxyx()
+    max_width = max(1, w - 3)
+    display = buffer[:max_width]
+    # Clear the field width then redraw so deletes/backspaces are visible.
+    try:
+        win.move(row, 2)
+        win.clrtoeol()
+    except curses.error:
+        pass
+    add(win, row, 2, display, 5)
+    cursor_x = 2 + min(max(0, cursor), len(display))
+    try:
+        win.move(row, min(cursor_x, w - 2))
+    except curses.error:
+        pass
+    win.refresh()
+
+
 def text_input(win, prompt: str, default: str = "") -> str:
-    """Prompt for a single line of text."""
-    curses.echo()
+    """Prompt for a single line of text with an editable pre-populated buffer.
+
+    The ``default`` value is the initial contents of the field (not a hint).
+    Enter confirms; Esc cancels and returns ``default``.
+    """
+    curses.noecho()
     curses.curs_set(1)
     y = header(win, "Input")
     add(win, y, 2, prompt, 1)
-    add(win, y + 2, 2, default, 5)
-    win.move(y + 2, 2 + len(default))
-    win.refresh()
+    add(win, y + 1, 2, "Enter confirm  Esc keep default / cancel edit", 6)
+    row = y + 3
+    buffer = list(default)
+    cursor = len(buffer)
+    _redraw_input_line(win, row, "".join(buffer), cursor)
     try:
-        raw = win.getstr(y + 2, 2, 200)
-        text = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
-        text = text.strip() or default
-    except (curses.error, UnicodeDecodeError, OSError):
-        text = default
+        while True:
+            key = win.getch()
+            if key in (10, 13, curses.KEY_ENTER):
+                text = "".join(buffer).strip()
+                return text if text else default
+            if key in (27,):  # Esc — keep original default
+                return default
+            if key in (curses.KEY_BACKSPACE, 127, 8):
+                if cursor > 0:
+                    del buffer[cursor - 1]
+                    cursor -= 1
+            elif key == curses.KEY_DC:
+                if cursor < len(buffer):
+                    del buffer[cursor]
+            elif key == curses.KEY_LEFT:
+                cursor = max(0, cursor - 1)
+            elif key == curses.KEY_RIGHT:
+                cursor = min(len(buffer), cursor + 1)
+            elif key == curses.KEY_HOME:
+                cursor = 0
+            elif key == curses.KEY_END:
+                cursor = len(buffer)
+            elif 32 <= key <= 126 and len(buffer) < 200:
+                buffer.insert(cursor, chr(key))
+                cursor += 1
+            _redraw_input_line(win, row, "".join(buffer), cursor)
+    except curses.error:
+        return default
     finally:
-        curses.noecho()
         curses.curs_set(0)
-    return text

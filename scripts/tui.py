@@ -4,7 +4,19 @@ from __future__ import annotations
 import curses, json, os, subprocess
 from pathlib import Path
 
-AGENTS=["claude-code","cursor","opencode","crush","codex","aider","cline","roo-code","gemini-cli","github-copilot","windsurf","amazon-q","kiro"]
+def _load_agent_ids():
+    import importlib.util
+    import sys
+    setup_path = Path(__file__).resolve().parent / "setup.py"
+    spec = importlib.util.spec_from_file_location("flossware_setup_registry", setup_path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return [a.id for a in mod.AGENT_ADAPTERS]
+
+
+AGENTS = _load_agent_ids()
 COMPONENTS=["model-router-ai","resilience-ai","structured-output-ai","consensus-ai","evaluation-ai","observability-ai","security-ai","rag-ai","genetic-optimizer-ai"]
 RUNTIMES=["auto","podman","docker","native"]
 DECORATORS=["security","routing","cache","retry","circuit-breaker","observability","evaluation","cost-accounting"]
@@ -21,7 +33,7 @@ DESCRIPTIONS={
 "auto":"Prefer Podman on Linux, otherwise the first healthy supported container runtime.",
 "podman":"Use Podman when installed and reachable.","docker":"Use Docker when installed and reachable.","native":"Do not use a container runtime.",
 }
-ROOT=Path(os.environ.get("FLOSSWARE_AI_ROOT",Path.home()/".flossware"/"ai"))
+ROOT=Path(os.environ.get("FLOSSWARE_AI_ROOT",Path.home()/"\.flossware"/"ai"))
 
 def run_menu(stdscr,title,items,multi=True,descriptions=None):
     pos,selected=0,set(); descriptions=descriptions or {}

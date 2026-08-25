@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import os
 import shutil
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,9 +24,12 @@ SECRET_MARKERS = (
     "sk-", "AIza", "Bearer ", "api_key=", "api-key=", "access_token=",
 )
 
+
 def check(name: str, ok: bool, detail: str) -> bool:
-    print(f"{'✓' if ok else '✗'} {name}: {detail}")
+    marker = "OK" if ok else "FAIL"
+    print(f"[{marker}] {name}: {detail}")
     return ok
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="FlossWare coding-agent dogfood acceptance checks")
@@ -57,7 +59,7 @@ def main() -> int:
         if args.strict and agent in {"claude-code", "crush"}:
             failures += not check(agent, found, f"{command} is installed")
         else:
-            print(f"• {agent}: {'installed' if found else 'not installed'}; instruction file {'present' if instruction_exists else 'not generated'}")
+            print(f"- {agent}: {'installed' if found else 'not installed'}; instruction file {'present' if instruction_exists else 'not generated'}")
 
     profile = os.environ.get("FLOSSWARE_PROFILE", "personal")
     failures += not check("Profile", profile in {"personal", "redhat"}, f"active profile value is {profile!r}")
@@ -65,6 +67,7 @@ def main() -> int:
     if args.strict:
         print("Strict mode validates the two primary dogfood agents: Claude Code and Crush.")
     return 1 if failures else 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

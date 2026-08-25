@@ -4,7 +4,7 @@ ROOT="${FLOSSWARE_AI_ROOT:-$HOME/.flossware/ai}"; STATE="$ROOT/state"; PROFILE_F
 usage(){ cat <<'EOF'
 Usage: flossware-ai <command> [options]
 Commands:
-  setup | tui | update | reinstall | clean | doctor | profile [name]
+  setup | tui | update | reinstall | clean | doctor | dogfood [--strict] | profile [name]
   providers | accounts [--verify] | models [--refresh|--free|--provider NAME]
   explain MODEL | components [NAME] | agents [setup AGENT] | mcp-config AGENT | router
   runtime list|status|select auto|podman|docker|native|effective
@@ -32,6 +32,7 @@ case "${1:-}" in
   update|reinstall) ACTION="$1"; shift; [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall) || EXTRA=(); exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@";;
   clean) exec "$ROOT/coding-agent-setup/scripts/install.sh" --clean "$@";;
   doctor) exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" doctor;;
+  dogfood) shift; exec "$ROOT/venv/bin/python" "$ROOT/dogfood.py" "$@";;
   router) shift; prof="$(active_profile)"; if [[ "${1:-}" == --profile ]]; then prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi; source "$ROOT/config/profiles/$prof/profile.sh" "$prof"; exec "$ROOT/venv/bin/python" "$ROOT/router_mcp.py" "$@";;
   *) launch_agent "$1" "${@:2}";;
 esac

@@ -55,6 +55,26 @@ The coding agent may continue to own its native model/account authentication. Fl
 
 Agent configuration is profile-aware. A personal profile can expose personal accounts/models while a Red Hat profile can restrict the effective model/provider set. Secrets are not copied between profiles.
 
-## Testing integrations
+## Dogfood acceptance
 
-`flossware-ai doctor` should report whether an agent was detected, which integration mechanisms are available, whether generated configuration is current, and whether required MCP or credential references are usable.
+Run the repository-level acceptance checks with:
+
+```bash
+python scripts/dogfood.py
+```
+
+For the real local integration gate, use strict mode on a machine where the primary agents are installed:
+
+```bash
+python scripts/dogfood.py --strict
+```
+
+Strict mode requires **both Claude Code and Crush** to be present on `PATH`. It does not require or print provider credentials. The checks validate the setup repository, packaging, discovery layer, installer, profile value, and credential-safety invariant, while reporting other detected agents as informational.
+
+The installed CLI exposes the same gate as:
+
+```bash
+flossware-ai dogfood --strict
+```
+
+`flossware-ai doctor` remains the runtime inventory check. `dogfood` is the acceptance gate for the setup implementation itself.

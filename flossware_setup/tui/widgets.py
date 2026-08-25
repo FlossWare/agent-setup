@@ -106,6 +106,46 @@ def _dispatch_menu_key(
     return cursor, selected_set, "continue"
 
 
+def _item_mark(multi: bool, index: int, cursor: int, selected_set: set[int]) -> str:
+    if multi:
+        return "[x]" if index in selected_set else "[ ]"
+    return "(o)" if index == cursor else "( )"
+
+
+def _render_menu_frame(
+    win,
+    title: str,
+    items: list[tuple[str, str]],
+    multi: bool,
+    selected_set: set[int],
+    cursor: int,
+) -> tuple[int, int]:
+    """Draw the menu and return (content_y, visible_count)."""
+    y = header(win, title)
+    h, _ = win.getmaxyx()
+    visible = min(len(items), max(0, h - y - 3))
+    for i, (name, desc) in enumerate(items[:visible]):
+        active = i == cursor
+        chosen = i in selected_set or (not multi and active)
+        add(win, y + i, 2, "> " if active else "  ", 1 if active else 5, curses.A_BOLD)
+        add(win, y + i, 5, _item_mark(multi, i, cursor, selected_set), 2 if chosen else 3)
+        add(win, y + i, 10, name, 1 if active else 5, curses.A_BOLD if active else 0)
+        add(win, y + i, 10 + len(name) + 3, desc, 5)
+    add(
+        win,
+        h - 2,
+        2,
+        "↑/↓ navigate  Space/click toggle  Enter confirm  a all  n none  q quit",
+        6,
+    )
+    win.refresh()
+    return y, visible
+
+
+def _menu_result(multi: bool, selected_set: set[int], cursor: int) -> list[int] | int:
+    return sorted(selected_set) if multi else cursor
+
+
 def menu(
     win,
     title: str,
@@ -120,37 +160,16 @@ def menu(
     selected_set = set(selected or [])
     cursor = 0
     while True:
-        y = header(win, title)
-        h, _ = win.getmaxyx()
-        visible = min(len(items), max(0, h - y - 3))
-        for i, item in enumerate(items[:visible]):
-            name, desc = item[0], item[1]
-            if multi:
-                mark = "[x]" if i in selected_set else "[ ]"
-            else:
-                mark = "(o)" if i == cursor else "( )"
-            prefix = "> " if i == cursor else "  "
-            active = i == cursor
-            chosen = i in selected_set or (not multi and active)
-            add(win, y + i, 2, prefix, 1 if active else 5, curses.A_BOLD)
-            add(win, y + i, 5, mark, 2 if chosen else 3)
-            add(win, y + i, 10, name, 1 if active else 5, curses.A_BOLD if active else 0)
-            add(win, y + i, 10 + len(name) + 3, desc, 5)
-        add(
-            win,
-            h - 2,
-            2,
-            "↑/↓ navigate  Space/click toggle  Enter confirm  a all  n none  q quit",
-            6,
+        content_y, visible = _render_menu_frame(
+            win, title, items, multi, selected_set, cursor
         )
-        win.refresh()
         key = win.getch()
         if key == curses.KEY_MOUSE:
             click = primary_click()
             if click is None:
                 continue
             cursor, selected_set, done = _handle_mouse_row(
-                click[1], y, visible, multi, selected_set, cursor
+                click[1], content_y, visible, multi, selected_set, cursor
             )
             if done:
                 return cursor
@@ -159,7 +178,7 @@ def menu(
             key, multi, selected_set, cursor, len(items)
         )
         if action == "confirm":
-            return sorted(selected_set) if multi else cursor
+            return _menu_result(multi, selected_set, cursor)
         if action == "cancel":
             return None
 

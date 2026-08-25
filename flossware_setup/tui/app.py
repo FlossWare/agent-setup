@@ -16,6 +16,13 @@ from flossware_setup.tui.screens import (
 )
 from flossware_setup.tui.widgets import menu, palette
 
+_CONTROL_CENTER_ITEMS = [
+    ("Review Current Configuration", "Inspect persisted project configuration"),
+    ("Configure / Change Setup", "Select agents, capabilities and budget"),
+    ("Provider Credentials", "View detected credential sources (names only)"),
+    ("Exit", "Leave Setup"),
+]
+
 
 def load_theme(name: str):
     """Load FlossWare themes when available, without installing during TUI startup."""
@@ -25,6 +32,35 @@ def load_theme(name: str):
         return ThemeManager.load(name)
     except Exception:  # noqa: BLE001 — optional dependency may raise anything
         return None
+
+
+def _run_configure_flow(stdscr) -> None:
+    """Wizard → credentials → build → review. Errors are reported on-screen."""
+    try:
+        cfg = configure_wizard(stdscr)
+        if cfg is None:
+            return
+        credentials_screen(stdscr)
+        build_screen(stdscr, cfg)
+        review_screen(stdscr, cfg.repo_dir)
+    except (ValueError, OSError, RuntimeError, curses.error) as exc:
+        error_screen(stdscr, str(exc))
+    except Exception as exc:  # noqa: BLE001 — last-resort UI recovery
+        error_screen(stdscr, str(exc))
+
+
+def _dispatch_control_center(stdscr, choice: int) -> bool:
+    """Handle a control-center selection. Returns False to exit the loop."""
+    if choice == 0:
+        review_screen(stdscr, ".")
+        return True
+    if choice == 1:
+        _run_configure_flow(stdscr)
+        return True
+    if choice == 2:
+        credentials_screen(stdscr)
+        return True
+    return False
 
 
 def run(stdscr, theme_name: str = "dark") -> None:
@@ -38,35 +74,9 @@ def run(stdscr, theme_name: str = "dark") -> None:
         return
 
     while True:
-        choice = menu(
-            stdscr,
-            "Setup Control Center",
-            [
-                ("Review Current Configuration", "Inspect persisted project configuration"),
-                ("Configure / Change Setup", "Select agents, capabilities and budget"),
-                ("Provider Credentials", "View detected credential sources (names only)"),
-                ("Exit", "Leave Setup"),
-            ],
-            multi=False,
-        )
-        if choice is None or choice == 3:
+        choice = menu(stdscr, "Setup Control Center", _CONTROL_CENTER_ITEMS, multi=False)
+        if choice is None or not _dispatch_control_center(stdscr, int(choice)):
             return
-        if choice == 0:
-            review_screen(stdscr, ".")
-        elif choice == 2:
-            credentials_screen(stdscr)
-        else:
-            try:
-                cfg = configure_wizard(stdscr)
-                if cfg is None:
-                    continue
-                credentials_screen(stdscr)
-                build_screen(stdscr, cfg)
-                review_screen(stdscr, cfg.repo_dir)
-            except (ValueError, OSError, RuntimeError, curses.error) as exc:
-                error_screen(stdscr, str(exc))
-            except Exception as exc:  # noqa: BLE001 — last-resort UI recovery
-                error_screen(stdscr, str(exc))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -76,7 +86,10 @@ def main(argv: list[str] | None = None) -> int:
     if "--help" in args or "-h" in args:
         print("Usage: flossware-setup [--theme NAME]")
         print("       python3 scripts/setup.py [--theme NAME]")
-        print("Provider credentials are optional; use scripts/install.sh for non-interactive setup.")
+        print(
+            "Provider credentials are optional; "
+            "use scripts/install.sh for non-interactive setup."
+        )
         return 0
     for i, arg in enumerate(args):
         if arg == "--theme" and i + 1 < len(args):

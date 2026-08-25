@@ -43,6 +43,8 @@ AGENTS: tuple[AgentAdapter, ...] = (
     AgentAdapter("kiro", "Kiro", "Kiro workspace steering", (".kiro/steering/FlossWare.md",)),
 )
 
+AGENT_BY_ID: dict[str, AgentAdapter] = {a.id: a for a in AGENTS}
+
 # (id, description, selected_by_default)
 CAPABILITIES: tuple[tuple[str, str, bool], ...] = (
     ("model-router-ai", "LLM routing, provider failover, capability and cost awareness", True),
@@ -56,6 +58,8 @@ CAPABILITIES: tuple[tuple[str, str, bool], ...] = (
     ("genetic-optimizer-ai", "Genetic optimization and task tuning", False),
 )
 
+CAPABILITY_BY_ID: dict[str, tuple[str, str, bool]] = {c[0]: c for c in CAPABILITIES}
+
 CAPABILITY_REFS: dict[str, str] = {
     "model-router-ai": "e35f2cca34a34683a7a02b74d673012f122279c1",
     "resilience-ai": "b4a11f80bfe4b9a879b95b724d143d92cb548c47",
@@ -68,13 +72,15 @@ CAPABILITY_REFS: dict[str, str] = {
     "genetic-optimizer-ai": "8362844a46d7bbe26dcbff769c349ad24f863b7c",
 }
 
-# (label, monthly_amount, description); amount < 0 means custom
-BUDGET_POLICIES: tuple[tuple[str, float, str], ...] = (
-    ("Strict budget", 0.0, "Only providers/models permitted by a zero-cost policy"),
-    ("Light", 10.0, "Up to $10/month"),
-    ("Medium", 50.0, "Up to $50/month"),
-    ("Custom", -1.0, "Set an explicit monthly ceiling"),
+# (id, label, monthly_amount, description); amount < 0 means custom
+BUDGET_POLICIES: tuple[tuple[str, str, float, str], ...] = (
+    ("strict", "Strict budget", 0.0, "Only providers/models permitted by a zero-cost policy"),
+    ("light", "Light", 10.0, "Up to $10/month"),
+    ("medium", "Medium", 50.0, "Up to $50/month"),
+    ("custom", "Custom", -1.0, "Set an explicit monthly ceiling"),
 )
+
+BUDGET_BY_ID: dict[str, tuple[str, str, float, str]] = {b[0]: b for b in BUDGET_POLICIES}
 
 # (display_name, env_var, docs_url)
 PROVIDERS: tuple[tuple[str, str, str], ...] = (

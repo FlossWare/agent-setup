@@ -6,6 +6,7 @@ No provider credentials or network access are required.
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 
@@ -13,6 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("flossware_setup", ROOT / "scripts" / "setup.py")
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
+# dataclasses resolves the defining module through sys.modules while processing
+# annotations. Register the dynamically loaded module before executing it so
+# the test behaves like a normal import on every supported Python platform.
+sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 

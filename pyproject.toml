@@ -14,8 +14,6 @@ license-files = ["LICENSE"]
 [tool.setuptools]
 py-modules = ["setup"]
 
-[project.dependencies]
-
 [project.optional-dependencies]
 core = [
     "curses-themes @ git+https://github.com/FlossWare/curses-themes.git@b611725c54fd6aab8170e6e1735fc818127065ac",

@@ -11,27 +11,26 @@ import re
 from pathlib import Path
 
 from flossware_setup.catalog import (
-    AGENTS,
-    CAPABILITIES,
+    AGENT_BY_ID,
     CAPABILITY_REFS,
     FLOSSWARE_BASE,
     PROVIDERS,
     AgentAdapter,
 )
-from flossware_setup.config import Config, build_state_dict, resolve_budget
+from flossware_setup.config import Config, build_state_dict, resolve_budget, set_active_project
 from flossware_setup.credentials import credential_status, environment_names
 
 _AIDER_CONF = ".aider.conf.yml"
 _AIDER_READ_LINE = "read: CONVENTIONS.md"
-# Top-level YAML key "read:" (optional whitespace). Nested keys are ignored.
 _AIDER_READ_KEY = re.compile(r"^read\s*:", re.MULTILINE)
 
 
-def pip_packages(capability_indexes: list[int]) -> list[str]:
-    """Build pinned git+https install specs for selected capabilities."""
+def pip_packages(capability_ids: list[str]) -> list[str]:
+    """Build pinned git+https install specs for selected capability IDs."""
     packages: list[str] = []
-    for index in capability_indexes:
-        name = CAPABILITIES[index][0]
+    for name in capability_ids:
+        if name not in CAPABILITY_REFS:
+            continue
         ref = CAPABILITY_REFS[name]
         packages.append(f"git+{FLOSSWARE_BASE}/{name}.git@{ref}")
     return packages
@@ -46,12 +45,7 @@ def _write_if_missing(path: Path, content: str) -> None:
 
 
 def ensure_aider_conf(repo: Path) -> None:
-    """Ensure Aider loads CONVENTIONS.md without clobbering user config.
-
-    - Missing .aider.conf.yml → create with ``read: CONVENTIONS.md``.
-    - Existing file without a top-level ``read:`` key → append the line.
-    - Existing file that already has ``read:`` → leave untouched.
-    """
+    """Ensure Aider loads CONVENTIONS.md without clobbering user config."""
     path = repo / _AIDER_CONF
     if not path.exists():
         path.write_text(
@@ -80,7 +74,6 @@ def _agent_content(base: list[str], adapter: AgentAdapter) -> str:
     if adapter.id == "kiro":
         content.insert(0, "---\ninclusion: always\n---")
     if adapter.id == "windsurf":
-        # Devin Desktop directory rules support trigger frontmatter.
         content.insert(0, "---\ntrigger: always_on\n---")
     return "\n".join(content) + "\n"
 
@@ -111,7 +104,7 @@ def generate_artifacts(config: Config) -> dict:
         ),
         "",
         "### Capabilities",
-        *[f"- {CAPABILITIES[i][0]}" for i in config.capabilities],
+        *[f"- {name}" for name in config.capabilities],
         "",
         f"### Budget policy: {policy_label}",
         f"Monthly ceiling: ${budget:g}",
@@ -131,8 +124,10 @@ def generate_artifacts(config: Config) -> dict:
         "",
     ]
 
-    for index in config.agents:
-        adapter = AGENTS[index]
+    for agent_id in config.agents:
+        adapter = AGENT_BY_ID.get(agent_id)
+        if adapter is None:
+            continue
         content = _agent_content(base, adapter)
         for relative_path in adapter.files:
             _write_if_missing(repo / relative_path, content)
@@ -155,4 +150,5 @@ def generate_artifacts(config: Config) -> dict:
         encoding="utf-8",
     )
     (repo / ".flossware-ai.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    set_active_project(repo)
     return state

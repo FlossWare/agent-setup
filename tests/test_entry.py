@@ -27,25 +27,30 @@ def test_flossware_setup_package_exports():
 
 
 def test_tui_helpers_exist():
-    from flossware_setup import tui
+    from flossware_setup.tui import app, input, screens, widgets
 
-    for name in (
-        "palette",
-        "enable_mouse",
-        "mouse_click",
-        "menu",
-        "review_screen",
-        "run",
-        "main",
-    ):
-        assert hasattr(tui, name), name
+    assert callable(app.main)
+    assert callable(app.run)
+    assert callable(input.enable_mouse)
+    assert callable(input.primary_click)
+    assert callable(screens.review_screen)
+    assert callable(widgets.menu)
+    assert callable(widgets.palette)
 
 
 def test_setup_help_non_tty(monkeypatch, capsys):
     from flossware_setup.tui import main
 
-    monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
     code = main(["--help"])
     assert code == 0
     out = capsys.readouterr().out
     assert "Usage:" in out
+    assert "flossware-setup" in out or "setup.py" in out
+
+
+def test_setup_rejects_non_tty(monkeypatch, capsys):
+    from flossware_setup.tui import main
+
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
+    code = main([])
+    assert code == 1

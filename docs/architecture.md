@@ -1,39 +1,54 @@
 # Setup architecture
 
-The interactive setup implementation is split so domain data, persistence,
-credentials, artifact generation, and the TUI are independently maintainable.
+The interactive setup implementation separates domain data, persistence,
+credentials, artifact generation, and the TUI into maintainable modules.
 
 ```
-scripts/setup.py          thin compatibility entry point
+scripts/setup.py                 thin compatibility entry point
 flossware_setup/
-  catalog.py              agents, capabilities, providers, budgets (static data)
-  config.py               Config model, project state load/review (no secrets)
-  credentials.py          env presence checks only
-  artifacts.py            generated project files and pip package refs
-  installer.py            capability package installation
-  tui.py                  curses control center (keyboard + mouse)
+  catalog.py                     agents, capabilities, providers, budgets
+  config.py                      Config model, project state load/review
+  credentials.py                 env presence checks only
+  artifacts.py                   generated project files and pip package refs
+  installer.py                   capability package installation
+  tui/
+    __init__.py                  public main/run exports
+    app.py                       application lifecycle / navigation
+    screens.py                   welcome, review, credentials, wizard, build
+    widgets.py                   header, menu, text input, palette
+    input.py                     keyboard/mouse event helpers
 ```
+
+## Entry points
+
+| Command | Role |
+| --- | --- |
+| `python scripts/setup.py` | Source-tree TUI (compatibility) |
+| `flossware-setup` | Package console script (`flossware_setup.tui:main`) |
+| `flossware-ai setup` | Managed-install launcher for the same setup TUI |
+| `flossware-ai tui` | Managed-install control-panel TUI (`scripts/setup_tui.py`) |
+
+`flossware-ai` is installed by `scripts/install.sh` into the managed runtime.
+`flossware-setup` is available after `pip install` of this package.
 
 ## Invariants
 
 - **Thirteen agent integrations** are defined once in `catalog.AGENTS`.
-- **Neutral default profile**: the public repository ships `profile = "default"`.
-  Personal, Red Hat, or other organizational profiles are local policy only.
+- **Neutral default profile**: public baseline is `default`. Organizational
+  profiles are local policy, not hard-coded application logic in this package.
 - **Credentials**: modules may report whether a provider env var is set. They
-  never read secret values into generated files or review screens.
-- **Entry points**: `python scripts/setup.py` and `flossware-ai tui` remain the
-  supported CLI/TUI paths. `scripts/setup.py` must stay a thin wrapper.
-- **Control center**: the TUI always offers **Review Current Configuration**,
-  Configure / Change Setup, Provider Credentials, and Exit.
-- **Mouse and keyboard**: selection screens support both. Keyboard operation is
-  never removed when mouse reporting is unavailable.
+  never persist or display secret values.
+- **Control center**: Review Current Configuration, Configure / Change Setup,
+  Provider Credentials, Exit.
+- **Mouse and keyboard**: selection screens support both. Keyboard-only
+  terminals remain fully usable.
+- **Review screen** reads **persisted** project state (`.flossware-ai.json`),
+  not only in-memory wizard selections.
 
 ## Tests
 
 ```bash
 pytest -q
 python scripts/dogfood.py
+python scripts/setup.py --help
 ```
-
-TUI smoke coverage lives in `tests/test_entry.py` and imports the entry point
-without requiring an interactive terminal.

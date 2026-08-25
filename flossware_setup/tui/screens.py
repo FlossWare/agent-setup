@@ -129,9 +129,7 @@ def error_screen(win, message: str) -> None:
     win.getch()
 
 
-def configure_wizard(win) -> Config | None:
-    """Multi-step selection wizard (agents → capabilities → budget → repo)."""
-    cfg = Config()
+def _select_agents(win) -> list[int] | None:
     agents = menu(
         win,
         "Select Coding Agents",
@@ -140,8 +138,10 @@ def configure_wizard(win) -> Config | None:
     )
     if agents is None or not agents:
         return None
-    cfg.agents = list(agents)
+    return list(agents)
 
+
+def _select_capabilities(win) -> list[int] | None:
     caps = menu(
         win,
         "FlossWare AI Capabilities",
@@ -151,8 +151,10 @@ def configure_wizard(win) -> Config | None:
     )
     if caps is None:
         return None
-    cfg.capabilities = list(caps)
+    return list(caps)
 
+
+def _select_budget(win, cfg: Config) -> bool:
     budget = menu(
         win,
         "Budget Policy",
@@ -160,7 +162,7 @@ def configure_wizard(win) -> Config | None:
         multi=False,
     )
     if budget is None:
-        return None
+        return False
     cfg.budget_index = int(budget)
     if BUDGET_POLICIES[cfg.budget_index][1] < 0:
         value = text_input(win, "Monthly budget ceiling in USD:", "50")
@@ -170,7 +172,22 @@ def configure_wizard(win) -> Config | None:
             cfg.budget_amount = 50.0
     else:
         cfg.budget_amount = BUDGET_POLICIES[cfg.budget_index][1]
+    return True
 
+
+def configure_wizard(win) -> Config | None:
+    """Multi-step selection wizard (agents → capabilities → budget → repo)."""
+    cfg = Config()
+    agents = _select_agents(win)
+    if agents is None:
+        return None
+    cfg.agents = agents
+    caps = _select_capabilities(win)
+    if caps is None:
+        return None
+    cfg.capabilities = caps
+    if not _select_budget(win, cfg):
+        return None
     cfg.repo_dir = text_input(win, "Project directory:", os.getcwd())
     if not (Path(cfg.repo_dir).resolve() / ".git").exists():
         raise ValueError(f"Not a git repository: {Path(cfg.repo_dir).resolve()}")

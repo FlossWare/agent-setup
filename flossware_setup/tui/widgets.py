@@ -55,6 +55,32 @@ def header(win, title: str, step: Optional[int] = None) -> int:
     return 5
 
 
+def _toggle(selected_set: set[int], index: int) -> None:
+    if index in selected_set:
+        selected_set.remove(index)
+    else:
+        selected_set.add(index)
+
+
+def _handle_mouse_row(
+    click_y: int,
+    content_y: int,
+    visible: int,
+    multi: bool,
+    selected_set: set[int],
+    cursor: int,
+) -> tuple[int, set[int], bool]:
+    """Update selection from a mouse row click. Returns (cursor, selected, done)."""
+    clicked_index = click_y - content_y
+    if not (0 <= clicked_index < visible):
+        return cursor, selected_set, False
+    cursor = clicked_index
+    if multi:
+        _toggle(selected_set, cursor)
+        return cursor, selected_set, False
+    return cursor, selected_set, True
+
+
 def menu(
     win,
     title: str,
@@ -74,27 +100,17 @@ def menu(
         visible = min(len(items), max(0, h - y - 3))
         for i, item in enumerate(items[:visible]):
             name, desc = item[0], item[1]
-            if multi:
-                mark = "[x]" if i in selected_set else "[ ]"
-            else:
-                mark = "(o)" if i == cursor else "( )"
+            mark = (
+                ("[x]" if i in selected_set else "[ ]")
+                if multi
+                else ("(o)" if i == cursor else "( )")
+            )
             prefix = "> " if i == cursor else "  "
-            add(win, y + i, 2, prefix, 1 if i == cursor else 5, curses.A_BOLD)
-            add(
-                win,
-                y + i,
-                5,
-                mark,
-                2 if i in selected_set or (not multi and i == cursor) else 3,
-            )
-            add(
-                win,
-                y + i,
-                10,
-                name,
-                1 if i == cursor else 5,
-                curses.A_BOLD if i == cursor else 0,
-            )
+            active = i == cursor
+            chosen = i in selected_set or (not multi and active)
+            add(win, y + i, 2, prefix, 1 if active else 5, curses.A_BOLD)
+            add(win, y + i, 5, mark, 2 if chosen else 3)
+            add(win, y + i, 10, name, 1 if active else 5, curses.A_BOLD if active else 0)
             add(win, y + i, 10 + len(name) + 3, desc, 5)
         add(
             win,
@@ -109,35 +125,24 @@ def menu(
             click = primary_click()
             if click is None:
                 continue
-            _, click_y = click
-            clicked_index = click_y - y
-            if 0 <= clicked_index < visible:
-                cursor = clicked_index
-                if multi:
-                    if cursor in selected_set:
-                        selected_set.remove(cursor)
-                    else:
-                        selected_set.add(cursor)
-                else:
-                    return cursor
+            cursor, selected_set, done = _handle_mouse_row(
+                click[1], y, visible, multi, selected_set, cursor
+            )
+            if done:
+                return cursor
             continue
         if is_up(key):
             cursor = max(0, cursor - 1)
         elif is_down(key):
             cursor = min(max(0, len(items) - 1), cursor + 1)
         elif multi and key == ord(" "):
-            if cursor in selected_set:
-                selected_set.remove(cursor)
-            else:
-                selected_set.add(cursor)
+            _toggle(selected_set, cursor)
         elif multi and key == ord("a"):
             selected_set = set(range(len(items)))
         elif multi and key == ord("n"):
             selected_set = set()
         elif is_confirm(key):
-            if multi:
-                return sorted(selected_set)
-            return cursor
+            return sorted(selected_set) if multi else cursor
         elif is_cancel(key):
             return None
 

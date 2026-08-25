@@ -74,6 +74,35 @@ def build_state_dict(config: Config) -> dict[str, Any]:
     }
 
 
+def _format_agent_lines(agent_ids: set) -> list[str]:
+    lines = ["Configured agents:"]
+    for agent in AGENTS:
+        if agent.id in agent_ids:
+            lines.append(f"  ✓ {agent.name}")
+    if not agent_ids:
+        lines.append("  (none)")
+    return lines
+
+
+def _format_capability_lines(names: list) -> list[str]:
+    lines = ["Capabilities:"]
+    for name in names or []:
+        lines.append(f"  ✓ {name}")
+    if not names:
+        lines.append("  (none)")
+    return lines
+
+
+def _format_provider_lines(providers: dict) -> list[str]:
+    lines = ["Providers:"]
+    for name, _env, _url in PROVIDERS:
+        present = bool(providers.get(name))
+        mark = "✓" if present else "·"
+        status = "configured" if present else "not configured"
+        lines.append(f"  {mark} {name}: {status}")
+    return lines
+
+
 def review_lines(repo_dir: str | Path = ".") -> list[str]:
     """Human-readable summary lines for the Review Current Configuration screen."""
     state = load_project_state(repo_dir)
@@ -93,27 +122,12 @@ def review_lines(repo_dir: str | Path = ".") -> list[str]:
         f"Supported integrations in catalog: {len(AGENTS)}",
         f"Configured in this project: {len(agent_ids)}",
         "",
-        "Configured agents:",
     ]
-    for agent in AGENTS:
-        if agent.id in agent_ids:
-            lines.append(f"  ✓ {agent.name}")
-    if not agent_ids:
-        lines.append("  (none)")
-
-    lines.extend(["", "Capabilities:"])
-    for name in state.get("capabilities") or []:
-        lines.append(f"  ✓ {name}")
-    if not state.get("capabilities"):
-        lines.append("  (none)")
-
-    lines.extend(["", "Providers:"])
-    providers = state.get("providers") or {}
-    for name, _env, _url in PROVIDERS:
-        present = bool(providers.get(name))
-        mark = "✓" if present else "·"
-        status = "configured" if present else "not configured"
-        lines.append(f"  {mark} {name}: {status}")
+    lines.extend(_format_agent_lines(agent_ids))
+    lines.append("")
+    lines.extend(_format_capability_lines(list(state.get("capabilities") or [])))
+    lines.append("")
+    lines.extend(_format_provider_lines(state.get("providers") or {}))
 
     policy = state.get("budget_policy", "unknown")
     monthly = state.get("monthly_budget", 0)

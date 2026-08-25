@@ -43,6 +43,38 @@ def run_menu(stdscr,title,items,multi=True,descriptions=None):
         elif k in(10,13,curses.KEY_ENTER): return sorted(selected)
         elif k in(ord('q'),27): return None
 
+def _run_discovery(command):
+    """Run the installed discovery CLI without ever exposing credential values."""
+    python=ROOT/"venv/bin/python"; script=ROOT/"discovery.py"
+    try:
+        result=subprocess.run([str(python),str(script),*command],capture_output=True,text=True,timeout=60)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return f"Discovery failed: {exc}"
+    output=result.stdout.strip() or result.stderr.strip() or "No discovery output."
+    return output
+
+def discovery_menu(stdscr):
+    """Expose the same provider/account/model inventory used by the CLI."""
+    choices=["Providers","Accounts","Verified Accounts","All Models","Available Models","Free Models","Doctor"]
+    ids=run_menu(stdscr,"Live Account / Model Discovery",choices,multi=False)
+    if not ids: return
+    commands={0:["providers"],1:["accounts"],2:["accounts","--verify"],3:["models"],4:["models","--available"],5:["models","--free"],6:["doctor"]}
+    _pager(stdscr,f"Discovery | {choices[ids[0]]}",_run_discovery(commands[ids[0]]))
+
+def _pager(stdscr,title,text):
+    """Display arbitrary discovery output without truncating long model inventories."""
+    lines=text.splitlines() or [""]; offset=0
+    while True:
+        stdscr.erase(); h,w=stdscr.getmaxyx(); stdscr.addnstr(1,2,title,w-4,curses.A_BOLD); usable=max(1,h-5)
+        for row,line in enumerate(lines[offset:offset+usable]): stdscr.addnstr(3+row,2,line,w-4)
+        footer="↑/↓ scroll  PgUp/PgDn page  q back"
+        stdscr.addnstr(h-2,2,footer,w-4,curses.A_DIM); stdscr.refresh(); k=stdscr.getch()
+        if k in(ord('q'),27,10,13,curses.KEY_ENTER): return
+        if k in(curses.KEY_DOWN,ord('j')): offset=min(max(0,len(lines)-usable),offset+1)
+        elif k in(curses.KEY_UP,ord('k')): offset=max(0,offset-1)
+        elif k==curses.KEY_NPAGE: offset=min(max(0,len(lines)-usable),offset+usable)
+        elif k==curses.KEY_PPAGE: offset=max(0,offset-usable)
+
 def runtime_menu(stdscr):
     try: data=json.loads(subprocess.check_output([str(ROOT/"venv/bin/python"),str(ROOT/"runtime.py"),"status"],text=True))
     except Exception as exc: data={"selected":"auto","effective":"native","runtimes":[],"error":str(exc)}
@@ -81,7 +113,7 @@ def main():
                 if ids: _pause(stdscr,DESCRIPTIONS.get(COMPONENTS[ids[0]],""))
             elif choice==[2]: decorator_menu(stdscr)
             elif choice==[3]: runtime_menu(stdscr)
-            elif choice==[4]: _pause(stdscr,"Use the CLI for live account/model discovery: flossware-ai accounts --verify")
+            elif choice==[4]: discovery_menu(stdscr)
             elif choice==[5]:
                 p=subprocess.run([str(ROOT/"venv/bin/python"),str(ROOT/"discovery.py"),"doctor"],capture_output=True,text=True); _pause(stdscr,p.stdout or p.stderr)
     curses.wrapper(app)

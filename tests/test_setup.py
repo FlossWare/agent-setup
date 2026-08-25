@@ -16,8 +16,9 @@ from flossware_setup.credentials import credential_status
 
 
 def test_budget_policies_are_pricing_neutral() -> None:
-    assert BUDGET_POLICIES[0][0] == "Strict budget"
-    assert all("free" not in name.lower() for name, _, _ in BUDGET_POLICIES)
+    assert BUDGET_POLICIES[0][0] == "strict"
+    assert BUDGET_POLICIES[0][1] == "Strict budget"
+    assert all("free" not in label.lower() for _id, label, _amt, _desc in BUDGET_POLICIES)
 
 
 def test_agent_registry_contains_expected_agents() -> None:
@@ -60,7 +61,7 @@ def test_config_defaults_are_neutral() -> None:
     cfg = Config()
     assert cfg.profile == "default"
     assert cfg.theme == "dark"
-    assert cfg.budget_index == 2
+    assert cfg.budget_policy == "medium"
 
 
 def test_credential_status_boolean_only(monkeypatch) -> None:

@@ -27,24 +27,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--capability", action="append", dest="capabilities")
     args = parser.parse_args(argv)
 
-    ids = {a.id: i for i, a in enumerate(AGENTS)}
+    ids = {a.id for a in AGENTS}
     if args.agent not in ids:
         print(
-            f"unknown agent: {args.agent}. Known: {', '.join(ids)}",
+            f"unknown agent: {args.agent}. Known: {', '.join(sorted(ids))}",
             file=sys.stderr,
         )
         return 1
 
     selected = args.capabilities or [c[0] for c in CAPABILITIES if c[2]]
-    cap_ids = {c[0]: i for i, c in enumerate(CAPABILITIES)}
-    unknown = [c for c in selected if c not in cap_ids]
+    known_caps = {c[0] for c in CAPABILITIES}
+    unknown = [c for c in selected if c not in known_caps]
     if unknown:
         print("unknown capability: " + ", ".join(unknown), file=sys.stderr)
         return 1
 
     cfg = Config(
-        agents=[ids[args.agent]],
-        capabilities=[cap_ids[c] for c in selected],
+        agents=[args.agent],
+        capabilities=list(selected),
         repo_dir=args.repo,
     )
     generate_artifacts(cfg)

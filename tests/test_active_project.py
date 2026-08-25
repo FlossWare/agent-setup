@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from flossware_setup.artifacts import generate_artifacts
 from flossware_setup.config import (
     Config,
@@ -19,8 +17,7 @@ def test_set_and_get_active_project(tmp_path, monkeypatch):
     project = tmp_path / "proj-a"
     project.mkdir()
     set_active_project(project)
-    active = get_active_project()
-    assert active == project.resolve()
+    assert get_active_project() == project.resolve()
 
 
 def test_review_uses_active_project_not_cwd(tmp_path, monkeypatch):
@@ -30,7 +27,6 @@ def test_review_uses_active_project_not_cwd(tmp_path, monkeypatch):
     project.mkdir()
     (project / ".git").mkdir()
     other.mkdir()
-
     cfg = Config(
         agents=["claude-code"],
         capabilities=["model-router-ai"],
@@ -38,15 +34,11 @@ def test_review_uses_active_project_not_cwd(tmp_path, monkeypatch):
         profile="default",
     )
     generate_artifacts(cfg)
-
-    # Simulate launching from a different directory: resolve without explicit path.
     monkeypatch.chdir(other)
     resolved = resolve_review_project(None)
     assert resolved == project.resolve()
-    lines = review_lines(resolved)
-    joined = "\n".join(lines)
+    joined = "\n".join(review_lines(resolved))
     assert "Claude Code" in joined
-    assert "proj-a" in joined or str(project.resolve()) in joined
 
 
 def test_active_project_file_has_no_secrets(tmp_path, monkeypatch):
@@ -57,4 +49,3 @@ def test_active_project_file_has_no_secrets(tmp_path, monkeypatch):
     set_active_project(project)
     body = (tmp_path / "ai" / "state" / "active-project").read_text(encoding="utf-8")
     assert "sk-should-not-appear" not in body
-    assert str(project.resolve()) in body

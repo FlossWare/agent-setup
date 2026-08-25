@@ -191,7 +191,7 @@ def test_windsurf_generates_devin_rules_path(tmp_path):
     """Preferred Devin Desktop path is .devin/rules/ (not legacy .windsurfrules)."""
     windsurf_idx = next(i for i, a in enumerate(AGENTS) if a.id == "windsurf")
     adapter = AGENTS[windsurf_idx]
-    assert adapter.name == "Windsurf (Devin Desktop)"
+    assert adapter.name == "Devin Desktop"
     assert adapter.files == (".devin/rules/FlossWare.md",)
     repo = tmp_path / "proj"
     repo.mkdir()

@@ -62,6 +62,16 @@ def test_capability_refs_pinned():
         assert len(CAPABILITY_REFS[name]) == 40
 
 
-def test_providers_have_env_and_url():
+def test_providers_have_names():
     for name, env, url in PROVIDERS:
-        assert name and env and url.startswith("https://")
+        assert name
+
+
+def test_providers_have_env_vars():
+    for name, env, url in PROVIDERS:
+        assert env
+
+
+def test_providers_have_https_urls():
+    for name, env, url in PROVIDERS:
+        assert url.startswith("https://")

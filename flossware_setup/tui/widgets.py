@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import curses
-from typing import Optional
 
 from flossware_setup.tui.input import (
     is_cancel,
@@ -40,7 +39,7 @@ def add(win, y: int, x: int, text: str, pair: int = 5, attr: int = 0) -> None:
             pass
 
 
-def header(win, title: str, step: Optional[int] = None) -> int:
+def header(win, title: str, step: int | None = None) -> int:
     """Draw the standard header and return the first content row."""
     win.erase()
     _, w = win.getmaxyx()
@@ -111,7 +110,7 @@ def menu(
     win,
     title: str,
     items: list[tuple[str, str]],
-    selected: Optional[list[int]] = None,
+    selected: list[int] | None = None,
     multi: bool = True,
 ) -> list[int] | int | None:
     """Interactive single- or multi-select menu with keyboard and mouse support.

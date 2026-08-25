@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Acceptance checks for the FlossWare coding-agent setup layer.
 
 The default mode is safe for CI: it validates repository or installed-runtime

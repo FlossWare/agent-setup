@@ -26,7 +26,7 @@ flossware_setup/
 | `python scripts/setup.py` | Source-tree TUI (compatibility) |
 | `flossware-setup` | Package console script (`flossware_setup.tui:main`) |
 | `flossware-ai setup` | Managed-install launcher for the same setup TUI |
-| `flossware-ai tui` | Managed-install control-panel TUI (`scripts/setup_tui.py`) |
+| `flossware-ai tui` / `setup` | Managed-install Setup TUI (`flossware_setup.tui` via `scripts/setup.py` / `tui.py`) |
 
 `flossware-ai` is installed by `scripts/install.sh` into the managed runtime.
 `flossware-setup` is available after `pip install` of this package.

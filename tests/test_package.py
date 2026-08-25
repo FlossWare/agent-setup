@@ -1,7 +1,8 @@
-"""Unit tests for the modular flossware_setup package."""
-
 from __future__ import annotations
 
+"""Unit tests for the modular flossware_setup package."""
+
+from pathlib import Path
 import json
 
 import pytest
@@ -47,7 +48,7 @@ def test_environment_names_match_providers():
 
 
 def test_pip_packages_pinned():
-    packages = pip_packages([0, 1])
+    packages = pip_packages(["model-router-ai", "resilience-ai"])
     assert len(packages) == 2
     assert packages[0].startswith("git+https://github.com/FlossWare/model-router-ai.git@")
     assert CAPABILITY_REFS["model-router-ai"] in packages[0]
@@ -61,9 +62,9 @@ def test_generate_artifacts_writes_state_without_secrets(tmp_path, monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", secret)
 
     cfg = Config(
-        agents=[0, 3],
-        capabilities=[0, 1, 2],
-        budget_index=2,
+        agents=["claude-code", "crush"],
+        capabilities=["model-router-ai", "resilience-ai", "structured-output-ai"],
+        budget_policy="medium",
         budget_amount=50.0,
         repo_dir=str(repo),
         profile="default",
@@ -97,13 +98,13 @@ def test_generate_artifacts_does_not_overwrite_existing(tmp_path):
     existing = repo / "CLAUDE.md"
     existing.write_text("user owned content\n", encoding="utf-8")
 
-    cfg = Config(agents=[0], capabilities=[0], repo_dir=str(repo))
+    cfg = Config(agents=["claude-code"], capabilities=["model-router-ai"], repo_dir=str(repo))
     generate_artifacts(cfg)
     assert existing.read_text(encoding="utf-8") == "user owned content\n"
 
 
 def test_generate_artifacts_requires_git_repo(tmp_path):
-    cfg = Config(agents=[0], capabilities=[0], repo_dir=str(tmp_path))
+    cfg = Config(agents=["claude-code"], capabilities=["model-router-ai"], repo_dir=str(tmp_path))
     with pytest.raises(ValueError, match="Not a git repository"):
         generate_artifacts(cfg)
 
@@ -115,7 +116,7 @@ def test_review_lines_empty_and_populated(tmp_path):
     repo = tmp_path / "proj"
     repo.mkdir()
     (repo / ".git").mkdir()
-    cfg = Config(agents=[0], capabilities=[0], repo_dir=str(repo), profile="default")
+    cfg = Config(agents=["claude-code"], capabilities=["model-router-ai"], repo_dir=str(repo), profile="default")
     generate_artifacts(cfg)
     lines = review_lines(repo)
     joined = "\n".join(lines)
@@ -126,7 +127,7 @@ def test_review_lines_empty_and_populated(tmp_path):
 
 def test_build_state_dict_never_embeds_secrets(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "should-not-leak")
-    cfg = Config(agents=[1], capabilities=[0], profile="default")
+    cfg = Config(agents=["cursor"], capabilities=["model-router-ai"], profile="default")
     state = build_state_dict(cfg)
     assert state["providers"]["Gemini"] is True
     assert "should-not-leak" not in json.dumps(state)
@@ -146,15 +147,12 @@ def test_load_project_state_missing(tmp_path):
     assert load_project_state(tmp_path) == {}
 
 
-def _aider_agent_index() -> int:
-    return next(i for i, a in enumerate(AGENTS) if a.id == "aider")
-
 
 def test_aider_conf_created_when_missing(tmp_path):
     repo = tmp_path / "proj"
     repo.mkdir()
     (repo / ".git").mkdir()
-    cfg = Config(agents=[_aider_agent_index()], capabilities=[0], repo_dir=str(repo))
+    cfg = Config(agents=["aider"], capabilities=["model-router-ai"], repo_dir=str(repo))
     generate_artifacts(cfg)
     conf = (repo / ".aider.conf.yml").read_text(encoding="utf-8")
     assert "read: CONVENTIONS.md" in conf
@@ -167,7 +165,7 @@ def test_aider_conf_appends_read_when_missing_key(tmp_path):
     (repo / ".git").mkdir()
     existing = "# user settings\nauto-commits: false\nmodel: gpt-4o\n"
     (repo / ".aider.conf.yml").write_text(existing, encoding="utf-8")
-    cfg = Config(agents=[_aider_agent_index()], capabilities=[0], repo_dir=str(repo))
+    cfg = Config(agents=["aider"], capabilities=["model-router-ai"], repo_dir=str(repo))
     generate_artifacts(cfg)
     conf = (repo / ".aider.conf.yml").read_text(encoding="utf-8")
     assert "auto-commits: false" in conf
@@ -182,7 +180,7 @@ def test_aider_conf_untouched_when_read_key_exists(tmp_path):
     original = "read: MY_RULES.md\nother: value\n"
     path = repo / ".aider.conf.yml"
     path.write_text(original, encoding="utf-8")
-    cfg = Config(agents=[_aider_agent_index()], capabilities=[0], repo_dir=str(repo))
+    cfg = Config(agents=["aider"], capabilities=["model-router-ai"], repo_dir=str(repo))
     generate_artifacts(cfg)
     assert path.read_text(encoding="utf-8") == original
 
@@ -196,10 +194,24 @@ def test_windsurf_generates_devin_rules_path(tmp_path):
     repo = tmp_path / "proj"
     repo.mkdir()
     (repo / ".git").mkdir()
-    cfg = Config(agents=[windsurf_idx], capabilities=[0], repo_dir=str(repo))
+    cfg = Config(agents=["windsurf"], capabilities=["model-router-ai"], repo_dir=str(repo))
     generate_artifacts(cfg)
     path = repo / ".devin" / "rules" / "FlossWare.md"
     assert path.is_file()
     body = path.read_text(encoding="utf-8")
     assert "trigger: always_on" in body
     assert not (repo / ".windsurfrules").exists()
+
+
+def test_install_sh_defaults_to_default_profile() -> None:
+    text = (Path(__file__).resolve().parents[1] / "scripts" / "install.sh").read_text(encoding="utf-8")
+    assert 'PROFILE="default"' in text
+    assert "personal|redhat" not in text
+    assert "setup_tui" not in text
+
+
+def test_flossware_ai_unifies_tui_and_setup() -> None:
+    text = (Path(__file__).resolve().parents[1] / "scripts" / "flossware-ai").read_text(encoding="utf-8")
+    assert "setup|tui" in text or "tui|setup" in text or "run_tui" in text
+    assert "setup_tui.py" not in text
+    assert "personal|redhat" not in text

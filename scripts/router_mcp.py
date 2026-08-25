@@ -26,7 +26,7 @@ from model_router_ai import (
 )
 from model_router_ai.discovery import discover_accounts
 
-PROFILE = os.environ.get("FLOSSWARE_PROFILE", "personal")
+PROFILE = os.environ.get("FLOSSWARE_PROFILE", "default")
 mcp = FastMCP("flossware-model-router")
 _router = None
 _lock = asyncio.Lock()
@@ -59,11 +59,6 @@ async def get_router():
     global _router
     if _router is not None:
         return _router
-    if PROFILE == "redhat":
-        raise RuntimeError(
-            "FlossWare personal model router is disabled in the redhat profile; "
-            "use the approved native Red Hat agent authentication path."
-        )
     async with _lock:
         if _router is not None:
             return _router
@@ -86,7 +81,7 @@ async def get_router():
 
         if not allowed_models:
             raise RuntimeError(
-                "No configured personal model accounts were found in the environment"
+                "No configured model accounts were found in the environment"
             )
 
         routed = ThompsonSamplingSelector(base)

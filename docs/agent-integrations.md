@@ -53,7 +53,7 @@ The coding agent may continue to own its native model/account authentication. Fl
 
 ## Profiles
 
-Agent configuration is profile-aware. A personal profile can expose personal accounts/models while a Red Hat profile can restrict the effective model/provider set. Secrets are not copied between profiles.
+Agent configuration is profile-aware. A local profile can expose a restricted set of accounts/models while another profile can expose a broader set. Secrets are not copied between profiles.
 
 ## Dogfood acceptance
 

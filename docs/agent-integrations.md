@@ -25,13 +25,26 @@ Support level is capability-based. An agent may support instruction files, MCP, 
 ## Instruction files
 
 FlossWare keeps shared project guidance separate from agent-specific configuration.
+Generated files contain behavior/configuration guidance only — never API keys or other secrets.
 
-- `AGENTS.md` is the common convention for agents that support it.
-- `CLAUDE.md` is used for Claude Code-specific guidance.
-- `.cursorrules` is used for Cursor where required.
-- Other agent-specific files are generated only when the target agent requires them.
+| Agent | Project file(s) | Notes |
+| --- | --- | --- |
+| Claude Code | `CLAUDE.md` | Official project memory |
+| Cursor | `.cursor/rules/flossware-ai.mdc`, `.cursorrules` | Modern `.mdc` rules preferred; legacy file kept for compatibility |
+| OpenCode | `AGENTS.md` | Shared instructions |
+| Crush | `AGENTS.md` | Shared context (default init name) |
+| Codex | `AGENTS.md` | Official Codex discovery |
+| Aider | `CONVENTIONS.md`, `.aider.conf.yml` | Conf sets `read: CONVENTIONS.md` when missing |
+| Cline | `.clinerules/FlossWare.md` | Workspace rules directory |
+| Roo Code | `.roo/rules/FlossWare.md` | Preferred directory rules |
+| Gemini CLI | `GEMINI.md` | Official project context file |
+| GitHub Copilot | `.github/copilot-instructions.md`, `AGENTS.md` | Both apply to Copilot coding agent |
+| Windsurf | `.windsurfrules` | Project rules file |
+| Amazon Q Developer | `.amazonq/rules/FlossWare.md` | Official rules directory |
+| Kiro | `.kiro/steering/FlossWare.md` | Workspace steering |
 
-Generated instruction files contain behavior/configuration guidance, never API keys or other secrets.
+`AGENTS.md` is generated **once** when any shared consumer (OpenCode, Crush, Codex, GitHub Copilot) is selected.
+Existing user-owned instruction files without FlossWare markers are left unchanged.
 
 ## MCP
 

@@ -24,7 +24,7 @@ def load_theme(name: str):
         from curses_themes import ThemeManager
 
         return ThemeManager.load(name)
-    except Exception:
+    except Exception:  # noqa: BLE001 — optional dependency may raise anything
         return None
 
 
@@ -64,7 +64,9 @@ def run(stdscr, theme_name: str = "dark") -> None:
                 credentials_screen(stdscr)
                 build_screen(stdscr, cfg)
                 review_screen(stdscr, cfg.repo_dir)
-            except Exception as exc:
+            except (ValueError, OSError, RuntimeError, curses.error) as exc:
+                error_screen(stdscr, str(exc))
+            except Exception as exc:  # noqa: BLE001 — last-resort UI recovery
                 error_screen(stdscr, str(exc))
 
 
@@ -93,7 +95,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     except (KeyboardInterrupt, curses.error) as exc:
         print(f"Setup cancelled: {exc}", file=sys.stderr)
         return 1
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — top-level CLI boundary
         print(f"Setup failed: {exc}", file=sys.stderr)
         return 1
     return 0

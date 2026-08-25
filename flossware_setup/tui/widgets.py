@@ -178,7 +178,7 @@ def text_input(win, prompt: str, default: str = "") -> str:
         raw = win.getstr(y + 2, 2, 200)
         text = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
         text = text.strip() or default
-    except Exception:
+    except (curses.error, UnicodeDecodeError, OSError):
         text = default
     finally:
         curses.noecho()

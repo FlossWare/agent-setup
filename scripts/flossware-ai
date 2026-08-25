@@ -28,7 +28,7 @@ case "${1:-}" in
   mcp-config) shift; exec "$ROOT/venv/bin/python" "$ROOT/mcp.py" "$@";;
   runtime) shift; exec "$ROOT/venv/bin/python" "$ROOT/runtime.py" "$@";;
   setup) shift; exec "$ROOT/venv/bin/python" "$ROOT/setup.py" "$@";;
-  tui) exec "$ROOT/venv/bin/python" "$ROOT/tui.py" "$@";;
+  tui) exec "$ROOT/venv/bin/python" "$ROOT/setup_tui.py" "$@";;
   update|reinstall) ACTION="$1"; shift; [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall) || EXTRA=(); exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@";;
   clean) exec "$ROOT/coding-agent-setup/scripts/install.sh" --clean "$@";;
   doctor) exec "$ROOT/venv/bin/python" "$ROOT/discovery.py" doctor;;

@@ -114,8 +114,7 @@ def _existing_absolute_dir(raw: str | Path) -> Path | None:
         return None
     if not os.path.isabs(real) or not os.path.isdir(real):
         return None
-    # NOSONAR: realpath output is constrained by allowlist + isabs + isdir checks;
-    # active-project is local operator state written by set_active_project, not HTTP input.
+    # Path construction is safe: allowlist + isabs + isdir + realpath (local state only).
     return Path(real)  # NOSONAR
 
 

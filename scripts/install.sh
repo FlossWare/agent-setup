@@ -32,18 +32,22 @@ if [[ -n "${TERMUX_VERSION:-}" || "${PREFIX:-}" == /data/data/com.termux/* ]]; t
 elif [[ "${OSTYPE:-}" == freebsd* ]]; then PLATFORM="freebsd"
 elif [[ -r /etc/os-release ]]; then source /etc/os-release; case "${ID:-}" in fedora|rhel|rocky|almalinux|ol|centos|nobara) PLATFORM="fedora";; debian|ubuntu|linuxmint|pop) PLATFORM="debian";; esac; fi
 [[ "$PLATFORM" != unknown ]] || fail "Unsupported platform. Supported platforms: Fedora/RHEL derivatives, Debian/Ubuntu, FreeBSD, and Termux/Android."
-install_prereqs(){ case "$PLATFORM" in
+install_prereqs(){
+  # A healthy existing venv proves prerequisites were installed previously.
+  # Avoid repeating sudo/package-manager work on every normal invocation.
+  [[ -x "$VENV/bin/python" ]] && return 0
+  case "$PLATFORM" in
 fedora) PM=(dnf); [[ $EUID -eq 0 ]] || PM=(sudo dnf); "${PM[@]}" install -y git python3 python3-devel python3-pip gcc gcc-c++ make pkgconf-pkg-config openssl-devel libffi-devel rust cargo ncurses-devel;;
 debian) PM=(apt-get); [[ $EUID -eq 0 ]] || PM=(sudo apt-get); "${PM[@]}" update; "${PM[@]}" install -y git python3 python3-venv python3-dev python3-pip build-essential pkg-config libssl-dev libffi-dev rustc cargo libncurses-dev;;
 freebsd) PM=(pkg); [[ $EUID -eq 0 ]] || { command -v doas >/dev/null 2>&1 && PM=(doas pkg) || PM=(sudo pkg); }; "${PM[@]}" install -y git python3 py311-pip gcc pkgconf openssl libffi rust;;
 termux) pkg update -y; pkg install -y git python python-pip clang make pkg-config openssl libffi rust;; esac; }
+mkdir -p "$INSTALL_ROOT"
+if [[ "$REINSTALL" == true ]]; then rm -rf -- "$VENV" "$SETUP_DIR" "$INSTALL_ROOT/bin"; fi
 install_prereqs
 python3 - <<'PY'
 import sys
 if sys.version_info < (3,11): raise SystemExit("Python 3.11+ required")
 PY
-mkdir -p "$INSTALL_ROOT"
-if [[ "$REINSTALL" == true ]]; then rm -rf -- "$VENV" "$SETUP_DIR" "$INSTALL_ROOT/bin"; fi
 [[ -d "$VENV" ]] || python3 -m venv "$VENV"
 source "$VENV/bin/activate"; python -m pip install --upgrade pip setuptools wheel fastmcp
 if [[ "$USE_SOURCE" == true ]]; then python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"; elif ! python -m pip install --upgrade --prefer-binary "coding-agent-ai[all,tui]"; then python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"; fi

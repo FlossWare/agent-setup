@@ -31,7 +31,17 @@ Agent
   +--> Loom AI (complete orchestration platform)
 ```
 
-The setup layer provides the common configuration, profile, account/model discovery, credential-source references, MCP integration, CLI, and operator TUI. It does not copy provider secrets into generated files.
+The setup layer provides common configuration, profiles, account/model discovery, credential-source references, MCP integration, CLI, and the operator Setup TUI. It does not copy provider secrets into generated files.
+
+## Documentation
+
+- [`docs/setup-tui.md`](docs/setup-tui.md) — complete Setup TUI operator guide
+- [`docs/agent-integrations.md`](docs/agent-integrations.md) — coding-agent and MCP integration model
+- [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md) — profiles, multiple accounts, credential safety, and status states
+- [`docs/artifacts.md`](docs/artifacts.md) — artifact-first installation and source fallback
+- [`docs/platforms.md`](docs/platforms.md) — Fedora/RHEL, Debian, FreeBSD, Termux, and Windows support
+- [`docs/decorators.md`](docs/decorators.md) — declarative decorator pipeline and ordering
+- [`docs/container-runtimes.md`](docs/container-runtimes.md) — Podman/Docker execution backends
 
 ## CLI
 
@@ -61,10 +71,14 @@ Profiles currently include `personal` and `redhat`. An account is distinct from 
 Status vocabulary:
 
 - **configured**: a credential source is present
-- **discovered**: an authenticated provider advertised the model/account
+- **verified**: authentication/credential validation succeeded
+- **discovered**: an authenticated provider advertised the account/model
 - **available**: discovered and permitted by the active profile
 - **ready**: credentials, policy, and connectivity checks pass
 - **active**: selected for the current workload
+- **blocked**: policy or platform prevents use
+
+See [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md).
 
 ## Cross-cutting decorators
 
@@ -72,21 +86,19 @@ FlossWare uses explicitly enabled decorators/interceptors/middleware for cross-c
 
 The TUI configures these declaratively under **Components → Cross-Cutting Behavior**. Users can enable/disable decorators, edit their policy settings, and reorder the stack when ordering affects semantics. The runtime translates that policy into the appropriate decorator/interceptor/middleware implementation.
 
-Decorator configuration is provider-neutral and contains no secrets. Profile defaults may supply policy, while component configuration provides explicit opt-in or override. See [`docs/decorators.md`](docs/decorators.md).
+Decorator configuration is provider-neutral and contains no secrets. Profile defaults may supply policy, while component configuration provides explicit opt-in or override.
 
 ## Container runtimes
 
 Podman and Docker are supported as execution backends. On Linux, Podman is preferred when healthy, while Docker is fully supported. Windows supports Docker Desktop and Podman where available. FreeBSD and Termux report a runtime only when it is actually reachable; the setup layer does not claim native container support where an external VM or compatibility layer is required. Native execution remains available when no runtime is configured.
 
-See [`docs/container-runtimes.md`](docs/container-runtimes.md).
-
 ## TUI
 
-`flossware-ai tui` is the full operator/configuration TUI. It is separate from Loom's optional `loom-tui` and is intended for using FlossWare capabilities in isolation with coding agents.
+`flossware-ai tui` is the full operator/configuration **Setup TUI**. It is separate from Loom's optional `loom-tui` and is intended for using FlossWare capabilities in isolation with coding agents.
 
 Every major TUI selection has a contextual status/description panel explaining what the component does and its current state. Cross-cutting behavior is presented as a configurable policy stack rather than raw implementation details. Container Runtime is configurable as Auto, Podman, Docker, or Native, with health/version status.
 
-Loom itself has a headless core plus its own optional curses-themes-based TUI.
+Loom itself has a headless core plus its own optional curses-themes-based operator TUI.
 
 ## Credential safety
 

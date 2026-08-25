@@ -75,7 +75,22 @@ Supported agents include Claude Code, Cursor, OpenCode, Crush, Codex, Aider, Cli
 
 ## Profiles and accounts
 
-Profiles currently include `personal` and `redhat`. An account is distinct from a provider, so multiple accounts can reference the same provider. Account metadata uses opaque local aliases and credential-source references only. Actual credentials and human identity data remain outside FlossWare managed configuration.
+Profiles are **user-defined policy boundaries**, not hardcoded organizational identities. The public repository ships only a neutral `default` profile. Users can create profiles such as `personal`, `work`, `redhat`, `government`, `client-a`, or any other name appropriate to their environment.
+
+A profile controls which providers, accounts, models, local models, and FlossWare capabilities are permitted for that workload. The repository does not assume that any particular employer, organization, provider, or compliance regime applies to every user.
+
+For example:
+
+```text
+~/.flossware/ai/profiles/
+├── default.toml
+├── personal.toml
+└── work.toml
+```
+
+On a Red Hat workstation, `work.toml` may enforce an organization's approved model policy. In another environment, the same mechanism can represent an entirely different policy. Organizational profiles are local configuration and should not be committed to this public repository.
+
+An account is distinct from a provider, so multiple accounts can reference the same provider. The active profile determines which accounts are allowed. Account metadata uses opaque local aliases and credential-source references only. Actual credentials and human identity data remain outside FlossWare managed configuration.
 
 Status vocabulary:
 
@@ -113,7 +128,7 @@ Loom itself has a headless core plus its own optional curses-themes-based operat
 
 FlossWare managed configuration is **non-identifying and secret-free**. API keys, OAuth tokens, passwords, cookies, email addresses, employee/customer identifiers, phone numbers, and other PII are not persisted in profiles, account metadata, generated agent files, MCP definitions, logs, or diagnostics.
 
-Credential references such as `environment:OPENAI_API_KEY` identify where a secret is obtained; they are not secret values. Account aliases must be opaque local identifiers, such as `openai-personal-1`, rather than human names, emails, or employee identifiers.
+Credential references such as `environment:OPENAI_API_KEY` identify where a secret is obtained; they are not secret values. Account aliases must be opaque local identifiers, such as `openai-account-1`, rather than human names, emails, or employee identifiers.
 
 See [`docs/privacy.md`](docs/privacy.md).
 

@@ -17,11 +17,13 @@ jobs:
         with:
           python-version: '3.11'
       - name: Syntax check
-        run: python -m compileall -q scripts
+        run: python -m compileall -q scripts flossware_setup
       - name: Install test dependencies
         run: python -m pip install pytest build
       - name: Build Python package
         run: python -m build
+      - name: Install package (editable)
+        run: python -m pip install -e .
       - name: Install Windows curses support
         if: runner.os == 'Windows'
         shell: pwsh
@@ -30,6 +32,12 @@ jobs:
         run: pytest -q
       - name: Run dogfood acceptance checks
         run: python scripts/dogfood.py
+      - name: Verify CLI entry points
+        shell: bash
+        run: |
+          python scripts/setup.py --help
+          python -c "from flossware_setup.tui import main; assert callable(main)"
+          python -c "from flossware_setup.catalog import AGENTS; assert len(AGENTS) == 13"
       - name: Verify POSIX installer
         if: runner.os != 'Windows'
         run: test -x scripts/install.sh

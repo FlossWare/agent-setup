@@ -2,7 +2,10 @@
 """Compatibility entry point for the FlossWare coding-agent setup TUI.
 
 Implementation lives in the flossware_setup package. This script remains the
-stable CLI/TUI path used by installers, documentation, and dogfood checks.
+stable path used by installers, documentation, and dogfood checks.
+
+Package console script: flossware-setup
+Managed install launcher: flossware-ai setup
 """
 
 from __future__ import annotations
@@ -10,7 +13,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Allow running from a source checkout without an editable install.
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))

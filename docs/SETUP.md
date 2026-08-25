@@ -4,6 +4,23 @@
 
 The public project is designed to be reusable by individuals, teams, enterprises, government environments, and other organizations. It does **not** assume a Red Hat, personal, or other organization-specific profile. The repository ships a neutral `default` profile; users create named profiles such as `personal`, `work`, `redhat`, or `government` as local policy requires.
 
+## Mouse and keyboard interaction
+
+The Setup TUI supports **mouse clicks when the terminal exposes curses mouse events**. Keyboard operation remains fully supported and is never replaced by mouse input.
+
+On selection screens:
+
+- **Left-click a row** to move the cursor and select/toggle that row.
+- For multi-select screens, clicking toggles the checkbox immediately.
+- For single-select screens, clicking a row selects it immediately and advances to the next step.
+- `Enter` confirms the current selection when using the keyboard.
+- `↑`/`↓` and `j`/`k` navigate by keyboard.
+- `Space` toggles a multi-select row.
+- `a` selects all and `n` clears all on multi-select screens.
+- `q` or `Esc` quits/cancels where applicable.
+
+Mouse support depends on the terminal emulator, multiplexer, and curses implementation. If mouse reporting is unavailable, the TUI automatically remains keyboard-only.
+
 ## Current installation model
 
 The setup project provides:
@@ -56,13 +73,11 @@ Requirements vary by platform. The current dogfood target is Fedora Linux, with 
 
 For the Fedora dogfood path, use Python 3.11+, Git, and a terminal with curses support. Optional TUI themes use `curses-themes`; the TUI retains a built-in fallback and does not require a theme package merely to start.
 
-See [`platforms.md`](platforms.md), [`platforms/fedora.md`](platforms/fedora.md), and [`platforms/termux.md`](platforms/termux.md).
-
 ## TUI walkthrough
 
 ### Welcome
 
-The welcome screen identifies the setup as provider-neutral and explains that credentials are optional and budget is a policy. Press `Enter` to begin; `q` or `Esc` exits/cancels where applicable.
+The welcome screen identifies the setup as provider-neutral and explains that credentials are optional and budget is a policy. Press `Enter` or click to begin; `q` or `Esc` exits/cancels where applicable.
 
 ### Coding agents
 
@@ -73,8 +88,6 @@ Each selected integration is configured using the agent's supported mechanism. S
 ### FlossWare capabilities
 
 Core capabilities include model routing, resilience, and structured-output handling. Optional capabilities include consensus, evaluation, observability, security, retrieval, optimization, and other installed FlossWare components.
-
-The exact capability inventory is discovered from the installed environment rather than treated as a permanent hard-coded list.
 
 ### Profiles
 
@@ -97,16 +110,6 @@ A provider may have multiple accounts. Account identity is separate from provide
 
 The setup layer records credential **sources/references**, never credential values. Environment variables, native credential stores, and agent-owned authentication can remain authoritative. Credential values must not be written to generated agent files, configuration, MCP definitions, logs, or source control.
 
-Common account states are:
-
-- `configured`
-- `verified`
-- `discovered`
-- `available`
-- `ready`
-- `active`
-- `blocked`
-
 ### Models and providers
 
 Provider/model selection is policy-driven. The setup layer does not treat paid providers as inherently preferred or free providers as inherently preferred. Availability depends on account authentication, active profile policy, provider capabilities, platform support, and budget/cost policy.
@@ -119,23 +122,11 @@ Budget is a policy input, not a provider category. Routing can consider a monthl
 
 The runtime selector can use Auto, Podman, Docker, or Native execution where supported. Health and version information are reported rather than assuming a runtime exists.
 
-### Build / configuration summary
-
-The setup process records the selected configuration in a reproducible manifest. Generated files contain configuration and guidance, not secret values.
-
 ## Generated configuration
 
-Depending on the selected agents and capabilities, the setup layer may generate or update files such as:
+Depending on the selected agents and capabilities, the setup layer may generate or update files such as `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `ai_config.py`, and `.flossware-ai.json`. The exact generated set is agent/version dependent.
 
-| File | Purpose |
-|------|---------|
-| `CLAUDE.md` | Claude Code project instructions |
-| `AGENTS.md` | Shared coding-agent instructions where supported |
-| `.cursorrules` | Cursor project instructions where applicable |
-| `ai_config.py` | Python wiring for selected FlossWare capabilities |
-| `.flossware-ai.json` | Configuration/build manifest |
-
-The exact generated set is agent/version dependent. The installer and TUI should be treated as authoritative over this historical list.
+Generated files contain configuration and guidance, not credential values.
 
 ## Architecture
 
@@ -148,8 +139,6 @@ agent
   -> provider adapter
   -> model/runtime
 ```
-
-Cross-cutting behavior includes resilience, security, observability, evaluation, structured-output validation, auditing, caching, and token/cost accounting. Decorators are configured declaratively and must not encode provider or organizational identity assumptions.
 
 ## CLI
 
@@ -172,21 +161,9 @@ flossware-ai doctor
 flossware-ai tui
 ```
 
-## Keyboard controls
-
-| Key | Action |
-|-----|--------|
-| `↑` `↓` | Move cursor |
-| `Space` | Toggle checkbox |
-| `Enter` | Confirm / select |
-| `a` | Select all |
-| `n` | Select none |
-| `t` | Theme picker where supported |
-| `q` | Quit / cancel |
-
 ## Themes
 
-The TUI can use themes from `FlossWare/curses-themes` when available. A built-in fallback palette keeps the TUI usable without the optional theme package.
+The TUI can use themes from `FlossWare/curses-themes` when available. A built-in fallback palette keeps the TUI usable without the optional theme package. Themes control presentation; mouse interaction remains owned by the Setup TUI.
 
 ## Privacy and security invariants
 
@@ -196,4 +173,4 @@ See [`privacy.md`](privacy.md), [`SECURITY.md`](SECURITY.md), and [`credentials-
 
 ## Documentation authority
 
-Use this guide for the operator workflow, the repository README for project architecture and quick start, and the platform-specific documentation for installation details. CLI help and the running TUI are authoritative when an agent/version-specific option differs from a static example.
+Use this guide for the operator workflow, the repository README for project architecture and quick start, and platform-specific documentation for installation details. CLI help and the running TUI are authoritative when an agent/version-specific option differs from a static example.

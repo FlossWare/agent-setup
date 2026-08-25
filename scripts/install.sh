@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Fedora installer for FlossWare coding-agent-setup + coding-agent-ai.
+# Cross-platform FlossWare AI installer.
+# Supports Fedora/RHEL derivatives, Debian/Ubuntu, FreeBSD, and Termux/Android.
 set -euo pipefail
 AGENT="all"; PROFILE="personal"; REPO_DIR=""; REINSTALL=false; CLEAN=false
 INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware/ai}"; VENV="$INSTALL_ROOT/venv"; SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
@@ -11,11 +12,12 @@ Usage: ./scripts/install.sh [options]
   --profile NAME      personal or redhat. Default: personal
   --repo, -r PATH     Optional Git project to configure
   --reinstall         Recreate only the managed FlossWare AI environment
-  --clean             Remove the managed FlossWare AI environment, preserving project files
+  --clean             Remove the managed FlossWare AI environment
   --help, -h          Show this help
 
-The canonical managed root is ~/.flossware/ai. Credential values are never copied or persisted.
+Supported platforms: Fedora/RHEL derivatives, Debian/Ubuntu, FreeBSD, Termux/Android.
 Artifacts are preferred; set FLOSSWARE_USE_SOURCE=true to force Git/source installation.
+Credentials are never copied or persisted by this installer.
 EOF
 }
 while [[ $# -gt 0 ]]; do case "$1" in
@@ -24,26 +26,51 @@ while [[ $# -gt 0 ]]; do case "$1" in
   --repo|-r) [[ $# -ge 2 ]] || { echo "ERROR: --repo requires a path" >&2; exit 2; }; REPO_DIR="$2"; shift 2;;
   --reinstall) REINSTALL=true; shift;; --clean) CLEAN=true; shift;; --help|-h) usage; exit 0;; *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2;; esac; done
 case "$PROFILE" in personal|redhat) ;; *) echo "ERROR: invalid profile '$PROFILE'" >&2; exit 2;; esac
-if [[ "$CLEAN" == true ]]; then
-  printf '[FlossWare] Removing managed AI environment: %s\n' "$INSTALL_ROOT"
-  rm -rf -- "$INSTALL_ROOT"; rm -f -- "$HOME/.local/bin/flossware-ai"
-  printf '[FlossWare] Clean complete. Project files, native agent credentials, and provider credentials were not touched.\n'; exit 0
-fi
 case "$AGENT" in claude|claude-code|cursor|opencode|crush|codex|aider|cline|roo-code|gemini-cli|github-copilot|windsurf|amazon-q|kiro|all) ;; *) echo "ERROR: invalid agent '$AGENT'" >&2; exit 2;; esac
-if [[ "${OSTYPE:-}" != linux* ]] || [[ ! -r /etc/os-release ]]; then echo "ERROR: Linux is required." >&2; exit 1; fi
-source /etc/os-release; [[ "${ID:-}" == fedora ]] || { echo "ERROR: Fedora Linux is required; detected ${ID:-unknown}." >&2; exit 1; }
-if [[ $EUID -eq 0 ]]; then DNF=(dnf); else command -v sudo >/dev/null 2>&1 || { echo "ERROR: sudo is required." >&2; exit 1; }; DNF=(sudo dnf); fi
 log(){ printf '\n[FlossWare] %s\n' "$*"; }; fail(){ printf '\n[FlossWare] ERROR: %s\n' "$*" >&2; exit 1; }
-log "Installing Fedora prerequisites"; "${DNF[@]}" install -y git python3 python3-devel python3-pip gcc gcc-c++ make pkgconf-pkg-config openssl-devel libffi-devel rust cargo ncurses-devel
+if [[ "$CLEAN" == true ]]; then
+  log "Removing managed AI environment: $INSTALL_ROOT"; rm -rf -- "$INSTALL_ROOT"; rm -f -- "$HOME/.local/bin/flossware-ai"; log "Clean complete. Native agent/provider credentials were not touched."; exit 0
+fi
+
+# Identify the host before installing prerequisites.
+PLATFORM="unknown"
+if [[ -n "${TERMUX_VERSION:-}" || "${PREFIX:-}" == /data/data/com.termux/* ]]; then PLATFORM="termux"
+elif [[ "${OSTYPE:-}" == freebsd* ]]; then PLATFORM="freebsd"
+elif [[ -r /etc/os-release ]]; then source /etc/os-release; case "${ID:-}" in fedora|rhel|rocky|almalinux|ol|centos|nobara) PLATFORM="fedora";; debian|ubuntu|linuxmint|pop) PLATFORM="debian";; esac
+fi
+[[ "$PLATFORM" != unknown ]] || fail "Unsupported platform. Supported platforms: Fedora/RHEL derivatives, Debian/Ubuntu, FreeBSD, and Termux/Android."
+
+install_prereqs(){
+  case "$PLATFORM" in
+    fedora)
+      if [[ $EUID -eq 0 ]]; then PM=(dnf); else command -v sudo >/dev/null 2>&1 || fail "sudo is required."; PM=(sudo dnf); fi
+      log "Installing Fedora/RHEL-family prerequisites"; "${PM[@]}" install -y git python3 python3-devel python3-pip gcc gcc-c++ make pkgconf-pkg-config openssl-devel libffi-devel rust cargo ncurses-devel
+      ;;
+    debian)
+      if [[ $EUID -eq 0 ]]; then PM=(apt-get); else command -v sudo >/dev/null 2>&1 || fail "sudo is required."; PM=(sudo apt-get); fi
+      log "Installing Debian-family prerequisites"; "${PM[@]}" update; "${PM[@]}" install -y git python3 python3-venv python3-dev python3-pip build-essential pkg-config libssl-dev libffi-dev rustc cargo libncurses-dev
+      ;;
+    freebsd)
+      if [[ $EUID -eq 0 ]]; then PM=(pkg); else command -v doas >/dev/null 2>&1 && PM=(doas pkg) || { command -v sudo >/dev/null 2>&1 || fail "sudo or doas is required."; PM=(sudo pkg); }; fi
+      log "Installing FreeBSD prerequisites"; "${PM[@]}" install -y git python3 py311-pip gcc pkgconf openssl libffi rust
+      ;;
+    termux)
+      command -v pkg >/dev/null 2>&1 || fail "Termux pkg is required."; log "Installing Termux prerequisites"; pkg update -y; pkg install -y git python python-pip clang make pkg-config openssl libffi rust
+      ;;
+  esac
+}
+install_prereqs
+
 python3 - <<'PY'
 import sys
 if sys.version_info < (3, 11): raise SystemExit("Python 3.11+ required")
 print(f"Python {sys.version.split()[0]}")
 PY
 mkdir -p "$INSTALL_ROOT"
-if [[ "$REINSTALL" == true ]]; then log "Reinstall requested: removing only managed FlossWare AI artifacts"; rm -rf -- "$VENV" "$SETUP_DIR" "$INSTALL_ROOT/bin"; fi
+if [[ "$REINSTALL" == true ]]; then log "Reinstall requested: removing only managed FlossWare AI runtime"; rm -rf -- "$VENV" "$SETUP_DIR" "$INSTALL_ROOT/bin"; fi
 [[ -d "$VENV" ]] || { log "Creating isolated Python environment: $VENV"; python3 -m venv "$VENV"; }
-source "$VENV/bin/activate"; python -m pip install --upgrade pip setuptools wheel fastmcp
+source "$VENV/bin/activate"
+python -m pip install --upgrade pip setuptools wheel fastmcp
 if [[ "$USE_SOURCE" == true ]]; then
   log "Source mode enabled: installing coding-agent-ai from $RELEASE_REF"
   python -m pip install --upgrade "coding-agent-ai[all,tui] @ git+$AI_REPO@$RELEASE_REF"
@@ -57,7 +84,6 @@ fi
 log "Installing coding-agent-setup from $RELEASE_REF"
 if [[ -d "$SETUP_DIR/.git" ]]; then git -C "$SETUP_DIR" fetch --force origin "$RELEASE_REF"; git -C "$SETUP_DIR" checkout --force "$RELEASE_REF"; git -C "$SETUP_DIR" reset --hard "origin/$RELEASE_REF" 2>/dev/null || true; else git clone --depth 1 --branch "$RELEASE_REF" "$SETUP_REPO" "$SETUP_DIR"; fi
 for required in scripts/setup.py scripts/profile.sh scripts/flossware-ai scripts/router_mcp.py scripts/discovery.py scripts/mcp.py scripts/tui.py scripts/agent_setup.py; do [[ -f "$SETUP_DIR/$required" ]] || fail "missing $required"; done
-for p in personal redhat; do [[ -f "$SETUP_DIR/profiles/$p.toml" ]] || fail "missing profiles/$p.toml"; done
 python -m compileall -q "$SETUP_DIR/scripts/setup.py" "$SETUP_DIR/scripts/tui.py" "$SETUP_DIR/scripts/agent_setup.py" "$SETUP_DIR/scripts/router_mcp.py" "$SETUP_DIR/scripts/discovery.py" "$SETUP_DIR/scripts/mcp.py"
 PROFILE_DIR="$INSTALL_ROOT/config/profiles/$PROFILE"; mkdir -p "$PROFILE_DIR" "$INSTALL_ROOT/bin" "$INSTALL_ROOT/state" "$INSTALL_ROOT/cache" "$INSTALL_ROOT/mcp"
 cp "$SETUP_DIR/scripts/profile.sh" "$PROFILE_DIR/profile.sh"; cp "$SETUP_DIR/profiles/$PROFILE.toml" "$PROFILE_DIR/profile.toml"; cp "$SETUP_DIR/scripts/flossware-ai" "$INSTALL_ROOT/bin/flossware-ai"; cp "$SETUP_DIR/scripts/tui.py" "$INSTALL_ROOT/tui.py"; cp "$SETUP_DIR/scripts/agent_setup.py" "$INSTALL_ROOT/agent_setup.py"; cp "$SETUP_DIR/scripts/setup.py" "$INSTALL_ROOT/setup.py"; cp "$SETUP_DIR/scripts/router_mcp.py" "$INSTALL_ROOT/router_mcp.py"; cp "$SETUP_DIR/scripts/discovery.py" "$INSTALL_ROOT/discovery.py"; cp "$SETUP_DIR/scripts/mcp.py" "$INSTALL_ROOT/mcp.py"
@@ -79,4 +105,4 @@ import os
 vars=("COHERE_API_KEY","OPENROUTER_API_KEY","GEMINI_API_KEY","GROQ_API_KEY","CEREBRAS_API_KEY","DEEPINFRA_API_TOKEN","NVIDIA_API_KEY","HUGGINGFACE_API_KEY","OPENAI_API_KEY","ANTHROPIC_API_KEY")
 print(f"credential presence check: PASS ({sum(bool(os.environ.get(v)) for v in vars)} configured; values not displayed or persisted)")
 PY
-log "Installation complete"; printf '%s\n' "AI root: $INSTALL_ROOT" "Profile: $PROFILE" "Launcher: $PATH_SHIM" "Ref: $RELEASE_REF" "" "Run: flossware-ai tui" "Run: flossware-ai doctor" "Run: flossware-ai components" "Run: flossware-ai accounts --verify" "Run: flossware-ai models --refresh" "Reinstall: ./scripts/install.sh --reinstall" "Clean: ./scripts/install.sh --clean"
+log "Installation complete"; printf '%s\n' "AI root: $INSTALL_ROOT" "Profile: $PROFILE" "Launcher: $PATH_SHIM" "Platform: $PLATFORM" "Ref: $RELEASE_REF" "" "Run: flossware-ai tui" "Run: flossware-ai doctor" "Run: flossware-ai components" "Run: flossware-ai accounts --verify" "Run: flossware-ai models --refresh" "Reinstall: ./scripts/install.sh --reinstall" "Clean: ./scripts/install.sh --clean"

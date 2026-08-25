@@ -1,133 +1,178 @@
 # Interactive TUI Setup Guide
 
-The `scripts/setup.py` builder configures AI coding agents with FlossWare libraries. It is provider-neutral and pricing-neutral. Provider/model selection is a runtime policy decision.
+`coding-agent-setup` configures coding agents to use FlossWare capabilities. It is provider-neutral and pricing-neutral. Provider, account, model, profile, and budget selection are runtime policy decisions.
 
-For the current dogfood milestone, **Fedora Linux is the Tier-1 installation target**. Start with `./scripts/install.sh` on Fedora, then launch the TUI through `~/.local/bin/flossware-setup`.
+The public project is designed to be reusable by individuals, teams, enterprises, government environments, and other organizations. It does **not** assume a Red Hat, personal, or other organization-specific profile. The repository ships a neutral `default` profile; users create named profiles such as `personal`, `work`, `redhat`, or `government` as local policy requires.
 
-## Requirements
+## Current installation model
 
-- Fedora Linux
-- Python 3.11+
-- Git
-- A terminal that supports curses
-- Optional: `curses-themes` for additional themes. The TUI has a built-in fallback palette and never installs a theme package during startup.
+The setup project provides:
+
+- a shared FlossWare configuration/control plane;
+- coding-agent integrations;
+- provider/account/model discovery;
+- user-defined profiles and policy boundaries;
+- credential-source references without storing credential values;
+- FlossWare capability selection;
+- MCP integration;
+- runtime selection and health reporting;
+- the `flossware-ai` CLI and Setup TUI.
+
+Loom AI is optional. The setup project can configure and use FlossWare capabilities without requiring Loom.
 
 ## Install
+
+Linux/macOS-style environments:
 
 ```bash
 ./scripts/install.sh
 ```
 
-For reproducibility:
+For a reviewed/reproducible installer reference:
 
 ```bash
 FLOSSWARE_RELEASE_REF=<reviewed-ref> ./scripts/install.sh
 ```
 
+On Windows, use the repository's PowerShell installer where provided.
+
+The installer creates the managed FlossWare runtime under the platform-appropriate user data directory. It does not require manually deleting that directory for reinstallation or cleanup.
+
 ## Launch
 
-```bash
-~/.local/bin/flossware-setup
-```
-
-Or, from the repository checkout:
+The canonical operator interface is:
 
 ```bash
-python3 scripts/setup.py
-python3 scripts/setup.py --theme borland-3d
-python3 scripts/setup.py --theme trs-80
+flossware-ai tui
 ```
 
-## Walkthrough
+If the launcher is not on `PATH`, use the launcher installed by the current installer/runtime location. Do not assume the historical `flossware-setup` path is present.
 
-### Welcome Screen
+The TUI can also be exercised directly from a repository checkout when the development environment is installed.
 
-The welcome screen identifies the setup as provider-neutral and explains that credentials are optional and budget is a policy.
+## Requirements
 
-Press `Enter` to begin. Press `q` or `Esc` to quit.
+Requirements vary by platform. The current dogfood target is Fedora Linux, with Debian-family Linux, FreeBSD, Termux, and Windows documented separately where supported.
 
-### Step 1: Select Coding Agents
+For the Fedora dogfood path, use Python 3.11+, Git, and a terminal with curses support. Optional TUI themes use `curses-themes`; the TUI retains a built-in fallback and does not require a theme package merely to start.
 
-The supported integrations are:
+See [`platforms.md`](platforms.md), [`platforms/fedora.md`](platforms/fedora.md), and [`platforms/termux.md`](platforms/termux.md).
 
-- Claude Code
-- Cursor
-- OpenCode
+## TUI walkthrough
 
-Each selected agent receives its own integration file.
+### Welcome
 
-### Step 2: FlossWare AI Capabilities
+The welcome screen identifies the setup as provider-neutral and explains that credentials are optional and budget is a policy. Press `Enter` to begin; `q` or `Esc` exits/cancels where applicable.
 
-The core capabilities are pre-selected:
+### Coding agents
 
-- `model-router-ai` — routing, provider failover, capability and cost awareness
-- `resilience-ai` — retry, circuit breaker, timeout patterns
-- `structured-output-ai` — schema-validated model output
+The setup layer supports the agent integrations documented by the current CLI. These include Claude Code, Cursor, OpenCode, Crush, Codex, Aider, Cline, Roo Code, Gemini CLI, GitHub Copilot, Windsurf, Amazon Q Developer, and Kiro. Availability can vary by platform and installed agent.
 
-Optional capabilities include consensus, evaluation, observability, security, retrieval, and optimization.
+Each selected integration is configured using the agent's supported mechanism. Shared project instructions use the appropriate common instruction file where supported rather than copying secrets between agents.
 
-### Step 3: Budget Policy
+### FlossWare capabilities
 
-Budget is a **policy input**, not a provider category.
+Core capabilities include model routing, resilience, and structured-output handling. Optional capabilities include consensus, evaluation, observability, security, retrieval, optimization, and other installed FlossWare components.
 
-Available policies:
+The exact capability inventory is discovered from the installed environment rather than treated as a permanent hard-coded list.
 
-- **Strict budget** — zero-cost ceiling
-- **Light** — up to $10/month
-- **Medium** — up to $50/month
-- **Custom** — explicit monthly ceiling
+### Profiles
 
-The TUI does not hide providers because they are paid or elevate providers because they are zero-cost. The routing layer decides what is permitted under the selected policy.
+Profiles are policy boundaries. The public repository provides only a neutral `default` starting profile. A profile can restrict providers, accounts, models, local models, credentials, and FlossWare capabilities.
 
-### Step 4: Project Directory
-
-Enter the path to your project. It must be a Git repository.
-
-### Step 5: Provider Credential Status
-
-The TUI reports whether supported environment variables are present. It does not display credential values and does not provide signup instructions.
-
-Example:
+Example local configuration:
 
 ```text
- SET  Cohere       $COHERE_API_KEY
- ---  OpenRouter   $OPENROUTER_API_KEY
- SET  Gemini       $GEMINI_API_KEY
-
-  2 provider credential(s) detected
-  Credentials are optional. Values are never displayed or written.
+~/.flossware/ai/profiles/
+├── default.toml
+├── personal.toml
+└── work.toml
 ```
 
-### Build & Summary
+`work.toml` could represent Red Hat policy for one user, Acme policy for another, or any other organizational boundary. The profile name has no built-in semantics.
 
-The builder installs selected FlossWare libraries into the active Python environment and generates agent-specific configuration files plus the build manifest.
+### Accounts and credentials
 
-## Generated Files
+A provider may have multiple accounts. Account identity is separate from provider identity, and the active profile determines which accounts are permitted.
 
-| File | Agent | Contents |
-|------|-------|----------|
-| `CLAUDE.md` | Claude Code | AI stack, routing, providers, code guidance |
-| `.cursorrules` | Cursor | Libraries, providers, guidelines |
-| `AGENTS.md` | OpenCode | Stack, providers, install guidance |
-| `ai_config.py` | All | Python configuration wiring selected capabilities |
-| `.flossware-ai.json` | All | Build manifest for reproducibility |
+The setup layer records credential **sources/references**, never credential values. Environment variables, native credential stores, and agent-owned authentication can remain authoritative. Credential values must not be written to generated agent files, configuration, MCP definitions, logs, or source control.
 
-Credential values are never written to these files.
+Common account states are:
+
+- `configured`
+- `verified`
+- `discovered`
+- `available`
+- `ready`
+- `active`
+- `blocked`
+
+### Models and providers
+
+Provider/model selection is policy-driven. The setup layer does not treat paid providers as inherently preferred or free providers as inherently preferred. Availability depends on account authentication, active profile policy, provider capabilities, platform support, and budget/cost policy.
+
+### Budget policy
+
+Budget is a policy input, not a provider category. Routing can consider a monthly ceiling, token/cost accounting, provider availability, and model capability. A budget policy must not silently turn credentials into unrestricted access to every configured provider.
+
+### Container runtime
+
+The runtime selector can use Auto, Podman, Docker, or Native execution where supported. Health and version information are reported rather than assuming a runtime exists.
+
+### Build / configuration summary
+
+The setup process records the selected configuration in a reproducible manifest. Generated files contain configuration and guidance, not secret values.
+
+## Generated configuration
+
+Depending on the selected agents and capabilities, the setup layer may generate or update files such as:
+
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Claude Code project instructions |
+| `AGENTS.md` | Shared coding-agent instructions where supported |
+| `.cursorrules` | Cursor project instructions where applicable |
+| `ai_config.py` | Python wiring for selected FlossWare capabilities |
+| `.flossware-ai.json` | Configuration/build manifest |
+
+The exact generated set is agent/version dependent. The installer and TUI should be treated as authoritative over this historical list.
 
 ## Architecture
 
 ```text
-request
-  -> policy / model router
-  -> provider-neutral contract
+agent
+  -> profile / policy
+  -> account + model selection
+  -> FlossWare capability
   -> cross-cutting decorators
   -> provider adapter
   -> model/runtime
 ```
 
-Decorators implement cross-cutting behavior such as resilience, security, observability, evaluation, structured-output validation, and token/cost accounting. They must not encode provider or pricing preferences.
+Cross-cutting behavior includes resilience, security, observability, evaluation, structured-output validation, auditing, caching, and token/cost accounting. Decorators are configured declaratively and must not encode provider or organizational identity assumptions.
 
-## Keyboard Controls
+## CLI
+
+Useful commands include:
+
+```bash
+flossware-ai agents
+flossware-ai agents setup crush
+flossware-ai components
+flossware-ai components model-router-ai
+flossware-ai accounts --verify
+flossware-ai models --refresh
+flossware-ai providers
+flossware-ai runtime list
+flossware-ai runtime status
+flossware-ai runtime select podman
+flossware-ai runtime select docker
+flossware-ai runtime auto
+flossware-ai doctor
+flossware-ai tui
+```
+
+## Keyboard controls
 
 | Key | Action |
 |-----|--------|
@@ -136,25 +181,19 @@ Decorators implement cross-cutting behavior such as resilience, security, observ
 | `Enter` | Confirm / select |
 | `a` | Select all |
 | `n` | Select none |
-| `t` | Theme picker on welcome screen |
+| `t` | Theme picker where supported |
 | `q` | Quit / cancel |
 
 ## Themes
 
-10 themes from [FlossWare/curses-themes](https://github.com/FlossWare/curses-themes):
+The TUI can use themes from `FlossWare/curses-themes` when available. A built-in fallback palette keeps the TUI usable without the optional theme package.
 
-`dark` `light` `default` `borland-3d` `dos` `dbase-iii` `dbase-iv` `dbase-iv-3d` `ti-99-4a` `trs-80`
+## Privacy and security invariants
 
-Theme support is optional and the TUI has a built-in fallback palette.
+FlossWare managed configuration is secret-free and non-identifying. API keys, OAuth tokens, passwords, cookies, email addresses, employee/customer identifiers, phone numbers, and similar PII must not be persisted in managed profiles, generated agent files, MCP definitions, logs, or diagnostics.
 
-## Non-Interactive Installation
+See [`privacy.md`](privacy.md), [`SECURITY.md`](SECURITY.md), and [`credentials-and-accounts.md`](credentials-and-accounts.md).
 
-The Fedora installer is the canonical non-interactive installation path:
+## Documentation authority
 
-```bash
-./scripts/install.sh
-```
-
-It installs the actual `coding-agent-ai` runtime, creates an isolated environment, validates the TUI and `pa` command, and installs the `flossware-setup` launcher.
-
-For complete Fedora dogfood instructions, see [platforms/fedora.md](platforms/fedora.md).
+Use this guide for the operator workflow, the repository README for project architecture and quick start, and the platform-specific documentation for installation details. CLI help and the running TUI are authoritative when an agent/version-specific option differs from a static example.

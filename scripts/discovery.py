@@ -6,7 +6,16 @@ import json
 import os
 import time
 from pathlib import Path
-from model_router_ai import discover_accounts, discover_all_models, discover_identities, provider_definitions
+from model_router_ai import discover_accounts, discover_all_models, provider_definitions
+
+try:
+    from model_router_ai import discover_identities
+except ImportError:
+    # Older/packaged model-router-ai releases expose this from the discovery
+    # module but not from the package root. Keep the setup runtime compatible
+    # with both layouts.
+    from model_router_ai.discovery import discover_identities
+
 ROOT = Path(os.environ.get("FLOSSWARE_AI_ROOT", Path.home() / ".flossware" / "ai"))
 CACHE = ROOT / "cache" / "models.json"
 

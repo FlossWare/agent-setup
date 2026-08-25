@@ -1,6 +1,6 @@
 # coding-agent-setup
 
-FlossWare's shared control plane for configuring coding agents and independently usable FlossWare AI capabilities. Fedora Linux is the Tier-1 installation target.
+FlossWare's shared control plane for configuring coding agents and independently usable FlossWare AI capabilities. Supported installation targets include Fedora/RHEL derivatives, Debian-family Linux, FreeBSD, Windows, and Termux.
 
 ## Quick start
 
@@ -9,7 +9,7 @@ FlossWare's shared control plane for configuring coding agents and independently
 flossware-ai tui
 ```
 
-The managed runtime lives at `~/.flossware/ai`. Reinstallation and cleanup never require manually deleting that directory:
+On Windows, use `scripts/install.ps1`. The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user data location). Reinstallation and cleanup never require manually deleting that directory.
 
 ```bash
 ./scripts/install.sh --reinstall
@@ -43,6 +43,11 @@ flossware-ai components model-router-ai
 flossware-ai accounts --verify
 flossware-ai models --refresh
 flossware-ai providers
+flossware-ai runtime list
+flossware-ai runtime status
+flossware-ai runtime select podman
+flossware-ai runtime select docker
+flossware-ai runtime auto
 flossware-ai doctor
 flossware-ai tui
 ```
@@ -69,11 +74,17 @@ The TUI configures these declaratively under **Components → Cross-Cutting Beha
 
 Decorator configuration is provider-neutral and contains no secrets. Profile defaults may supply policy, while component configuration provides explicit opt-in or override. See [`docs/decorators.md`](docs/decorators.md).
 
+## Container runtimes
+
+Podman and Docker are supported as execution backends. On Linux, Podman is preferred when healthy, while Docker is fully supported. Windows supports Docker Desktop and Podman where available. FreeBSD and Termux report a runtime only when it is actually reachable; the setup layer does not claim native container support where an external VM or compatibility layer is required. Native execution remains available when no runtime is configured.
+
+See [`docs/container-runtimes.md`](docs/container-runtimes.md).
+
 ## TUI
 
 `flossware-ai tui` is the full operator/configuration TUI. It is separate from Loom's optional `loom-tui` and is intended for using FlossWare capabilities in isolation with coding agents.
 
-Every major TUI selection has a contextual status/description panel explaining what the component does and its current state. Cross-cutting behavior is presented as a configurable policy stack rather than raw implementation details.
+Every major TUI selection has a contextual status/description panel explaining what the component does and its current state. Cross-cutting behavior is presented as a configurable policy stack rather than raw implementation details. Container Runtime is configurable as Auto, Podman, Docker, or Native, with health/version status.
 
 Loom itself has a headless core plus its own optional curses-themes-based TUI.
 

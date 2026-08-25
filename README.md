@@ -61,9 +61,19 @@ Status vocabulary:
 - **ready**: credentials, policy, and connectivity checks pass
 - **active**: selected for the current workload
 
+## Cross-cutting decorators
+
+FlossWare uses explicitly enabled decorators/interceptors/middleware for cross-cutting behavior such as retries, circuit breaking, observability, auditing, caching, evaluation, security/policy enforcement, structured-output validation, and token/cost accounting. This follows Engineering Standards ADR-0006.
+
+The TUI configures these declaratively under **Components → Cross-Cutting Behavior**. Users can enable/disable decorators, edit their policy settings, and reorder the stack when ordering affects semantics. The runtime translates that policy into the appropriate decorator/interceptor/middleware implementation.
+
+Decorator configuration is provider-neutral and contains no secrets. Profile defaults may supply policy, while component configuration provides explicit opt-in or override. See [`docs/decorators.md`](docs/decorators.md).
+
 ## TUI
 
 `flossware-ai tui` is the full operator/configuration TUI. It is separate from Loom's optional `loom-tui` and is intended for using FlossWare capabilities in isolation with coding agents.
+
+Every major TUI selection has a contextual status/description panel explaining what the component does and its current state. Cross-cutting behavior is presented as a configurable policy stack rather than raw implementation details.
 
 Loom itself has a headless core plus its own optional curses-themes-based TUI.
 

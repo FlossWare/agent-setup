@@ -2,16 +2,28 @@
 
 Persists only non-secret policy and selection state. Credential values are
 never written to disk by this module.
+
+Selections use stable catalog IDs (agent id, capability id, budget policy id),
+not positional indexes, so catalog order can change without invalidating state.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from flossware_setup.catalog import AGENTS, BUDGET_POLICIES, CAPABILITIES, PROVIDERS
+from flossware_setup.catalog import (
+    AGENT_BY_ID,
+    AGENTS,
+    BUDGET_BY_ID,
+    BUDGET_POLICIES,
+    CAPABILITIES,
+    CAPABILITY_BY_ID,
+    PROVIDERS,
+)
 from flossware_setup.credentials import credential_status, environment_names
 
 
@@ -19,13 +31,144 @@ from flossware_setup.credentials import credential_status, environment_names
 class Config:
     """In-memory setup selections used by the TUI and artifact generation."""
 
-    agents: list[int] = field(default_factory=list)
-    capabilities: list[int] = field(default_factory=list)
-    budget_index: int = 2
+    agents: list[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
+    budget_policy: str = "medium"
     budget_amount: float = 50.0
     repo_dir: str = "."
     theme: str = "dark"
     profile: str = "default"
+
+
+def managed_root() -> Path:
+    """Managed install/runtime root (non-project state lives here).
+
+    The directory need not exist yet; installers and set_active_project create it.
+    Relative or null-byte env values are ignored.
+    """
+    raw = os.environ.get("FLOSSWARE_AI_ROOT")
+    if raw and isinstance(raw, str):
+        text = raw.strip()
+        if text and "\0" not in text and os.path.isabs(text):
+            try:
+                return Path(os.path.normpath(text)).resolve()  # NOSONAR
+            except (OSError, RuntimeError, ValueError):
+                pass
+    return (Path.home() / ".flossware" / "ai").resolve()
+
+
+def active_project_path() -> Path:
+    return managed_root() / "state" / "active-project"
+
+
+def _sanitize_path_chars(value: str) -> str | None:
+    """Rebuild *value* from an allowlist so path characters are explicit.
+
+    Returns None if any character is outside the portable path alphabet.
+    """
+    if not value or chr(0) in value:
+        return None
+    allowed = frozenset(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        + "/\\._-~: "
+    )
+    out: list[str] = []
+    for ch in value:
+        if ch not in allowed:
+            return None
+        out.append(ch)
+    return "".join(out)
+
+
+def _existing_absolute_dir(raw: str | Path) -> Path | None:
+    """Return *raw* as a resolved absolute directory, or None if unsafe/missing.
+
+    Rejects relative paths, null bytes, disallowed characters, and non-directories.
+    Used for operator-local active-project state (not network input).
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, Path):
+        try:
+            text = os.fspath(raw)
+        except (TypeError, ValueError):
+            return None
+    elif isinstance(raw, str):
+        text = raw.strip()
+    else:
+        return None
+    text = _sanitize_path_chars(text)
+    if text is None:
+        return None
+    if not os.path.isabs(text):
+        return None
+    try:
+        normalized = os.path.normpath(text)
+    except (TypeError, ValueError, OSError):
+        return None
+    if not os.path.isabs(normalized):
+        return None
+    try:
+        real = os.path.realpath(normalized)
+    except OSError:
+        return None
+    if not os.path.isabs(real) or not os.path.isdir(real):
+        return None
+    # Path construction is safe: allowlist + isabs + isdir + realpath (local state only).
+    return Path(real)  # NOSONAR
+
+
+
+def set_active_project(repo_dir: str | Path) -> None:
+    """Remember the last configured project path (no secrets)."""
+    try:
+        preliminary = Path(repo_dir).resolve(strict=True)
+    except (OSError, RuntimeError, ValueError):
+        return
+    if not preliminary.is_dir():
+        return
+    resolved = _existing_absolute_dir(str(preliminary))
+    if resolved is None:
+        return
+    path = active_project_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(str(resolved) + "\n", encoding="utf-8")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def get_active_project() -> Path | None:
+    """Return the last configured project directory, if still present."""
+    path = active_project_path()
+    if not path.is_file():
+        return None
+    try:
+        stored = path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return _existing_absolute_dir(stored)
+
+
+def resolve_review_project(explicit: str | Path | None = None) -> Path:
+    """Project path for Review Current Configuration.
+
+    Prefer explicit path, then active-project state, then cwd.
+    """
+    if explicit is not None:
+        try:
+            preliminary = Path(explicit).resolve(strict=True)
+        except (OSError, RuntimeError, ValueError):
+            return Path(".").resolve()
+        validated = _existing_absolute_dir(str(preliminary))
+        if validated is not None:
+            return validated
+        return Path(".").resolve()
+    active = get_active_project()
+    if active is not None:
+        return active
+    return Path(".").resolve()
 
 
 def project_state_path(repo_dir: str | Path) -> Path:
@@ -48,9 +191,10 @@ def load_project_state(repo_dir: str | Path = ".") -> dict[str, Any]:
 
 def resolve_budget(config: Config) -> tuple[str, float]:
     """Return (policy_label, monthly_amount) for the current selection."""
-    policy = BUDGET_POLICIES[config.budget_index]
-    amount = config.budget_amount if policy[1] < 0 else policy[1]
-    return policy[0], float(amount)
+    policy = BUDGET_BY_ID.get(config.budget_policy) or BUDGET_BY_ID["medium"]
+    _pid, label, amount, _desc = policy
+    resolved = config.budget_amount if amount < 0 else amount
+    return label, float(resolved)
 
 
 def build_state_dict(config: Config) -> dict[str, Any]:
@@ -58,89 +202,68 @@ def build_state_dict(config: Config) -> dict[str, Any]:
     policy_label, budget = resolve_budget(config)
     providers = credential_status()
     env_vars = environment_names()
-    capability_names = [CAPABILITIES[i][0] for i in config.capabilities]
-    agent_ids = [AGENTS[i].id for i in config.agents]
+    agent_ids = [a for a in config.agents if a in AGENT_BY_ID]
+    capability_ids = [c for c in config.capabilities if c in CAPABILITY_BY_ID]
     return {
         "tool": "FlossWare/coding-agent-setup",
         "profile": config.profile,
+        "budget_policy_id": config.budget_policy,
         "budget_policy": policy_label,
         "monthly_budget": budget,
-        "capabilities": capability_names,
+        "capabilities": capability_ids,
         "providers": providers,
         "provider_env_vars": env_vars,
         "credential_values_written": False,
         "agents": agent_ids,
         "theme": config.theme,
+        "repo_dir": str(Path(config.repo_dir).resolve()),
     }
 
 
-def _format_agent_lines(agent_ids: set) -> list[str]:
+def _format_agent_lines(agent_ids: set[str]) -> list[str]:
     lines = ["Configured agents:"]
     for agent in AGENTS:
-        if agent.id in agent_ids:
-            lines.append(f"  ✓ {agent.name}")
-    if not agent_ids:
-        lines.append("  (none)")
-    return lines
-
-
-def _format_capability_lines(names: list) -> list[str]:
-    lines = ["Capabilities:"]
-    for name in names or []:
-        lines.append(f"  ✓ {name}")
-    if not names:
-        lines.append("  (none)")
-    return lines
-
-
-def _format_provider_lines(providers: dict) -> list[str]:
-    lines = ["Providers:"]
-    for name, _env, _url in PROVIDERS:
-        present = bool(providers.get(name))
-        mark = "✓" if present else "·"
-        status = "configured" if present else "not configured"
-        lines.append(f"  {mark} {name}: {status}")
+        mark = "yes" if agent.id in agent_ids else "no"
+        lines.append(f"  [{mark}] {agent.name} ({agent.id})")
     return lines
 
 
 def review_lines(repo_dir: str | Path = ".") -> list[str]:
-    """Human-readable summary lines for the Review Current Configuration screen."""
+    """Human-readable review of persisted project state (no secret values)."""
     state = load_project_state(repo_dir)
     if not state:
         return [
-            "No persisted project configuration found.",
-            "",
-            "Use Configure / Change Setup to create one.",
-            "Credential values are never stored in generated files.",
+            "No persisted FlossWare project configuration found.",
+            f"Looked for: {project_state_path(repo_dir)}",
+            "Run Configure / Change Setup to generate configuration.",
+            f"Supported integrations in catalog: {len(AGENTS)}",
         ]
-
     agent_ids = set(state.get("agents") or [])
+    caps = state.get("capabilities") or []
     lines = [
-        "Current configuration",
-        "",
+        f"Project: {Path(repo_dir).resolve()}",
         f"Profile: {state.get('profile', 'default')}",
-        f"Supported integrations in catalog: {len(AGENTS)}",
-        f"Configured in this project: {len(agent_ids)}",
+        f"Budget policy: {state.get('budget_policy', '?')} "
+        f"(id={state.get('budget_policy_id', '?')})",
+        f"Monthly ceiling: ${state.get('monthly_budget', '?')}",
+        f"Theme: {state.get('theme', 'dark')}",
         "",
+        *_format_agent_lines(agent_ids),
+        "",
+        "Capabilities:",
+        *([f"  - {name}" for name in caps] if caps else ["  (none)"]),
+        "",
+        "Providers (presence only):",
     ]
-    lines.extend(_format_agent_lines(agent_ids))
-    lines.append("")
-    lines.extend(_format_capability_lines(list(state.get("capabilities") or [])))
-    lines.append("")
-    lines.extend(_format_provider_lines(state.get("providers") or {}))
-
-    policy = state.get("budget_policy", "unknown")
-    monthly = state.get("monthly_budget", 0)
-    try:
-        monthly_text = f"${float(monthly):g}"
-    except (TypeError, ValueError):
-        monthly_text = str(monthly)
+    providers = state.get("providers") or {}
+    for name, _env, _url in PROVIDERS:
+        present = bool(providers.get(name))
+        lines.append(f"  [{'SET' if present else '---'}] {name}")
     lines.extend(
         [
             "",
-            f"Budget: {policy}  {monthly_text}",
-            "Credentials: values never displayed or stored",
-            "Security: ✓ secret-free generated configuration",
+            f"credential_values_written: {state.get('credential_values_written', False)}",
+            "All persisted state is secret-free (env names / presence only).",
         ]
     )
     return lines

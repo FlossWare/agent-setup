@@ -203,6 +203,41 @@ def _redraw_input_line(win, row: int, buffer: str, cursor: int) -> None:
     win.refresh()
 
 
+def _apply_text_input_key(
+    key: int, buffer: list[str], cursor: int
+) -> tuple[list[str], int, str]:
+    """Apply one keystroke to the editable buffer.
+
+    Returns ``(buffer, cursor, action)`` where action is one of
+    ``"confirm"``, ``"cancel"``, or ``"continue"``.
+    """
+    if key in (10, 13, curses.KEY_ENTER):
+        return buffer, cursor, "confirm"
+    if key == 27:  # Esc
+        return buffer, cursor, "cancel"
+    if key in (curses.KEY_BACKSPACE, 127, 8):
+        if cursor > 0:
+            del buffer[cursor - 1]
+            cursor -= 1
+        return buffer, cursor, "continue"
+    if key == curses.KEY_DC:
+        if cursor < len(buffer):
+            del buffer[cursor]
+        return buffer, cursor, "continue"
+    if key == curses.KEY_LEFT:
+        return buffer, max(0, cursor - 1), "continue"
+    if key == curses.KEY_RIGHT:
+        return buffer, min(len(buffer), cursor + 1), "continue"
+    if key == curses.KEY_HOME:
+        return buffer, 0, "continue"
+    if key == curses.KEY_END:
+        return buffer, len(buffer), "continue"
+    if 32 <= key <= 126 and len(buffer) < 200:
+        buffer.insert(cursor, chr(key))
+        return buffer, cursor + 1, "continue"
+    return buffer, cursor, "continue"
+
+
 def text_input(win, prompt: str, default: str = "") -> str:
     """Prompt for a single line of text with an editable pre-populated buffer.
 
@@ -220,30 +255,14 @@ def text_input(win, prompt: str, default: str = "") -> str:
     _redraw_input_line(win, row, "".join(buffer), cursor)
     try:
         while True:
-            key = win.getch()
-            if key in (10, 13, curses.KEY_ENTER):
+            buffer, cursor, action = _apply_text_input_key(
+                win.getch(), buffer, cursor
+            )
+            if action == "confirm":
                 text = "".join(buffer).strip()
                 return text if text else default
-            if key in (27,):  # Esc — keep original default
+            if action == "cancel":
                 return default
-            if key in (curses.KEY_BACKSPACE, 127, 8):
-                if cursor > 0:
-                    del buffer[cursor - 1]
-                    cursor -= 1
-            elif key == curses.KEY_DC:
-                if cursor < len(buffer):
-                    del buffer[cursor]
-            elif key == curses.KEY_LEFT:
-                cursor = max(0, cursor - 1)
-            elif key == curses.KEY_RIGHT:
-                cursor = min(len(buffer), cursor + 1)
-            elif key == curses.KEY_HOME:
-                cursor = 0
-            elif key == curses.KEY_END:
-                cursor = len(buffer)
-            elif 32 <= key <= 126 and len(buffer) < 200:
-                buffer.insert(cursor, chr(key))
-                cursor += 1
             _redraw_input_line(win, row, "".join(buffer), cursor)
     except curses.error:
         return default

@@ -8,7 +8,13 @@ from pathlib import Path
 
 from flossware_setup.artifacts import generate_artifacts
 from flossware_setup.catalog import AGENTS, BUDGET_POLICIES, CAPABILITIES, PROVIDERS
-from flossware_setup.config import Config, load_project_state, review_lines
+from flossware_setup.config import (
+    Config,
+    get_active_project,
+    load_project_state,
+    resolve_review_project,
+    review_lines,
+)
 from flossware_setup.credentials import credential_status
 from flossware_setup.installer import install_packages
 from flossware_setup.tui.input import is_cancel, is_confirm, primary_click
@@ -20,11 +26,17 @@ def welcome_screen(win, theme_name: str, external_theme) -> bool:
     y = header(win, "Setup Control Center")
     add(win, y, 2, "Provider-neutral coding-agent setup.", 5)
     add(win, y + 1, 2, "Keyboard and mouse are both supported when available.", 5)
-    if external_theme:
-        add(win, y + 2, 2, f"Theme: {theme_name} (curses-themes).", 1)
-        add(win, y + 3, 2, "Press t for theme help, Enter/click to continue, q to quit.", 6)
+    active = get_active_project()
+    if active is not None:
+        add(win, y + 2, 2, f"Active project: {active}", 1)
+        tip_row = y + 3
     else:
-        add(win, y + 2, 2, "Press Enter/click to continue, q to quit.", 6)
+        tip_row = y + 2
+    if external_theme:
+        add(win, tip_row, 2, f"Theme: {theme_name} (curses-themes).", 1)
+        add(win, tip_row + 1, 2, "Press t for theme help, Enter/click to continue, q to quit.", 6)
+    else:
+        add(win, tip_row, 2, "Press Enter/click to continue, q to quit.", 6)
     win.refresh()
     while True:
         key = win.getch()
@@ -36,7 +48,7 @@ def welcome_screen(win, theme_name: str, external_theme) -> bool:
         elif key == ord("t") and external_theme:
             add(
                 win,
-                y + 5,
+                tip_row + 3,
                 2,
                 "Theme loaded from FlossWare/curses-themes. Use --theme NAME to choose another.",
                 1,
@@ -66,42 +78,38 @@ def credentials_screen(win) -> None:
         win,
         win.getmaxyx()[0] - 2,
         2,
-        f"{configured} provider credential(s) detected. No credential is required.",
-        2 if configured else 3,
+        f"{configured} provider credential(s) detected (names only). Enter to continue.",
+        6,
     )
     win.refresh()
-    win.getch()
+    while True:
+        key = win.getch()
+        if is_confirm(key) or is_cancel(key):
+            return
 
 
-def _artifact_lines(repo_dir: str, state: dict) -> list[str]:
-    artifacts: list[str] = []
-    repo = Path(repo_dir).resolve()
-    for name in (".flossware-ai.json", "ai_config.py"):
-        if (repo / name).is_file():
-            artifacts.append(name)
-    configured = set(state.get("agents") or [])
-    for agent in AGENTS:
-        if agent.id in configured:
-            for rel in agent.files:
-                if (repo / rel).is_file():
-                    artifacts.append(rel)
-    if not artifacts:
-        return []
-    lines = ["", "Generated artifacts present:"]
-    lines.extend(f"  · {name}" for name in sorted(set(artifacts)))
+def _artifact_lines(repo_dir: Path, state: dict) -> list[str]:
+    lines = ["", "Generated artifacts (present):"]
+    for rel in (".flossware-ai.json", "ai_config.py"):
+        path = repo_dir / rel
+        mark = "yes" if path.is_file() else "no"
+        lines.append(f"  [{mark}] {rel}")
+    for agent_id in state.get("agents") or []:
+        lines.append(f"  agent id: {agent_id}")
     return lines
 
 
-def review_screen(win, repo_dir: str = ".") -> None:
+def review_screen(win, repo_dir: str | Path | None = None) -> None:
     """Review Current Configuration from persisted project state only."""
+    project = resolve_review_project(repo_dir)
     y = header(win, "Review Current Configuration")
     h, _ = win.getmaxyx()
-    state = load_project_state(repo_dir)
-    lines = review_lines(repo_dir)
+    state = load_project_state(project)
+    lines = review_lines(project)
     if state:
-        lines.extend(_artifact_lines(repo_dir, state))
+        lines.extend(_artifact_lines(project, state))
     for i, line in enumerate(lines[: max(1, h - y - 3)]):
-        color = 2 if "✓" in line else 5
+        color = 2 if "yes" in line or "SET" in line else 5
         add(win, y + i, 2, line, color)
     add(win, h - 2, 2, "Enter / Esc / q  back", 6)
     win.refresh()
@@ -121,7 +129,8 @@ def build_screen(win, cfg: Config) -> None:
     y = header(win, "Setup Complete")
     add(win, y, 2, "Configuration generated successfully.", 2, curses.A_BOLD)
     add(win, y + 2, 2, "No credential values were written to generated files.", 2)
-    add(win, y + 4, 2, "Press any key to continue.", 6)
+    add(win, y + 4, 2, f"Active project: {Path(cfg.repo_dir).resolve()}", 1)
+    add(win, y + 6, 2, "Press any key to continue.", 6)
     win.refresh()
     win.getch()
 
@@ -134,49 +143,51 @@ def error_screen(win, message: str) -> None:
     win.getch()
 
 
-def _select_agents(win) -> list[int] | None:
-    agents = menu(
+def _select_agents(win) -> list[str] | None:
+    indexes = menu(
         win,
         "Select Coding Agents",
         [(a.name, a.description) for a in AGENTS],
         multi=True,
     )
-    if agents is None or not agents:
+    if indexes is None or not indexes:
         return None
-    return list(agents)
+    return [AGENTS[i].id for i in indexes]
 
 
-def _select_capabilities(win) -> list[int] | None:
-    caps = menu(
+def _select_capabilities(win) -> list[str] | None:
+    defaults = [i for i, c in enumerate(CAPABILITIES) if c[2]]
+    indexes = menu(
         win,
         "FlossWare AI Capabilities",
         [(c[0], c[1]) for c in CAPABILITIES],
-        selected=[i for i, c in enumerate(CAPABILITIES) if c[2]],
+        selected=defaults,
         multi=True,
     )
-    if caps is None:
+    if indexes is None:
         return None
-    return list(caps)
+    return [CAPABILITIES[i][0] for i in indexes]
 
 
 def _select_budget(win, cfg: Config) -> bool:
-    budget = menu(
+    choice = menu(
         win,
         "Budget Policy",
-        [(b[0], b[2]) for b in BUDGET_POLICIES],
+        [(b[1], b[3]) for b in BUDGET_POLICIES],
         multi=False,
     )
-    if budget is None:
+    if choice is None:
         return False
-    cfg.budget_index = int(budget)
-    if BUDGET_POLICIES[cfg.budget_index][1] < 0:
+    policy_id, _label, amount, _desc = BUDGET_POLICIES[int(choice)]
+    cfg.budget_policy = policy_id
+    if amount < 0:
         value = text_input(win, "Monthly budget ceiling in USD:", "50")
         try:
             cfg.budget_amount = max(0.0, float(value))
         except ValueError:
             cfg.budget_amount = 50.0
     else:
-        cfg.budget_amount = BUDGET_POLICIES[cfg.budget_index][1]
+        cfg.budget_amount = amount
     return True
 
 
@@ -193,7 +204,8 @@ def configure_wizard(win) -> Config | None:
     cfg.capabilities = caps
     if not _select_budget(win, cfg):
         return None
-    cfg.repo_dir = text_input(win, "Project directory:", os.getcwd())
+    default_repo = str(get_active_project() or Path(os.getcwd()).resolve())
+    cfg.repo_dir = text_input(win, "Project directory:", default_repo)
     if not (Path(cfg.repo_dir).resolve() / ".git").exists():
         raise ValueError(f"Not a git repository: {Path(cfg.repo_dir).resolve()}")
     return cfg

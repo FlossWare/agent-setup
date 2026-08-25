@@ -8,9 +8,9 @@ import sys
 from flossware_setup.artifacts import pip_packages
 
 
-def install_packages(capability_indexes: list[int]) -> None:
-    """Install selected capability packages. Fails closed on any error."""
-    for package in pip_packages(capability_indexes):
+def install_packages(capability_ids: list[str]) -> None:
+    """Install selected capability packages by stable ID. Fails closed on any error."""
+    for package in pip_packages(capability_ids):
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install", "--quiet", package],
             capture_output=True,

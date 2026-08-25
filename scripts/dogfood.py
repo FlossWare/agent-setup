@@ -99,9 +99,9 @@ def validate_generated_artifacts(failures: int) -> int:
             repo.mkdir()
             (repo / ".git").mkdir()
             cfg = Config(
-                agents=[0, 3],
-                capabilities=[0, 1, 2],
-                budget_index=2,
+                agents=["claude-code", "crush"],
+                capabilities=["model-router-ai", "resilience-ai", "structured-output-ai"],
+                budget_policy="medium",
                 repo_dir=str(repo),
                 profile="default",
             )

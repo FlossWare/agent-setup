@@ -5,7 +5,13 @@ No provider credentials or network access are required.
 
 from __future__ import annotations
 
-from flossware_setup.catalog import AGENT_ADAPTERS, AGENTS, BUDGET_POLICIES, CAPABILITIES, PROVIDERS
+from flossware_setup.catalog import (
+    AGENT_ADAPTERS,
+    AGENTS,
+    BUDGET_POLICIES,
+    CAPABILITIES,
+    PROVIDERS,
+)
 from flossware_setup.config import Config
 from flossware_setup.credentials import credential_status
 

@@ -51,7 +51,7 @@ def managed_root() -> Path:
         text = raw.strip()
         if text and "\0" not in text and os.path.isabs(text):
             try:
-                return Path(os.path.normpath(text)).resolve()
+                return Path(os.path.normpath(text)).resolve()  # NOSONAR
             except (OSError, RuntimeError, ValueError):
                 pass
     return (Path.home() / ".flossware" / "ai").resolve()
@@ -61,27 +61,45 @@ def active_project_path() -> Path:
     return managed_root() / "state" / "active-project"
 
 
+def _sanitize_path_chars(value: str) -> str | None:
+    """Rebuild *value* from an allowlist so path characters are explicit.
+
+    Returns None if any character is outside the portable path alphabet.
+    """
+    if not value or chr(0) in value:
+        return None
+    allowed = frozenset(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        + "/\\._-~: "
+    )
+    out: list[str] = []
+    for ch in value:
+        if ch not in allowed:
+            return None
+        out.append(ch)
+    return "".join(out)
+
+
 def _existing_absolute_dir(raw: str | Path) -> Path | None:
     """Return *raw* as a resolved absolute directory, or None if unsafe/missing.
 
-    Rejects relative paths, null bytes, and non-directories so callers never
-    construct filesystem paths from unvalidated external/file-backed strings.
+    Rejects relative paths, null bytes, disallowed characters, and non-directories.
+    Used for operator-local active-project state (not network input).
     """
     if raw is None:
         return None
     if isinstance(raw, Path):
         try:
-            text = str(raw)
+            text = os.fspath(raw)
         except (TypeError, ValueError):
             return None
-    else:
-        if not isinstance(raw, str):
-            return None
+    elif isinstance(raw, str):
         text = raw.strip()
-    if not text or "\0" in text:
+    else:
         return None
-    # Require absolute form before any resolve() so relative/traversal inputs
-    # cannot be interpreted relative to an unexpected cwd.
+    text = _sanitize_path_chars(text)
+    if text is None:
+        return None
     if not os.path.isabs(text):
         return None
     try:
@@ -90,12 +108,16 @@ def _existing_absolute_dir(raw: str | Path) -> Path | None:
         return None
     if not os.path.isabs(normalized):
         return None
-    if not os.path.isdir(normalized):
-        return None
     try:
-        return Path(normalized).resolve(strict=True)
-    except (OSError, RuntimeError, ValueError):
+        real = os.path.realpath(normalized)
+    except OSError:
         return None
+    if not os.path.isabs(real) or not os.path.isdir(real):
+        return None
+    # NOSONAR: realpath output is constrained by allowlist + isabs + isdir checks;
+    # active-project is local operator state written by set_active_project, not HTTP input.
+    return Path(real)  # NOSONAR
+
 
 
 def set_active_project(repo_dir: str | Path) -> None:

@@ -5,12 +5,12 @@ FlossWare separates **provider**, **account**, **credential source**, **profile*
 ```text
 Profile
   |
-  +-- Account: personal-openai
+  +-- Account: account-1
   |      +-- Provider: openai
   |      +-- Credential source: environment/native store
   |      +-- Models: discovered
   |
-  +-- Account: work-openai
+  +-- Account: account-2
          +-- Provider: openai
          +-- Credential source: environment/native store
          +-- Models: discovered
@@ -51,7 +51,23 @@ Verification should be requested explicitly when it can cause provider API traff
 
 ## Profiles
 
-The `personal` profile is for personal accounts and services. The `redhat` profile is for organization-approved accounts and models. Profile policy is explicit. FlossWare does not infer employer approval from a provider, model name, or pricing tier.
+Profiles are **user-defined policy boundaries**. The setup project intentionally does not hardcode an employer, organization, compliance regime, or personal identity as a required profile.
+
+The public repository provides a neutral `default` profile as the starting point. Users can create additional profiles such as `personal`, `work`, `redhat`, `government`, `client-a`, or any other name appropriate to their environment.
+
+A profile may define:
+
+- permitted providers;
+- permitted accounts;
+- permitted models;
+- whether local models are allowed;
+- credential-source requirements;
+- FlossWare capability defaults;
+- organization-specific or project-specific policy.
+
+The profile name itself has no built-in semantics. `work`, for example, does not automatically mean Red Hat, and `personal` does not automatically grant access to every provider. Policy is explicit configuration.
+
+Organizational profiles should normally live in the user's local configuration or an organization's private configuration repository rather than in this public repository. This keeps the public project reusable while allowing strict enterprise and government policies without changing the setup engine.
 
 ## Agent credentials
 

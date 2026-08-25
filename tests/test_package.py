@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
 from flossware_setup.artifacts import generate_artifacts, pip_packages
 from flossware_setup.catalog import AGENTS, CAPABILITIES, CAPABILITY_REFS, PROVIDERS
-from flossware_setup.config import Config, build_state_dict, load_project_state, review_lines
+from flossware_setup.config import (
+    Config,
+    build_state_dict,
+    load_project_state,
+    review_lines,
+)
 from flossware_setup.credentials import credential_status, environment_names
 
 
@@ -140,3 +144,62 @@ def test_default_profile_is_neutral():
 
 def test_load_project_state_missing(tmp_path):
     assert load_project_state(tmp_path) == {}
+
+
+def _aider_agent_index() -> int:
+    return next(i for i, a in enumerate(AGENTS) if a.id == "aider")
+
+
+def test_aider_conf_created_when_missing(tmp_path):
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    cfg = Config(agents=[_aider_agent_index()], capabilities=[0], repo_dir=str(repo))
+    generate_artifacts(cfg)
+    conf = (repo / ".aider.conf.yml").read_text(encoding="utf-8")
+    assert "read: CONVENTIONS.md" in conf
+    assert (repo / "CONVENTIONS.md").is_file()
+
+
+def test_aider_conf_appends_read_when_missing_key(tmp_path):
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    existing = "# user settings\nauto-commits: false\nmodel: gpt-4o\n"
+    (repo / ".aider.conf.yml").write_text(existing, encoding="utf-8")
+    cfg = Config(agents=[_aider_agent_index()], capabilities=[0], repo_dir=str(repo))
+    generate_artifacts(cfg)
+    conf = (repo / ".aider.conf.yml").read_text(encoding="utf-8")
+    assert "auto-commits: false" in conf
+    assert "model: gpt-4o" in conf
+    assert conf.count("read: CONVENTIONS.md") == 1
+
+
+def test_aider_conf_untouched_when_read_key_exists(tmp_path):
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    original = "read: MY_RULES.md\nother: value\n"
+    path = repo / ".aider.conf.yml"
+    path.write_text(original, encoding="utf-8")
+    cfg = Config(agents=[_aider_agent_index()], capabilities=[0], repo_dir=str(repo))
+    generate_artifacts(cfg)
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_windsurf_generates_devin_rules_path(tmp_path):
+    """Preferred Devin Desktop path is .devin/rules/ (not legacy .windsurfrules)."""
+    windsurf_idx = next(i for i, a in enumerate(AGENTS) if a.id == "windsurf")
+    adapter = AGENTS[windsurf_idx]
+    assert adapter.name == "Windsurf (Devin Desktop)"
+    assert adapter.files == (".devin/rules/FlossWare.md",)
+    repo = tmp_path / "proj"
+    repo.mkdir()
+    (repo / ".git").mkdir()
+    cfg = Config(agents=[windsurf_idx], capabilities=[0], repo_dir=str(repo))
+    generate_artifacts(cfg)
+    path = repo / ".devin" / "rules" / "FlossWare.md"
+    assert path.is_file()
+    body = path.read_text(encoding="utf-8")
+    assert "trigger: always_on" in body
+    assert not (repo / ".windsurfrules").exists()

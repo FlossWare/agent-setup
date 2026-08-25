@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "coding-agent-setup"
 version = "0.1.0"
-description = "Interactive TUI builder for configuring AI coding agents with FlossWare AI libraries"
+description = "Provider-neutral control plane and Setup TUI for configuring AI coding agents with FlossWare capabilities"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"

@@ -32,10 +32,11 @@ AGENTS: tuple[AgentAdapter, ...] = (
     AgentAdapter("roo-code", "Roo Code", "Roo Code project rules", (".roo/rules/FlossWare.md",)),
     AgentAdapter("gemini-cli", "Gemini CLI", "Gemini project instructions", ("GEMINI.md",)),
     AgentAdapter("github-copilot", "GitHub Copilot", "GitHub repository instructions", (".github/copilot-instructions.md",)),
+    # Catalog id remains "windsurf" for stable selection/state; product is Devin Desktop.
     AgentAdapter(
         "windsurf",
-        "Windsurf (Devin Desktop)",
-        "Devin Desktop project rules (.devin/rules preferred; legacy Windsurf paths still read)",
+        "Devin Desktop",
+        "Devin Desktop rules under .devin/rules/ (legacy Windsurf paths still read by the product)",
         (".devin/rules/FlossWare.md",),
     ),
     AgentAdapter("amazon-q", "Amazon Q Developer", "Amazon Q project rules", (".amazonq/rules/FlossWare.md",)),
@@ -84,6 +85,3 @@ PROVIDERS: tuple[tuple[str, str, str], ...] = (
     ("Cerebras", "CEREBRAS_API_KEY", "https://cloud.cerebras.ai/"),
     ("HuggingFace", "HUGGINGFACE_API_KEY", "https://huggingface.co/settings/tokens"),
 )
-
-# Compatibility aliases used by older call sites / tests
-AGENT_ADAPTERS = AGENTS

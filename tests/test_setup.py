@@ -6,7 +6,6 @@ No provider credentials or network access are required.
 from __future__ import annotations
 
 from flossware_setup.catalog import (
-    AGENT_ADAPTERS,
     AGENTS,
     BUDGET_POLICIES,
     CAPABILITIES,
@@ -22,7 +21,7 @@ def test_budget_policies_are_pricing_neutral() -> None:
 
 
 def test_agent_registry_contains_expected_agents() -> None:
-    ids = {agent.id for agent in AGENT_ADAPTERS}
+    ids = {agent.id for agent in AGENTS}
     assert {
         "claude-code",
         "cursor",
@@ -38,8 +37,7 @@ def test_agent_registry_contains_expected_agents() -> None:
         "amazon-q",
         "kiro",
     } <= ids
-    assert len(AGENT_ADAPTERS) == 13
-    assert AGENTS is AGENT_ADAPTERS
+    assert len(AGENTS) == 13
 
 
 def test_default_capabilities_include_core_stack() -> None:

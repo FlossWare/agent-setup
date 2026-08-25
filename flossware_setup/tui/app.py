@@ -52,7 +52,7 @@ def _run_configure_flow(stdscr) -> None:
 def _dispatch_control_center(stdscr, choice: int) -> bool:
     """Handle a control-center selection. Returns False to exit the loop."""
     if choice == 0:
-        review_screen(stdscr, ".")
+        review_screen(stdscr)  # active project or cwd
         return True
     if choice == 1:
         _run_configure_flow(stdscr)
@@ -80,11 +80,13 @@ def run(stdscr, theme_name: str = "dark") -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry for the setup TUI."""
+    """CLI entry for the setup TUI (also used by flossware-ai setup/tui)."""
     args = list(sys.argv[1:] if argv is None else argv)
     theme_name = "dark"
     if "--help" in args or "-h" in args:
         print("Usage: flossware-setup [--theme NAME]")
+        print("       flossware-ai setup [--theme NAME]")
+        print("       flossware-ai tui [--theme NAME]")
         print("       python3 scripts/setup.py [--theme NAME]")
         print(
             "Provider credentials are optional; "

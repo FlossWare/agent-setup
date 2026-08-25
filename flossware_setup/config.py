@@ -90,6 +90,8 @@ def review_lines(repo_dir: str | Path = ".") -> list[str]:
         "Current configuration",
         "",
         f"Profile: {state.get('profile', 'default')}",
+        f"Supported integrations in catalog: {len(AGENTS)}",
+        f"Configured in this project: {len(agent_ids)}",
         "",
         "Configured agents:",
     ]

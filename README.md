@@ -26,6 +26,24 @@ The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user
 
 For a complete operator workflow, read [`docs/operator-guide.md`](docs/operator-guide.md). It covers bootstrap installation, the Setup Control Center, agents, capabilities, accounts/models, runtimes, profiles, validation, mouse/keyboard operation, contextual status, reinstall/cleanup, and troubleshooting.
 
+## Configuration contract
+
+Configuration is **layered and language-neutral**. TOML is the human-editable format; Python decorators or other language metadata are optional adapters, not the contract. Values resolve from defaults through system, user, profile, project, environment, and CLI layers. Provenance is retained so every effective value can be explained.
+
+```text
+built-in defaults
+      ↓
+system → user → profile → project → environment → CLI
+      ↓
+effective configuration
+      ↓
+policy validation
+      ↓
+TUI / CLI / runtime / optimization
+```
+
+Schema defines structure, configuration defines values, and policy defines limits. See [`docs/configuration-contract.md`](docs/configuration-contract.md).
+
 ## Installation model
 
 The consumer path is artifact-first and repository-independent:
@@ -69,11 +87,22 @@ The TUI provides a contextual status line above its key legend. Move with arrow 
 
 The repository also keeps the underlying terminal-state transcripts in [`screenshots/`](screenshots/).
 
+## Demo
+
+The configuration/optimization showcase is specified as a deterministic, offline-safe demo:
+
+```bash
+flossware-ai demo
+```
+
+It is intended to demonstrate layered configuration, provenance, ordering constraints, policy validation, genetic optimization, Thompson Sampling, and explainable decisions without requiring credentials or paid APIs. The current demo contract is documented in [`docs/demo.md`](docs/demo.md); implementation remains an explicit work item until the command is present and tested.
+
 ## Documentation
 
 ### Operator documentation
 
 - [`docs/operator-guide.md`](docs/operator-guide.md) — canonical end-to-end operator guide
+- [`docs/configuration-contract.md`](docs/configuration-contract.md) — layered, language-neutral configuration contract
 - [`docs/setup-tui.md`](docs/setup-tui.md) — current Setup TUI behavior, screens, keyboard/mouse operation, contextual status
 - [`docs/cli-reference.md`](docs/cli-reference.md) — CLI commands and validation lifecycle
 - [`docs/profile-schema.md`](docs/profile-schema.md) — profile fields, policy, and security invariants

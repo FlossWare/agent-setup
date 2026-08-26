@@ -32,20 +32,13 @@ AGENTS: tuple[AgentAdapter, ...] = (
     AgentAdapter("roo-code", "Roo Code", "Roo Code project rules", (".roo/rules/FlossWare.md",)),
     AgentAdapter("gemini-cli", "Gemini CLI", "Gemini project instructions", ("GEMINI.md",)),
     AgentAdapter("github-copilot", "GitHub Copilot", "GitHub repository instructions", (".github/copilot-instructions.md",)),
-    # Catalog id remains "windsurf" for stable selection/state; product is Devin Desktop.
-    AgentAdapter(
-        "windsurf",
-        "Devin Desktop",
-        "Devin Desktop rules under .devin/rules/ (legacy Windsurf paths still read by the product)",
-        (".devin/rules/FlossWare.md",),
-    ),
+    AgentAdapter("windsurf", "Devin Desktop", "Devin Desktop rules under .devin/rules/", (".devin/rules/FlossWare.md",)),
     AgentAdapter("amazon-q", "Amazon Q Developer", "Amazon Q project rules", (".amazonq/rules/FlossWare.md",)),
     AgentAdapter("kiro", "Kiro", "Kiro workspace steering", (".kiro/steering/FlossWare.md",)),
 )
 
 AGENT_BY_ID: dict[str, AgentAdapter] = {a.id: a for a in AGENTS}
 
-# (id, description, selected_by_default)
 CAPABILITIES: tuple[tuple[str, str, bool], ...] = (
     ("model-router-ai", "LLM routing, provider failover, capability and cost awareness", True),
     ("resilience-ai", "Retry, circuit breakers, timeouts", True),
@@ -72,7 +65,6 @@ CAPABILITY_REFS: dict[str, str] = {
     "genetic-optimizer-ai": "8362844a46d7bbe26dcbff769c349ad24f863b7c",
 }
 
-# (id, label, monthly_amount, description); amount < 0 means custom
 BUDGET_POLICIES: tuple[tuple[str, str, float, str], ...] = (
     ("strict", "Strict budget", 0.0, "Only providers/models permitted by a zero-cost policy"),
     ("light", "Light", 10.0, "Up to $10/month"),
@@ -82,12 +74,18 @@ BUDGET_POLICIES: tuple[tuple[str, str, float, str], ...] = (
 
 BUDGET_BY_ID: dict[str, tuple[str, str, float, str]] = {b[0]: b for b in BUDGET_POLICIES}
 
-# (display_name, env_var, docs_url)
+# Keep this catalog synchronized with model-router-ai's provider definitions.
+# This metadata catalog must include Anthropic so ANTHROPIC_API_KEY and Claude
+# models are visible to the setup UI. It never reads or stores secret values.
 PROVIDERS: tuple[tuple[str, str, str], ...] = (
-    ("Cohere", "COHERE_API_KEY", "https://dashboard.cohere.com/api-keys"),
+    ("Anthropic", "ANTHROPIC_API_KEY", "https://console.anthropic.com/settings/keys"),
+    ("OpenAI", "OPENAI_API_KEY", "https://platform.openai.com/api-keys"),
     ("OpenRouter", "OPENROUTER_API_KEY", "https://openrouter.ai/keys"),
-    ("Gemini", "GEMINI_API_KEY", "https://aistudio.google.com/apikey"),
     ("Groq", "GROQ_API_KEY", "https://console.groq.com/keys"),
     ("Cerebras", "CEREBRAS_API_KEY", "https://cloud.cerebras.ai/"),
+    ("DeepInfra", "DEEPINFRA_API_TOKEN", "https://deepinfra.com/dash/api_keys"),
+    ("NVIDIA", "NVIDIA_API_KEY", "https://build.nvidia.com/settings/api-keys"),
+    ("Gemini", "GEMINI_API_KEY", "https://aistudio.google.com/apikey"),
+    ("Cohere", "COHERE_API_KEY", "https://dashboard.cohere.com/api-keys"),
     ("HuggingFace", "HUGGINGFACE_API_KEY", "https://huggingface.co/settings/tokens"),
 )

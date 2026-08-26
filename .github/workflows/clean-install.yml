@@ -44,7 +44,12 @@ jobs:
           ./install.sh --profile default
           test ! -d /tmp/flossware-ai/coding-agent-setup/.git
           test -f /tmp/flossware-ai/coding-agent-setup/profiles/default.toml
-          test -f /tmp/flossware-ai/venv/lib/python*/site-packages/flossware_setup/profiles/default.toml || test -f /tmp/flossware-ai/venv/lib/python*/site-packages/flossware_setup/profiles/default.toml
+          # Editable installs live under the checkout, not always site-packages.
+          # Unquoted find expands python version dirs; quoted globs do not.
+          profile_pkg="$(find /tmp/flossware-ai -path '*/flossware_setup/profiles/default.toml' 2>/dev/null | head -n 1)"
+          test -n "$profile_pkg"
+          test -f "$profile_pkg"
+          /tmp/flossware-ai/venv/bin/python -c 'from importlib import resources; p=resources.files("flossware_setup.profiles").joinpath("default.toml"); assert p.is_file(), p'
           test -x /tmp/flossware-ai/bin/flossware-ai
           test -f /tmp/flossware-ai/state/active-profile
           test "$(cat /tmp/flossware-ai/state/active-profile)" = default

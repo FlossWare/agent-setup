@@ -1,26 +1,41 @@
 # Holy Crap Demo
 
-The intended showcase command is:
+The showcase command is now implemented:
 
-```text
+```bash
 flossware-ai demo
 ```
 
-The demo must be deterministic, offline-safe, and cost-free. It demonstrates the configuration contract before it demonstrates optimization.
+The demo is deterministic, offline-safe, and cost-free. It demonstrates the configuration contract before optimization.
 
 ## Demo sequence
 
 1. Load the built-in configuration contract.
 2. Resolve layered configuration and display provenance.
 3. Display ordering constraints and the resolved menu order.
-4. Validate the resulting configuration and policy.
+4. Validate schema and policy.
 5. Show a synthetic optimization search space.
 6. Run deterministic genetic optimization.
 7. Run deterministic Thompson Sampling over candidate configurations.
-8. Display the selected configuration, reward, and decision explanation.
+8. Display the selected configuration and decision metrics.
 
-A future `--live` mode may use real agents and models, but the default demo must never require credentials, network access, or paid APIs.
+The implementation uses only the Python standard library. It does not require credentials, network access, model APIs, or paid services.
 
-## Design goal
+## CLI examples
 
-The demo should prove that the same declarative contract drives configuration, ordering, policy validation, optimization, and explainability. It should not be a static screenshot masquerading as functionality.
+```bash
+flossware-ai config show
+flossware-ai config explain optimization.population
+flossware-ai config validate
+flossware-ai demo
+```
+
+## Production integration
+
+The standalone demo engine is intentionally small and deterministic. Real workloads can integrate the same configuration contract with FlossWare's `genetic-optimizer-ai` and `model-router-ai` capabilities. The contract remains responsible for policy, precedence, provenance, and ordering, while optimization components operate inside the permitted search space.
+
+A future `--live` mode may use real agents and models, but the default demo must remain credential-free and deterministic.
+
+## Acceptance requirements
+
+The demo must remain deterministic for a fixed Python version/seed, return exit code 0, report policy validation as `PASS`, and never print credentials or PII. The test suite includes a repeat-run equality check.

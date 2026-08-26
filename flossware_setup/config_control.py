@@ -9,12 +9,12 @@ from pathlib import Path
 from typing import Any
 
 from flossware_setup.config_contract import ConfigLayer, ConfigResolver, Policy, resolve_order
+from flossware_setup.tui.themes import THEME_NAMES as THEMES
 
 DEFAULT_ORDER = ["agents", "providers", "models", "optimization", "validation"]
 DEFAULT_CONSTRAINTS = [{"item": "optimization", "after": ["models"], "before": ["validation"]}]
 BUILTIN_PROFILES = ("default", "personal")
 ORGANIZATION_PROFILES = ("redhat", "redhat-cost-conscious")
-THEMES = ("turbo", "dbase4", "classic", "monochrome")
 
 
 def state_dir() -> Path:
@@ -167,15 +167,25 @@ def theme_path() -> Path: return state_dir() / "theme"
 
 
 def load_theme() -> str:
-    try: value = theme_path().read_text(encoding="utf-8").strip().lower()
-    except OSError: value = "turbo"
+    try:
+        value = theme_path().read_text(encoding="utf-8").strip().lower()
+    except OSError:
+        value = "turbo"
+    aliases = {"dbase": "dbase4", "dbase-iv": "dbase4", "modern": "monochrome", "default": "monochrome"}
+    value = aliases.get(value, value)
     return value if value in THEMES else "turbo"
 
 
 def save_theme(theme: str) -> Path:
-    theme = theme.lower()
-    if theme not in THEMES: raise ValueError(f"unknown theme: {theme}")
-    path = theme_path(); path.write_text(theme + "\n", encoding="utf-8"); return path
+    theme = theme.strip().lower()
+    aliases = {"dbase": "dbase4", "dbase-iv": "dbase4", "modern": "monochrome", "default": "monochrome"}
+    theme = aliases.get(theme, theme)
+    if theme not in THEMES:
+        raise ValueError(f"unknown theme: {theme}")
+    path = theme_path()
+    path.write_text(theme + "\n", encoding="utf-8")
+    return path
+
 
 
 def effective_config(profile_name: str = "personal") -> ConfigResolver:

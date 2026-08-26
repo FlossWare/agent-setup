@@ -19,19 +19,27 @@ def load_theme(name: str):
         return None
 
 
-def run(stdscr, theme_name: str = "dark") -> None:
+def run(stdscr, theme_name: str | None = None) -> None:
     """Run the persistent full-screen configuration IDE."""
+    from flossware_setup.config_control import load_theme as load_persisted_theme
+    from flossware_setup.tui.themes import normalize_theme
+
     curses.curs_set(0)
     stdscr.keypad(True)
-    palette()
+    chosen = normalize_theme(theme_name) if theme_name else load_persisted_theme()
+    palette(chosen)
+    try:
+        stdscr.bkgd(" ", curses.color_pair(5))
+    except curses.error:
+        pass
     enable_mouse()
-    load_theme(theme_name)
+    load_theme(chosen)  # optional external package
     run_ide(stdscr)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
-    theme_name = "dark"
+    theme_name = None
     if "--help" in args or "-h" in args:
         print("Usage: flossware-setup [--theme NAME]")
         print("       flossware-ai tui [--theme NAME]")

@@ -74,3 +74,84 @@ A user reorder that would violate a constraint is rejected; the UI keeps the las
 ## Policy evaluation timing
 
 **Policy is evaluated after configuration resolution.** Layers merge first (higher priority wins). Then `Policy.validate` (or `ConfigResolver.resolve_with_policy`) enforces allowlists, numeric ceilings, and required flags. A project-layer override cannot escape a higher-level policy maximum or forbidden provider list—the effective map is still rejected when it violates policy.
+
+## Shared provider interface (coding-agent-setup and Loom)
+
+Contract id: `flossware.config.v1` (`SCHEMA_VERSION` in `flossware_setup.config_contract.provider`).
+
+### Layer precedence
+
+```text
+defaults → system → user → profile → directory → project → environment → CLI → policy
+```
+
+Policy runs **after** merge. Lower-priority layers cannot escape profile/work restrictions.
+
+### Python surface
+
+```python
+from flossware_setup.config_contract import (
+    ConfigurationProvider,
+    LocalConfigurationProvider,
+    EffectiveConfiguration,
+)
+
+provider: ConfigurationProvider = LocalConfigurationProvider()
+cfg: EffectiveConfiguration = provider.resolve("/path/to/workdir")
+print(cfg.profile, cfg.values, cfg.provenance.get("provider"))
+print(provider.explain("budget.monthly", "/path/to/workdir"))
+```
+
+`EffectiveConfiguration` is secret-free: credentials appear only as presence booleans.
+
+### Ownership
+
+| Domain | Owner |
+|--------|--------|
+| Profiles, bindings, themes | coding-agent-setup central state |
+| Layer merge + policy | `config_contract` (shared) |
+| Loom orchestration | Optional; may implement `ConfigurationProvider` without replacing local provider |
+| Secret values | Environment / OS / agent stores only |
+
+coding-agent-setup remains fully functional without Loom.
+
+## Wire representation (language-neutral)
+
+`EffectiveConfiguration.to_wire()` emits a JSON object suitable for inter-process
+use. Loom and other tools should treat this shape as the versioned contract
+surface (`contract_id` = `flossware.config.v1`), not the Python class.
+
+```json
+{
+  "schema_version": 1,
+  "contract_id": "flossware.config.v1",
+  "directory": "/abs/path",
+  "profile": "personal",
+  "profile_source": null,
+  "values": {
+    "provider": "auto",
+    "budget.monthly": 0.0,
+    "optimization.strategy": "hybrid"
+  },
+  "provenance": {
+    "provider": [["defaults", "auto"], ["profile:personal", "auto"]]
+  },
+  "credentials_present": { "OpenAI": true, "Anthropic": false },
+  "theme": "turbo",
+  "policy_violations": [],
+  "extras": {}
+}
+```
+
+### Policy semantics
+
+- `resolve()` **does not raise** when policy fails.
+- `policy_violations` lists human-readable reasons; empty means `policy_ok`.
+- Work-profile restrictions are evaluated **after** layer merge so a
+  project/user layer cannot bypass them by override alone.
+
+### Secret handling
+
+- `values` is intentionally restricted to a fixed v1 safe key set (`SAFE_VALUE_KEYS` in the Python binding: provider, budget, optimization, policy flags). Unknown keys are dropped—not silently preserved. Expanding the set is a **versioned contract change** (bump `schema_version` / `contract_id`). No `api_key` / `token` keys are ever accepted.
+- Credential **values** never appear; only `credentials_present` booleans.
+- Nested maps are not accepted in `values` for v1.

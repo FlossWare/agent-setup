@@ -8,15 +8,12 @@ from flossware_setup.tui.input import is_cancel, is_confirm, is_down, is_up, mou
 from flossware_setup.tui.status import item_status
 
 
-def palette() -> None:
-    curses.start_color()
-    curses.use_default_colors()
-    curses.init_pair(1, curses.COLOR_CYAN, -1)
-    curses.init_pair(2, curses.COLOR_GREEN, -1)
-    curses.init_pair(3, curses.COLOR_YELLOW, -1)
-    curses.init_pair(4, curses.COLOR_RED, -1)
-    curses.init_pair(5, curses.COLOR_WHITE, -1)
-    curses.init_pair(6, curses.COLOR_MAGENTA, -1)
+def palette(theme: str | None = None) -> str:
+    """Apply the named TUI theme (or the persisted default). Returns effective id."""
+    from flossware_setup.config_control import load_theme
+    from flossware_setup.tui.themes import apply_theme
+
+    return apply_theme(theme if theme is not None else load_theme())
 
 
 def add(win, y: int, x: int, text: str, pair: int = 5, attr: int = 0) -> None:

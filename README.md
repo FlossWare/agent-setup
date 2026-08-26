@@ -4,12 +4,16 @@ FlossWare's shared control plane for configuring coding agents and independently
 
 ## Quick start
 
+A normal user does **not** need to clone this repository. The bootstrap installer downloads the managed artifacts/source archive and installs the control plane into the user's FlossWare directory:
+
 ```bash
-./scripts/install.sh
+curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
 flossware-ai tui
 ```
 
-On Windows, use `scripts/install.ps1`. The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user data location). Reinstallation and cleanup never require manually deleting that directory.
+For a local checkout, contributor build, or explicit source fallback, use the repository's `scripts/install.sh` and set `FLOSSWARE_USE_SOURCE=true` when source checkout behavior is desired.
+
+The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user data location). Reinstallation and cleanup never require manually deleting that directory.
 
 ```bash
 ./scripts/install.sh --reinstall
@@ -20,7 +24,25 @@ On Windows, use `scripts/install.ps1`. The managed runtime lives at `~/.flosswar
 
 ## Start here
 
-For a complete operator workflow, read [`docs/operator-guide.md`](docs/operator-guide.md). It covers installation, the Setup Control Center, agents, capabilities, accounts/models, runtimes, profiles, validation, mouse/keyboard operation, contextual status, reinstall/cleanup, and troubleshooting.
+For a complete operator workflow, read [`docs/operator-guide.md`](docs/operator-guide.md). It covers bootstrap installation, the Setup Control Center, agents, capabilities, accounts/models, runtimes, profiles, validation, mouse/keyboard operation, contextual status, reinstall/cleanup, and troubleshooting.
+
+## Installation model
+
+The consumer path is artifact-first and repository-independent:
+
+```text
+curl bootstrap
+    |
+    +--> coding-agent-ai package artifact
+    |
+    +--> coding-agent-setup GitHub source archive
+    |
+    +--> managed install
+    |
+    +--> flossware-ai tui / doctor / dogfood
+```
+
+No Git clone is required for a normal installation. `FLOSSWARE_USE_SOURCE=true` is an explicit contributor/developer escape hatch for source checkout and editable installation. See [`docs/artifacts.md`](docs/artifacts.md).
 
 ## Architecture
 
@@ -65,7 +87,7 @@ The repository also keeps the underlying terminal-state transcripts in [`screens
 - [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md) — profiles, accounts, credential safety, and status states
 - [`docs/privacy.md`](docs/privacy.md) — mandatory non-PII and secret-handling invariant
 - [`docs/SECURITY.md`](docs/SECURITY.md) — security policy
-- [`docs/artifacts.md`](docs/artifacts.md) — artifact-first installation and source fallback
+- [`docs/artifacts.md`](docs/artifacts.md) — artifact-first installation and explicit source fallback
 - [`docs/platforms.md`](docs/platforms.md) — Fedora/RHEL, Debian, FreeBSD, Termux, and Windows support
 - [`docs/decorators.md`](docs/decorators.md) — declarative decorator pipeline and ordering
 - [`docs/container-runtimes.md`](docs/container-runtimes.md) — Podman/Docker execution backends

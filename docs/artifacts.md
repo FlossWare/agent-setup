@@ -1,41 +1,68 @@
 # Artifact-first installation
 
-FlossWare setup follows the engineering-standard rule that source and configuration are authoritative and build artifacts are reproducible derived outputs.
+FlossWare setup is designed so a normal consumer can start without cloning the repository.
 
-## Installation order
+## Normal consumer path
 
-For a component release, setup follows:
+Use the stable bootstrap script:
 
-```text
-compatible released artifact
-        |
-        +-- available --> install artifact
-        |
-        +-- unavailable --> explicit source fallback
-        |
-        +-- impossible --> actionable failure
+```bash
+curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+flossware-ai tui
 ```
 
-A normal consumer installation should not clone a Git repository merely to build a wheel when a compatible released artifact exists.
+The bootstrap downloads the installer and the installer then:
 
-## Why `/tmp` appears during source installs
+1. installs/uses the `coding-agent-ai` package artifact when available;
+2. downloads the `coding-agent-setup` GitHub source archive for the selected release ref;
+3. installs the setup package into the managed virtual environment;
+4. creates the neutral `default` profile and managed CLI/TUI;
+5. leaves native agent/provider credentials untouched.
 
-Python packaging tools commonly create temporary directories such as `/tmp/pip-install-*` while cloning and building source distributions. Those directories are ephemeral build machinery, not FlossWare state.
+**No Git clone is required for the normal consumer path.** The setup archive is downloaded as a tarball and unpacked into the managed installation. Git is not used to obtain the setup repository in this mode.
 
-The managed FlossWare environment is persistent under the user FlossWare directory. A source-build fallback may use `/tmp` internally, but it must not depend on files remaining there after installation.
+## Release and ref behavior
+
+The bootstrap defaults to the repository `main` ref until a formal release/tag channel is introduced. `FLOSSWARE_RELEASE_REF` can select a branch/tag when operating a controlled deployment or testing a release candidate.
+
+For production releases, the intended distribution model is:
+
+```text
+stable bootstrap
+      |
+      +--> compatible package artifact
+      |
+      +--> matching setup source archive/tag
+      |
+      +--> managed installation
+```
+
+The source archive is a distribution artifact of the repository, not a Git checkout. It does not create a `.git` directory in the managed installation.
+
+## Explicit source fallback
+
+Contributors who are developing the setup repository can deliberately opt into a Git checkout:
+
+```bash
+FLOSSWARE_USE_SOURCE=true ./scripts/install.sh
+```
+
+This is intentionally different from the consumer path. It exists for editable/source development and troubleshooting. Users should not need it to install or operate FlossWare AI.
+
+## Why `/tmp` appears during installs
+
+Python packaging tools commonly create temporary directories such as `/tmp/pip-install-*` while building packages. The bootstrap also uses a temporary directory while unpacking the setup archive. These directories are ephemeral build machinery, not FlossWare state.
+
+The managed FlossWare environment is persistent under the user's FlossWare directory. Installation must not depend on temporary files remaining after the installer exits.
 
 ## Reinstall and cleanup
 
-The installer owns the managed installation and provides lifecycle operations such as reinstall and clean. Users should not need to manually remove `/tmp/pip-*` directories or the managed FlossWare directory to recover from an installation.
+The installer owns the managed installation and provides lifecycle operations such as reinstall and clean. Users should not need to manually remove temporary directories or the managed FlossWare directory to recover from an installation.
 
 Cleanup must not remove credentials, agent-native authentication, or unrelated project files.
 
-## Release expectations
+## Packaging expectations
 
 A distributable component should provide a reproducible build and release artifact appropriate to its language/runtime. Python projects should publish wheels and source distributions when appropriate. CI should validate installation in a clean environment before a release is considered consumable.
 
 Artifact registries are distribution mechanisms, not sources of truth. Registry choice may vary by deployment.
-
-## Local development
-
-Editable/source installs remain supported for contributors. They are deliberately different from the normal consumer installation path and are useful when developing a FlossWare component itself.

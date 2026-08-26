@@ -1,4 +1,4 @@
-from flossware_setup.config.resolver import ConfigLayer, ConfigResolver
+from flossware_setup.config_contract import ConfigLayer, ConfigResolver
 
 
 def test_layers_resolve_low_to_high_priority():

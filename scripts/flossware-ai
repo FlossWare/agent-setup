@@ -7,11 +7,7 @@ export PATH="$ROOT/venv/bin:${PATH:-}"
 
 active_profile() {
   local f="$ROOT/state/active-profile"
-  if [[ -f "$f" ]]; then
-    tr -d '[:space:]' < "$f"
-  else
-    printf 'default\n'
-  fi
+  if [[ -f "$f" ]]; then tr -d '[:space:]' < "$f"; else printf 'default\n'; fi
 }
 
 usage() {
@@ -41,167 +37,81 @@ USAGE
 }
 
 profile() {
-  if [[ $# -eq 0 ]]; then
-    echo "active: $(active_profile)"
-    return 0
-  fi
+  if [[ $# -eq 0 ]]; then echo "active: $(active_profile)"; return 0; fi
   local name="$1"
-  if [[ -z "$name" || "$name" == */* || "$name" == *..* ]]; then
-    echo "ERROR: invalid profile name '$name'" >&2
-    exit 2
-  fi
-  local pd="$ROOT/config/profiles/$name"
-  mkdir -p "$pd"
+  if [[ -z "$name" || "$name" == */* || "$name" == *..* ]]; then echo "ERROR: invalid profile name '$name'" >&2; exit 2; fi
+  local pd="$ROOT/config/profiles/$name"; mkdir -p "$pd"
   if [[ ! -f "$pd/profile.sh" ]]; then
-    if [[ -f "$ROOT/coding-agent-setup/scripts/profile.sh" ]]; then
-      cp "$ROOT/coding-agent-setup/scripts/profile.sh" "$pd/profile.sh"
-    elif [[ -f "$ROOT/../scripts/profile.sh" ]]; then
-      cp "$ROOT/../scripts/profile.sh" "$pd/profile.sh"
-    fi
+    if [[ -f "$ROOT/coding-agent-setup/scripts/profile.sh" ]]; then cp "$ROOT/coding-agent-setup/scripts/profile.sh" "$pd/profile.sh"
+    elif [[ -f "$ROOT/../scripts/profile.sh" ]]; then cp "$ROOT/../scripts/profile.sh" "$pd/profile.sh"; fi
   fi
   if [[ ! -f "$pd/profile.toml" ]]; then
     local src=""
-    for candidate in \
-      "$ROOT/coding-agent-setup/profiles/$name.toml" \
-      "$ROOT/coding-agent-setup/profiles/default.toml" \
-      "$ROOT/config/profiles/default/profile.toml"; do
+    for candidate in "$ROOT/coding-agent-setup/profiles/$name.toml" "$ROOT/coding-agent-setup/profiles/default.toml" "$ROOT/config/profiles/default/profile.toml"; do
       if [[ -f "$candidate" ]]; then src="$candidate"; break; fi
     done
     [[ -n "$src" ]] && cp "$src" "$pd/profile.toml"
   fi
-  printf '%s\n' "$name" > "$ROOT/state/active-profile"
-  chmod 600 "$ROOT/state/active-profile" 2>/dev/null || true
+  printf '%s\n' "$name" > "$ROOT/state/active-profile"; chmod 600 "$ROOT/state/active-profile" 2>/dev/null || true
   echo "active profile set to $name"
 }
 
-py() {
-  if [[ -x "$ROOT/venv/bin/python" ]]; then
-    echo "$ROOT/venv/bin/python"
-  else
-    command -v python3
-  fi
-}
+py() { if [[ -x "$ROOT/venv/bin/python" ]]; then echo "$ROOT/venv/bin/python"; else command -v python3; fi; }
 
 run_tui() {
   local PY; PY="$(py)"
-  # The package exposes a console entry point to flossware_setup.tui.main.
-  # Do not use `python -m flossware_setup.tui`: the package intentionally has
-  # no __main__.py, so that invocation fails on otherwise healthy installs.
-  if [[ -x "$ROOT/venv/bin/flossware-setup" ]]; then
-    exec "$ROOT/venv/bin/flossware-setup" "$@"
-  fi
-  # Compatibility path for installations where the console script was not
-  # materialized, while still invoking the package's public main() correctly.
-  if "$PY" -c 'from flossware_setup.tui import main; main()' </dev/null 2>/dev/null; then
-    :
-  fi
+  # Preferred: the setuptools console entry point declared by pyproject.toml.
+  if [[ -x "$ROOT/venv/bin/flossware-setup" ]]; then exec "$ROOT/venv/bin/flossware-setup" "$@"; fi
+  # Compatibility: invoke the package's public main() directly.
   if "$PY" -c 'import flossware_setup.tui' 2>/dev/null; then
-    exec "$PY" -c 'from flossware_setup.tui import main; main()' "$@"
+    exec "$PY" -c 'import sys; from flossware_setup.tui import main; sys.argv=["flossware-setup"]+sys.argv[1:]; main()' "$@"
   fi
-  if [[ -f "$ROOT/setup.py" ]]; then
-    exec "$PY" "$ROOT/setup.py" "$@"
-  fi
-  if [[ -f "$ROOT/tui.py" ]]; then
-    exec "$PY" "$ROOT/tui.py" "$@"
-  fi
-  if [[ -f "$ROOT/coding-agent-setup/scripts/setup.py" ]]; then
-    exec "$PY" "$ROOT/coding-agent-setup/scripts/setup.py" "$@"
-  fi
-  echo "ERROR: Setup TUI not found (install coding-agent-setup package)" >&2
-  exit 1
+  if [[ -f "$ROOT/setup.py" ]]; then exec "$PY" "$ROOT/setup.py" "$@"; fi
+  if [[ -f "$ROOT/tui.py" ]]; then exec "$PY" "$ROOT/tui.py" "$@"; fi
+  if [[ -f "$ROOT/coding-agent-setup/scripts/setup.py" ]]; then exec "$PY" "$ROOT/coding-agent-setup/scripts/setup.py" "$@"; fi
+  echo "ERROR: Setup TUI not found (install coding-agent-setup package)" >&2; exit 1
 }
 
 components() {
-  local PY; PY="$(py)"
-  if [[ $# -eq 0 ]]; then
-    printf '%s\n' model-router-ai resilience-ai structured-output-ai consensus-ai evaluation-ai observability-ai security-ai rag-ai genetic-optimizer-ai
-    return 0
-  fi
+  if [[ $# -eq 0 ]]; then printf '%s\n' model-router-ai resilience-ai structured-output-ai consensus-ai evaluation-ai observability-ai security-ai rag-ai genetic-optimizer-ai; return 0; fi
   echo "Component detail: $1 (see docs and pip package metadata)"
 }
 
 launch_agent() {
-  local name="$1"; shift
-  local prof
-  prof="$(active_profile)"
-  if [[ "${1:-}" == --profile ]]; then
-    [[ $# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }
-    prof="$2"; shift 2
-  elif [[ "${1:-}" == --profile=* ]]; then
-    prof="${1#--profile=}"; shift
-  fi
-  if [[ -z "$prof" || "$prof" == */* || "$prof" == *..* ]]; then
-    echo "ERROR: invalid profile '$prof'" >&2
-    exit 2
-  fi
-  local pd="$ROOT/config/profiles/$prof"
-  if [[ -f "$pd/profile.sh" ]]; then
-    # shellcheck source=/dev/null
-    source "$pd/profile.sh" "$prof"
-  fi
-  local cmd="$name"
-  case "$name" in
-    claude-code) cmd="claude" ;;
-    gemini-cli) cmd="gemini" ;;
-    github-copilot) cmd="gh" ;;
-    amazon-q) cmd="q" ;;
-    roo-code) cmd="roo" ;;
-  esac
-  command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: agent '$cmd' is not installed or not on PATH" >&2; exit 127; }
-  exec "$cmd" "$@"
+  local name="$1"; shift; local prof; prof="$(active_profile)"
+  if [[ "${1:-}" == --profile ]]; then [[ $# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }; prof="$2"; shift 2
+  elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi
+  if [[ -z "$prof" || "$prof" == */* || "$prof" == *..* ]]; then echo "ERROR: invalid profile '$prof'" >&2; exit 2; fi
+  local pd="$ROOT/config/profiles/$prof"; [[ -f "$pd/profile.sh" ]] && source "$pd/profile.sh" "$prof"
+  local cmd="$name"; case "$name" in claude-code) cmd="claude";; gemini-cli) cmd="gemini";; github-copilot) cmd="gh";; amazon-q) cmd="q";; roo-code) cmd="roo";; esac
+  command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: agent '$cmd' is not installed or not on PATH" >&2; exit 127; }; exec "$cmd" "$@"
 }
 
 case "${1:-}" in
-  ""|--help|-h|help) usage ;;
-  profile) shift; profile "$@" ;;
-  providers) exec "$(py)" "$ROOT/discovery.py" providers ;;
-  accounts) shift; exec "$(py)" "$ROOT/discovery.py" accounts "$@" ;;
-  models) shift; exec "$(py)" "$ROOT/discovery.py" models "$@" ;;
-  explain) shift; exec "$(py)" "$ROOT/discovery.py" explain "$@" ;;
-  components) shift; components "$@" ;;
-  agents)
-    shift
-    if [[ "${1:-}" == setup ]]; then
-      shift
-      exec "$(py)" "$ROOT/agent_setup.py" "${1:-}" "${@:2}"
-    fi
-    printf '%s\n' claude-code cursor opencode crush codex aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro
-    ;;
-  mcp-config) shift; exec "$(py)" "$ROOT/mcp.py" "$@" ;;
-  runtime) shift; exec "$(py)" "$ROOT/runtime.py" "$@" ;;
-  setup|tui) shift; run_tui "$@" ;
+  ""|--help|-h|help) usage;;
+  profile) shift; profile "$@";;
+  providers) exec "$(py)" "$ROOT/discovery.py" providers;;
+  accounts) shift; exec "$(py)" "$ROOT/discovery.py" accounts "$@";;
+  models) shift; exec "$(py)" "$ROOT/discovery.py" models "$@";;
+  explain) shift; exec "$(py)" "$ROOT/discovery.py" explain "$@";;
+  components) shift; components "$@";;
+  agents) shift; if [[ "${1:-}" == setup ]]; then shift; exec "$(py)" "$ROOT/agent_setup.py" "${1:-}" "${@:2}"; fi; printf '%s\n' claude-code cursor opencode crush codex aider cline roo-code gemini-cli github-copilot windsurf amazon-q kiro;;
+  mcp-config) shift; exec "$(py)" "$ROOT/mcp.py" "$@";;
+  runtime) shift; exec "$(py)" "$ROOT/runtime.py" "$@";;
+  setup|tui) shift; run_tui "$@";;
   update|reinstall)
-    ACTION="$1"; shift
-    EXTRA=()
-    [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall)
-    if [[ -x "$ROOT/coding-agent-setup/scripts/install.sh" ]]; then
-      exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@"
-    fi
-    echo "ERROR: installer not found under $ROOT/coding-agent-setup" >&2
-    exit 1
-    ;;
+    ACTION="$1"; shift; EXTRA=(); [[ "$ACTION" == reinstall ]] && EXTRA=(--reinstall)
+    if [[ -x "$ROOT/coding-agent-setup/scripts/install.sh" ]]; then exec "$ROOT/coding-agent-setup/scripts/install.sh" --profile "$(active_profile)" "${EXTRA[@]}" "$@"; fi
+    echo "ERROR: installer not found under $ROOT/coding-agent-setup" >&2; exit 1;;
   clean)
-    if [[ -x "$ROOT/coding-agent-setup/scripts/install.sh" ]]; then
-      exec "$ROOT/coding-agent-setup/scripts/install.sh" --clean "$@"
-    fi
-    echo "ERROR: installer not found" >&2
-    exit 1
-    ;;
-  doctor) exec "$(py)" "$ROOT/discovery.py" doctor ;;
-  dogfood) shift; exec "$(py)" "$ROOT/dogfood.py" "$@" ;;
+    if [[ -x "$ROOT/coding-agent-setup/scripts/install.sh" ]]; then exec "$ROOT/coding-agent-setup/scripts/install.sh" --clean "$@"; fi
+    echo "ERROR: installer not found" >&2; exit 1;;
+  doctor) exec "$(py)" "$ROOT/discovery.py" doctor;;
+  dogfood) shift; exec "$(py)" "$ROOT/dogfood.py" "$@";;
   router)
-    shift
-    prof="$(active_profile)"
-    if [[ "${1:-}" == --profile ]]; then
-      prof="$2"; shift 2
-    elif [[ "${1:-}" == --profile=* ]]; then
-      prof="${1#--profile=}"; shift
-    fi
-    if [[ -f "$ROOT/config/profiles/$prof/profile.sh" ]]; then
-      # shellcheck source=/dev/null
-      source "$ROOT/config/profiles/$prof/profile.sh" "$prof"
-    fi
-    exec "$(py)" "$ROOT/router_mcp.py" "$@"
-    ;;
-  *) launch_agent "$1" "${@:2}" ;;
+    shift; prof="$(active_profile)"
+    if [[ "${1:-}" == --profile ]]; then prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi
+    [[ ! -f "$ROOT/config/profiles/$prof/profile.sh" ]] || source "$ROOT/config/profiles/$prof/profile.sh" "$prof"
+    exec "$(py)" "$ROOT/router_mcp.py" "$@";;
+  *) launch_agent "$1" "${@:2}";;
 esac

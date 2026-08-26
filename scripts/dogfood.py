@@ -1,10 +1,4 @@
-"""Acceptance checks for the FlossWare coding-agent setup layer.
-
-Default mode is safe for CI: it validates repository or installed-runtime
-invariants and detects installed agents without requiring provider credentials.
-Strict mode additionally requires Claude Code and Crush. Credential values are
-never printed.
-"""
+"""Acceptance checks for the FlossWare coding-agent setup layer."""
 from __future__ import annotations
 
 import argparse
@@ -39,24 +33,12 @@ def looks_like_secret(text: str) -> bool:
 
 
 def scan_text_for_secrets(label: str, text: str, failures: int) -> int:
-    if looks_like_secret(text):
-        failures += not check("Credential safety", False, f"possible secret material in {label}")
-    else:
-        print(f"[OK] Credential safety: no secret values in {label}")
+    failures += not check("Credential safety", not looks_like_secret(text), f"no secret values in {label}")
     return failures
 
 
 def scan_path_tree(target: Path, failures: int, *, source_tree: bool) -> int:
-    """Scan user/generated configuration, not executable source code in an install.
-
-    Source trees are scanned broadly because the repository is the artifact under
-    test. Installed runtimes contain implementation code that legitimately has
-    secret-detection regexes and synthetic test values, so scanning every .py
-    file there creates false positives rather than detecting leaked credentials.
-    """
-    roots = [target] if source_tree else [
-        target / "config", target / "state", target / "mcp"
-    ]
+    roots = [target] if source_tree else [target / "config", target / "state", target / "mcp"]
     for root in roots:
         if not root.exists():
             continue
@@ -97,10 +79,7 @@ def validate_generated_artifacts(failures: int) -> int:
                 budget_policy="medium", repo_dir=str(repo), profile="default",
             )
             state = generate_artifacts(cfg)
-            failures += not check(
-                "Artifact metadata", state.get("credential_values_written") is False,
-                "credential_values_written is False",
-            )
+            failures += not check("Artifact metadata", state.get("credential_values_written") is False, "credential_values_written is False")
             for rel in (".flossware-ai.json", "ai_config.py", "CLAUDE.md", "AGENTS.md"):
                 path = repo / rel
                 if not path.is_file():
@@ -119,7 +98,8 @@ def main() -> int:
     args = parser.parse_args()
     failures = 0
     source_tree = (ROOT / ".git").exists() or (ROOT / "scripts" / "setup.py").is_file()
-    target = ROOT if source_tree else Path(os.environ.get("FLOSSWARE_AI_ROOT", Path.home() / ".flossware" / "ai"))
+    configured_root = os.environ.get("FLOSSWARE_AI_ROOT") or os.environ.get("FLOSSWARE_INSTALL_ROOT")
+    target = ROOT if source_tree else Path(configured_root or (Path.home() / ".flossware" / "ai"))
 
     if source_tree:
         failures += not check("Repository", True, str(ROOT))
@@ -153,7 +133,7 @@ def main() -> int:
     except Exception as exc:
         failures += not check("Agent catalog", False, str(exc))
 
-    profile = os.environ.get("FLOSSWARE_PROFILE", "default")
+    profile = os.environ.get("FLOSSWARE_PROFILE") or ""
     if not profile:
         profile_file = target / "state" / "active-profile"
         profile = profile_file.read_text(encoding="utf-8").strip() if profile_file.exists() else "default"

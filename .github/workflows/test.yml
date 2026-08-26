@@ -30,12 +30,19 @@ jobs:
         run: python -m pip install 'windows-curses==2.4.1'  # NOSONAR - pinned version
       - name: Run offline smoke tests
         run: pytest -q
+      - name: Verify configuration control plane
+        run: |
+          python -m flossware_setup.cli config show
+          python -m flossware_setup.cli config validate
+          python -m flossware_setup.cli config order show
+          python -m flossware_setup.cli demo
       - name: Run dogfood acceptance checks
         run: python scripts/dogfood.py
       - name: Verify CLI entry points
         shell: bash
         run: |
           python scripts/setup.py --help
+          python -c "from flossware_setup.cli import main; assert callable(main)"
           python -c "from flossware_setup.tui import main; assert callable(main)"
           python -c "from flossware_setup.catalog import AGENTS; assert len(AGENTS) == 13"
       - name: Verify POSIX installer

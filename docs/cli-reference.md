@@ -22,8 +22,16 @@
 | `flossware-ai runtime auto` | Return to automatic runtime selection |
 | `flossware-ai doctor` | Run environment and runtime diagnostics |
 | `flossware-ai dogfood --strict` | Run the real-machine setup acceptance gate |
+| `flossware-ai config show` | Show effective layered configuration |
+| `flossware-ai config explain <key>` | Show configuration provenance for a key |
+| `flossware-ai config validate` | Validate effective configuration and policy |
+| `flossware-ai demo` | Run the deterministic configuration/optimization showcase when implemented |
 
 Run `flossware-ai <command> --help` for command-specific options exposed by the installed version.
+
+## Configuration lifecycle
+
+Configuration is layered in this order: built-in defaults, system, user, profile, project, environment, and CLI. Higher layers override only values they explicitly provide. See [`configuration-contract.md`](configuration-contract.md).
 
 ## Installation lifecycle
 

@@ -1,0 +1,18 @@
+# Public, provider-neutral baseline profile.
+# Organization profiles are provisioned separately and are not bundled here.
+profile = "default"
+
+[model_policy]
+allowed_providers = ["*configured*"]
+allow_local_models = true
+allow_unconfigured_providers = false
+allow_personal_accounts = true
+allow_provider_fallback = true
+
+[optimization]
+enabled = true
+strategy = "hybrid"
+
+[cost]
+monthly_limit_usd = 0.0
+hard_limit = false

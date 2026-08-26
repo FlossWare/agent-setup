@@ -47,6 +47,7 @@ def create_profile(win):
     if name in {"default","personal","redhat","redhat-cost-conscious"}: return None
     path=profiles_dir()/f"{name}.toml"
     if path.exists(): return None
+    path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(f'''profile = "{name}"\n\n[model_policy]\nallowed_providers = ["*configured*"]\nallow_local_models = true\nallow_unconfigured_providers = false\nallow_personal_accounts = true\nallow_provider_fallback = true\n\n[optimization]\nenabled = true\nstrategy = "hybrid"\n\n[cost]\nmonthly_limit_usd = 0.0\nhard_limit = false\n''',encoding="utf-8")
     return name
 
@@ -56,7 +57,7 @@ def profile_selector(win):
     cur=profiles.index(load_active_profile()) if load_active_profile() in profiles else 0; h,w=win.getmaxyx(); height=min(len(profiles)+4,max(7,h-4)); width=min(max(34,max(map(len,profiles))+10),max(20,w-6)); top=max(2,(h-height)//2); left=max(2,(w-width)//2); p=_popup(win,top,left,height,width,"Select Profile")
     while True:
         for i,name in enumerate(profiles[:height-4]):
-            try:p.addstr(2+i,2,("> " if i==cur else "  ")+name.replace("-"," ").title(),curses.A_REVERSE if i==cur else 0)
+            try:p.addstr(2+i,2,"  "+name.replace("-"," ").title(),curses.A_NORMAL); p.addstr(2+i,2,"> "+name.replace("-"," ").title(),curses.A_REVERSE if i==cur else curses.A_NORMAL)
             except curses.error:pass
         p.noutrefresh(); curses.doupdate(); key=p.getch()
         if key==curses.KEY_MOUSE:
@@ -75,26 +76,27 @@ def _popup_menu(win,index):
     name=MENU[index]; items=MENU_ITEMS[name]; h,w=win.getmaxyx(); x=_menu_x_positions()[index][1]; width=min(max(map(len,items))+6,max(14,w-x-2)); height=min(len(items)+2,max(3,h-3)); p=_popup(win,1,x,height,width,name); cur=0
     while True:
         for i,item in enumerate(items[:height-2]):
-            try:p.addstr(1+i,1," "+item.ljust(width-3)[:width-3],curses.A_REVERSE if i==cur else 0)
+            try:p.addstr(1+i,1," "+item.ljust(width-3)[:width-3],curses.A_REVERSE if i==cur else curses.A_NORMAL)
             except curses.error:pass
         p.noutrefresh(); curses.doupdate(); key=p.getch()
-        if key in (curses.KEY_LEFT,curses.KEY_RIGHT): return ("__PREV_MENU__" if key==curses.KEY_LEFT else "__NEXT_MENU__")
+        if key in (curses.KEY_LEFT,curses.KEY_RIGHT): p.erase();p.noutrefresh();curses.doupdate();return ("__PREV_MENU__" if key==curses.KEY_LEFT else "__NEXT_MENU__")
         if key==curses.KEY_MOUSE:
             e=mouse_event()
             if e:
                 mx,my,b=e
                 if b&(getattr(curses,"BUTTON1_CLICKED",0)|getattr(curses,"BUTTON1_PRESSED",0)):
                     for j,(_n,lx,rx) in enumerate(_menu_x_positions()):
-                        if my==0 and lx<=mx<=rx:return ("__MENU__",j)
-                    if x<=mx<x+width and 2<=my<2+len(items):return items[my-2]
-                    return None
+                        if my==0 and lx<=mx<=rx:
+                            p.erase();p.noutrefresh();curses.doupdate();return ("__MENU__",j)
+                    if x<=mx<x+width and 2<=my<2+len(items):p.erase();p.noutrefresh();curses.doupdate();return items[my-2]
+                    p.erase();p.noutrefresh();curses.doupdate();return None
         elif key in (curses.KEY_UP,ord("k")):cur=(cur-1)%max(1,len(items))
         elif key in (curses.KEY_DOWN,ord("j")):cur=(cur+1)%max(1,len(items))
-        elif key in (10,13,curses.KEY_ENTER):return items[cur] if items else None
-        elif key in (27,ord("q"),ord("Q")):return None
+        elif key in (10,13,curses.KEY_ENTER):p.erase();p.noutrefresh();curses.doupdate();return items[cur] if items else None
+        elif key in (27,ord("q"),ord("Q")):p.erase();p.noutrefresh();curses.doupdate();return None
 
 def _menu_action(win,action):
-    if isinstance(action,tuple) and action[0]=="__MENU__":return action
+    if isinstance(action,tuple):return action
     if action in {"Profiles","Profile"}:return profile_selector(win)
     if action=="Create Profile":return create_profile(win)
     if action=="Exit":return "__EXIT__"
@@ -105,6 +107,7 @@ def _open_menu(win,index):
         result=_popup_menu(win,index)
         if result=="__NEXT_MENU__":index=(index+1)%len(MENU);continue
         if result=="__PREV_MENU__":index=(index-1)%len(MENU);continue
+        if isinstance(result,tuple) and result[0]=="__MENU__":index=result[1];continue
         return _menu_action(win,result)
 
 def _draw_main(win,menu_cursor=-1):
@@ -137,7 +140,6 @@ def run(win):
                         for i,(_n,lx,rx) in enumerate(_menu_x_positions()):
                             if lx<=x<=rx:
                                 menu=i;chosen=_open_menu(win,i);menu=-1
-                                if isinstance(chosen,tuple) and chosen[0]=="__MENU__":chosen=_open_menu(win,chosen[1])
                                 if chosen=="__EXIT__":return
                                 if chosen:active=chosen
                                 break
@@ -152,7 +154,6 @@ def run(win):
         elif 0<=key<256 and chr(key).lower() in MENU_KEYS:
             i=MENU_KEYS[chr(key).lower()];menu=i;chosen=_open_menu(win,i);menu=-1
             if chosen=="__EXIT__":return
-            if isinstance(chosen,tuple) and chosen[0]=="__MENU__":chosen=_open_menu(win,chosen[1])
             if chosen:active=chosen
 
 def main():curses.wrapper(run);return 0

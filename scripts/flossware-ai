@@ -84,9 +84,19 @@ py() {
 
 run_tui() {
   local PY; PY="$(py)"
-  # Prefer package console entry, then setup.py / tui.py compatibility scripts.
-  if "$PY" -c "import flossware_setup.tui" 2>/dev/null; then
-    exec "$PY" -m flossware_setup.tui "$@"
+  # The package exposes a console entry point to flossware_setup.tui.main.
+  # Do not use `python -m flossware_setup.tui`: the package intentionally has
+  # no __main__.py, so that invocation fails on otherwise healthy installs.
+  if [[ -x "$ROOT/venv/bin/flossware-setup" ]]; then
+    exec "$ROOT/venv/bin/flossware-setup" "$@"
+  fi
+  # Compatibility path for installations where the console script was not
+  # materialized, while still invoking the package's public main() correctly.
+  if "$PY" -c 'from flossware_setup.tui import main; main()' </dev/null 2>/dev/null; then
+    :
+  fi
+  if "$PY" -c 'import flossware_setup.tui' 2>/dev/null; then
+    exec "$PY" -c 'from flossware_setup.tui import main; main()' "$@"
   fi
   if [[ -f "$ROOT/setup.py" ]]; then
     exec "$PY" "$ROOT/setup.py" "$@"
@@ -159,7 +169,7 @@ case "${1:-}" in
     ;;
   mcp-config) shift; exec "$(py)" "$ROOT/mcp.py" "$@" ;;
   runtime) shift; exec "$(py)" "$ROOT/runtime.py" "$@" ;;
-  setup|tui) shift; run_tui "$@" ;;
+  setup|tui) shift; run_tui "$@" ;
   update|reinstall)
     ACTION="$1"; shift
     EXTRA=()

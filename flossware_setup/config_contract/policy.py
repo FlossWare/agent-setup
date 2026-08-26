@@ -9,6 +9,13 @@ class PolicyError(ValueError):
     """Raised when resolved configuration violates a policy constraint."""
 
 
+def _as_float(key: str, raw: Any) -> float:
+    try:
+        return float(raw)
+    except (TypeError, ValueError) as exc:
+        raise PolicyError(f"{key}: non-numeric value {raw!r}") from exc
+
+
 class Policy:
     """Post-resolution constraints that lower layers cannot escape via override.
 
@@ -31,23 +38,28 @@ class Policy:
         self.required_false = tuple(required_false or ())
         self.required_true = tuple(required_true or ())
 
-    def validate(self, config: dict[str, Any]) -> None:
+    def _check_allowed(self, config: dict[str, Any]) -> None:
         for key, permitted in self.allowed.items():
             if key in config and config[key] not in permitted:
                 raise PolicyError(f"{key}: {config[key]!r} is not permitted")
+
+    def _check_maxima(self, config: dict[str, Any]) -> None:
         for key, ceiling in self.max_values.items():
-            if key in config:
-                try:
-                    value = float(config[key])
-                except (TypeError, ValueError) as exc:
-                    raise PolicyError(f"{key}: non-numeric value {config[key]!r}") from exc
-                if value > float(ceiling):
-                    raise PolicyError(
-                        f"{key}: {value} exceeds policy maximum {ceiling}"
-                    )
+            if key not in config:
+                continue
+            value = _as_float(key, config[key])
+            if value > float(ceiling):
+                raise PolicyError(f"{key}: {value} exceeds policy maximum {ceiling}")
+
+    def _check_flags(self, config: dict[str, Any]) -> None:
         for key in self.required_false:
             if config.get(key):
                 raise PolicyError(f"{key}: must be false under this policy")
         for key in self.required_true:
             if not config.get(key):
                 raise PolicyError(f"{key}: must be true under this policy")
+
+    def validate(self, config: dict[str, Any]) -> None:
+        self._check_allowed(config)
+        self._check_maxima(config)
+        self._check_flags(config)

@@ -32,7 +32,7 @@ _SECRET_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"ghp_[A-Za-z0-9]{20,}"),
     re.compile(r"gho_[A-Za-z0-9]{20,}"),
     re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),
-    re.compile(r"Bearer\s+[A-Za-z0-9._\-]{20,}", re.IGNORECASE),
+    re.compile(r"Bearer\s+[A-Za-z0-9._-]{20,}", re.IGNORECASE),
     re.compile(r"(?i)(api[_-]?key|token|secret|password)\s*[:=]\s*['\"]?[^'\s\"]{8,}"),
 )
 
@@ -91,6 +91,25 @@ def text_contains_identity_material(text: str) -> bool:
     return any(p.search(text) for p in _IDENTITY_PATTERNS)
 
 
+def _scan_value(value: Any, loc: str) -> list[str]:
+    """Scan a single value (recursive for nested structures)."""
+    if isinstance(value, dict):
+        return scan_mapping_for_secrets(value, path=loc)
+    if isinstance(value, (list, tuple)):
+        out: list[str] = []
+        for i, item in enumerate(value):
+            out.extend(_scan_value(item, f"{loc}[{i}]"))
+        return out
+    if isinstance(value, str):
+        findings: list[str] = []
+        if text_contains_secret_material(value):
+            findings.append(f"secret-like value at {loc}")
+        if text_contains_identity_material(value) and "@" in value:
+            findings.append(f"identity-like value at {loc}")
+        return findings
+    return []
+
+
 def scan_mapping_for_secrets(data: dict[str, Any], *, path: str = "") -> list[str]:
     """Return human-readable findings for secret-like keys or values in *data*."""
     findings: list[str] = []
@@ -98,20 +117,7 @@ def scan_mapping_for_secrets(data: dict[str, Any], *, path: str = "") -> list[st
         loc = f"{path}.{key}" if path else str(key)
         if is_secret_key_name(str(key)):
             findings.append(f"forbidden key name: {loc}")
-        if isinstance(value, dict):
-            findings.extend(scan_mapping_for_secrets(value, path=loc))
-        elif isinstance(value, (list, tuple)):
-            for i, item in enumerate(value):
-                if isinstance(item, dict):
-                    findings.extend(scan_mapping_for_secrets(item, path=f"{loc}[{i}]"))
-                elif isinstance(item, str) and text_contains_secret_material(item):
-                    findings.append(f"secret-like value at {loc}[{i}]")
-        elif isinstance(value, str):
-            if text_contains_secret_material(value):
-                findings.append(f"secret-like value at {loc}")
-            # Env *names* (OPENAI_API_KEY) are OK; values that look like tokens are not.
-            if text_contains_identity_material(value) and "@" in value:
-                findings.append(f"identity-like value at {loc}")
+        findings.extend(_scan_value(value, loc))
     return findings
 
 

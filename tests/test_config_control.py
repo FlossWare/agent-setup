@@ -1,6 +1,12 @@
+import shutil
+from pathlib import Path
+
 import pytest
 
 from flossware_setup import config_control
+
+ROOT = Path(__file__).resolve().parents[1]
+WORK_PROFILE = ROOT / "profiles" / "examples" / "redhat-cost-conscious.toml"
 
 
 def test_default_order_is_constraint_safe():
@@ -20,8 +26,21 @@ def test_invalid_persisted_order_falls_back(tmp_path, monkeypatch):
     assert config_control.load_order() == config_control.DEFAULT_ORDER
 
 
-def test_effective_profile_is_policy_safe():
-    config = config_control.validate_effective_config()
+def test_effective_personal_profile_is_permissive():
+    """Builtin personal profile uses auto provider and allows personal accounts."""
+    config = config_control.validate_effective_config("personal")
+    assert config["provider"] == "auto"
+    assert config["policy.allow_personal_accounts"] is True
+
+
+def test_effective_work_profile_is_policy_safe(tmp_path, monkeypatch):
+    """Organization work template enforces provider allowlist and budget ceiling."""
+    monkeypatch.setattr(config_control, "state_dir", lambda: tmp_path)
+    profiles = tmp_path / "profiles"
+    profiles.mkdir(parents=True)
+    assert WORK_PROFILE.is_file(), f"missing work profile template: {WORK_PROFILE}"
+    shutil.copy(WORK_PROFILE, profiles / "redhat-cost-conscious.toml")
+    config = config_control.validate_effective_config("redhat-cost-conscious")
     assert config["provider"] == "anthropic"
     assert config["budget.monthly"] <= 300.0
     assert config["policy.allow_personal_accounts"] is False

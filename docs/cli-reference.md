@@ -7,6 +7,13 @@
 | Command | Purpose |
 |---|---|
 | `flossware-ai tui` | Open the interactive Setup Control Center |
+| `flossware-ai config show` | Show effective layered configuration |
+| `flossware-ai config explain <key>` | Show configuration provenance for a key |
+| `flossware-ai config validate` | Validate effective configuration and policy |
+| `flossware-ai config order show` | Show persisted menu/component order |
+| `flossware-ai config order move <item> up` | Move an item up if constraints allow it |
+| `flossware-ai config order move <item> down` | Move an item down if constraints allow it |
+| `flossware-ai demo` | Run the deterministic configuration/optimization showcase |
 | `flossware-ai agents` | List registered coding agents and their detected/configurable state |
 | `flossware-ai agents setup <id>` | Configure a specific coding agent |
 | `flossware-ai components` | List FlossWare capabilities |
@@ -22,16 +29,28 @@
 | `flossware-ai runtime auto` | Return to automatic runtime selection |
 | `flossware-ai doctor` | Run environment and runtime diagnostics |
 | `flossware-ai dogfood --strict` | Run the real-machine setup acceptance gate |
-| `flossware-ai config show` | Show effective layered configuration |
-| `flossware-ai config explain <key>` | Show configuration provenance for a key |
-| `flossware-ai config validate` | Validate effective configuration and policy |
-| `flossware-ai demo` | Run the deterministic configuration/optimization showcase when implemented |
 
 Run `flossware-ai <command> --help` for command-specific options exposed by the installed version.
 
 ## Configuration lifecycle
 
-Configuration is layered in this order: built-in defaults, system, user, profile, project, environment, and CLI. Higher layers override only values they explicitly provide. See [`configuration-contract.md`](configuration-contract.md).
+Configuration is layered in this order: built-in defaults, system, user, profile, project, environment, and CLI. Higher layers override only values they explicitly provide. Policy is evaluated after resolution. See [`configuration-contract.md`](configuration-contract.md).
+
+The public persistent menu order is stored under `~/.flossware/ai/menu-order.json`. It contains only component IDs and ordering metadata, never credentials or PII.
+
+## Interactive reordering
+
+The TUI exposes **Configuration Contract**. It shows the active policy and menu order. Use arrow keys or mouse to select an item, `Ctrl-P` to move it up, `Ctrl-V` to move it down, and Enter to save. Moves that violate declared `before`/`after` constraints are rejected.
+
+The CLI provides the same operation:
+
+```bash
+flossware-ai config order show
+flossware-ai config order move optimization up
+flossware-ai config order move validation down
+```
+
+The persisted result is validated again on load, so a malformed or incompatible order falls back to the safe default order.
 
 ## Installation lifecycle
 

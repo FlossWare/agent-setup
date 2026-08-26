@@ -1,7 +1,9 @@
 ┌──────────────────────────────────────────────────────────────┐
-│ FlossWare AI — Coding Agent Setup                            │
+│ Setup Control Center                                         │
 └──────────────────────────────────────────────────────────────┘
 
-  Configure AI coding agents with FlossWare libraries
-  github.com/FlossWare/coding-agent-setup
-  Theme: dark  (press 't' to change, Enter to start)
+  Provider-neutral coding-agent setup.
+  Keyboard and mouse are both supported when available.
+  Active project: /path/to/project   (when configured)
+
+  Press Enter/click to continue, q to quit.

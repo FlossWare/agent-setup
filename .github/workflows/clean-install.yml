@@ -23,28 +23,34 @@ jobs:
         run: |
           set -euxo pipefail
           if command -v dnf >/dev/null 2>&1; then
-            dnf install -y ca-certificates curl tar
+            dnf install -y ca-certificates curl tar git
           else
             apt-get update
-            DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl tar
+            DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl tar git
           fi
       - name: Artifact-first bootstrap from empty directory
         shell: bash
         env:
           FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
-          BOOTSTRAP_REF: ${{ github.head_ref || github.ref_name }}
-          FLOSSWARE_RELEASE_REF: ${{ github.head_ref || github.ref_name }}
+          FLOSSWARE_RELEASE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLOSSWARE_AI_REF: main
         run: |
           set -euxo pipefail
           mkdir -p /workspace/empty-home
           cd /workspace/empty-home
           test ! -e .git
-          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${BOOTSTRAP_REF}/install.sh" -o install.sh
+          # Pin to the exact commit under test (avoids branch raw CDN races).
+          curl --proto "=https" --tlsv1.2 -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${FLOSSWARE_RELEASE_REF}/scripts/install.sh" -o install.sh
           chmod +x install.sh
+          # Prove AI_REF is main before install.
+          grep -q 'AI_REF="${FLOSSWARE_AI_REF:-main}"' install.sh
           ./install.sh --profile default
           test ! -d /tmp/flossware-ai/coding-agent-setup/.git
           test -f /tmp/flossware-ai/coding-agent-setup/profiles/default.toml
-          test -f /tmp/flossware-ai/venv/lib/python*/site-packages/flossware_setup/profiles/default.toml || test -f /tmp/flossware-ai/venv/lib/python*/site-packages/flossware_setup/profiles/default.toml
+          profile_pkg="$(find /tmp/flossware-ai -path '*/flossware_setup/profiles/default.toml' 2>/dev/null | head -n 1)"
+          test -n "$profile_pkg"
+          test -f "$profile_pkg"
+          /tmp/flossware-ai/venv/bin/python -c 'from importlib import resources; p=resources.files("flossware_setup.profiles").joinpath("default.toml"); assert p.is_file(), p'
           test -x /tmp/flossware-ai/bin/flossware-ai
           test -f /tmp/flossware-ai/state/active-profile
           test "$(cat /tmp/flossware-ai/state/active-profile)" = default
@@ -68,14 +74,15 @@ jobs:
         shell: bash
         env:
           FLOSSWARE_INSTALL_ROOT: /tmp/flossware-source
-          FLOSSWARE_RELEASE_REF: ${{ github.head_ref || github.ref_name }}
+          FLOSSWARE_RELEASE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLOSSWARE_AI_REF: main
           FLOSSWARE_USE_SOURCE: "true"
         run: |
           set -euxo pipefail
           rm -rf /tmp/flossware-source
           mkdir -p /workspace/source-fallback
           cd /workspace/source-fallback
-          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${FLOSSWARE_RELEASE_REF}/install.sh" -o install.sh
+          curl --proto "=https" --tlsv1.2 -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${FLOSSWARE_RELEASE_REF}/scripts/install.sh" -o install.sh
           chmod +x install.sh
           ./install.sh --profile default
           test -d /tmp/flossware-source/coding-agent-setup/.git
@@ -83,7 +90,8 @@ jobs:
         shell: bash
         env:
           FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
-          FLOSSWARE_RELEASE_REF: ${{ github.head_ref || github.ref_name }}
+          FLOSSWARE_RELEASE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+          FLOSSWARE_AI_REF: main
         run: |
           set -euxo pipefail
           cd /workspace/empty-home

@@ -1,10 +1,13 @@
 ┌──────────────────────────────────────────────────────────────┐
-│ 3/5  Monthly Budget                                          │
+│ Budget Policy                                                │
 └──────────────────────────────────────────────────────────────┘
 
- > (o) Free only    Cohere, OpenRouter, Gemini free tiers
-   ( ) Light        $10/month — adds Groq, Cerebras fast inference
-   ( ) Medium       $50/month — adds Claude Haiku, GPT-4o-mini
-   ( ) Custom       Set your own monthly budget
+ > Free / zero-cost policy
+   Light budget
+   Medium budget
+   Custom budget
 
-  Enter:select  q:quit
+  The selected policy controls permitted provider/model choices.
+  Custom policy prompts for a monthly USD ceiling.
+
+  Enter: select   q: quit   Mouse: primary click

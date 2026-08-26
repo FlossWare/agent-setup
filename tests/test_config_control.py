@@ -1,3 +1,5 @@
+import pytest
+
 from flossware_setup import config_control
 
 
@@ -22,3 +24,9 @@ def test_effective_profile_is_policy_safe():
     config = config_control.validate_effective_config()
     assert config["provider"] == "anthropic"
     assert config["budget.monthly"] <= 300.0
+    assert config["policy.allow_personal_accounts"] is False
+
+
+def test_unknown_profile_is_rejected():
+    with pytest.raises(ValueError, match="unknown profile"):
+        config_control.load_profile("does-not-exist")

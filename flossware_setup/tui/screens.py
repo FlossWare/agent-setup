@@ -8,13 +8,7 @@ from pathlib import Path
 
 from flossware_setup.artifacts import generate_artifacts
 from flossware_setup.catalog import AGENTS, BUDGET_POLICIES, CAPABILITIES, PROVIDERS
-from flossware_setup.config import (
-    Config,
-    get_active_project,
-    load_project_state,
-    resolve_review_project,
-    review_lines,
-)
+from flossware_setup.config import Config, get_active_project, load_project_state, resolve_review_project, review_lines
 from flossware_setup.credentials import credential_status
 from flossware_setup.installer import install_packages
 from flossware_setup.tui.input import is_cancel, is_confirm, primary_click
@@ -46,13 +40,7 @@ def welcome_screen(win, theme_name: str, external_theme) -> bool:
         elif is_cancel(key):
             return False
         elif key == ord("t") and external_theme:
-            add(
-                win,
-                tip_row + 3,
-                2,
-                "Theme loaded from FlossWare/curses-themes. Use --theme NAME to choose another.",
-                1,
-            )
+            add(win, tip_row + 3, 2, "Theme loaded from FlossWare/curses-themes. Use --theme NAME to choose another.", 1)
             win.refresh()
             win.getch()
         elif is_confirm(key):
@@ -74,13 +62,7 @@ def credentials_screen(win) -> None:
         y += 1
         if y >= win.getmaxyx()[0] - 4:
             break
-    add(
-        win,
-        win.getmaxyx()[0] - 2,
-        2,
-        f"{configured} provider credential(s) detected (names only). Enter to continue.",
-        6,
-    )
+    add(win, win.getmaxyx()[0] - 2, 2, f"{configured} provider credential(s) detected (names only). Enter to continue.", 6)
     win.refresh()
     while True:
         key = win.getch()
@@ -121,16 +103,18 @@ def review_screen(win, repo_dir: str | Path | None = None) -> None:
 
 def build_screen(win, cfg: Config) -> None:
     y = header(win, "Building Configuration")
-    add(win, y, 2, "Installing selected FlossWare libraries...", 3)
+    add(win, y, 2, f"Applying profile: {cfg.profile}", 1)
+    add(win, y + 1, 2, "Installing selected FlossWare libraries...", 3)
     win.refresh()
     install_packages(cfg.capabilities)
     generate_artifacts(cfg)
     win.erase()
     y = header(win, "Setup Complete")
     add(win, y, 2, "Configuration generated successfully.", 2, curses.A_BOLD)
-    add(win, y + 2, 2, "No credential values were written to generated files.", 2)
-    add(win, y + 4, 2, f"Active project: {Path(cfg.repo_dir).resolve()}", 1)
-    add(win, y + 6, 2, "Press any key to continue.", 6)
+    add(win, y + 1, 2, f"Profile: {cfg.profile}", 1, curses.A_BOLD)
+    add(win, y + 3, 2, "No credential values were written to generated files.", 2)
+    add(win, y + 5, 2, f"Active project: {Path(cfg.repo_dir).resolve()}", 1)
+    add(win, y + 7, 2, "Press any key to continue.", 6)
     win.refresh()
     win.getch()
 
@@ -144,12 +128,7 @@ def error_screen(win, message: str) -> None:
 
 
 def _select_agents(win) -> list[str] | None:
-    indexes = menu(
-        win,
-        "Select Coding Agents",
-        [(a.name, a.description) for a in AGENTS],
-        multi=True,
-    )
+    indexes = menu(win, "Select Coding Agents", [(a.name, a.description) for a in AGENTS], multi=True)
     if indexes is None or not indexes:
         return None
     return [AGENTS[i].id for i in indexes]
@@ -157,25 +136,14 @@ def _select_agents(win) -> list[str] | None:
 
 def _select_capabilities(win) -> list[str] | None:
     defaults = [i for i, c in enumerate(CAPABILITIES) if c[2]]
-    indexes = menu(
-        win,
-        "FlossWare AI Capabilities",
-        [(c[0], c[1]) for c in CAPABILITIES],
-        selected=defaults,
-        multi=True,
-    )
+    indexes = menu(win, "FlossWare AI Capabilities", [(c[0], c[1]) for c in CAPABILITIES], selected=defaults, multi=True)
     if indexes is None:
         return None
     return [CAPABILITIES[i][0] for i in indexes]
 
 
 def _select_budget(win, cfg: Config) -> bool:
-    choice = menu(
-        win,
-        "Budget Policy",
-        [(b[1], b[3]) for b in BUDGET_POLICIES],
-        multi=False,
-    )
+    choice = menu(win, "Budget Policy", [(b[1], b[3]) for b in BUDGET_POLICIES], multi=False)
     if choice is None:
         return False
     policy_id, _label, amount, _desc = BUDGET_POLICIES[int(choice)]
@@ -191,9 +159,9 @@ def _select_budget(win, cfg: Config) -> bool:
     return True
 
 
-def configure_wizard(win) -> Config | None:
-    """Multi-step selection wizard (agents → capabilities → budget → repo)."""
-    cfg = Config()
+def configure_wizard(win, profile: str = "default") -> Config | None:
+    """Multi-step selection wizard using the selected configuration profile."""
+    cfg = Config(profile=profile)
     agents = _select_agents(win)
     if agents is None:
         return None

@@ -2,8 +2,11 @@
 from __future__ import annotations
 import curses
 from pathlib import Path
-from flossware_setup.config_control import (THEMES, available_profiles, bind_directory, effective_config,
-    load_bindings, load_theme, profile_for_directory, profiles_dir, save_theme, state_dir)
+from flossware_setup.config_control import (
+    THEMES, available_profiles, bind_directory, binding_provenance,
+    bindings_grouped_by_profile, effective_config, load_bindings, load_theme,
+    profile_for_directory, profiles_dir, save_theme, state_dir, unbind_directory,
+)
 from flossware_setup.tui.input import enable_mouse, mouse_event
 from flossware_setup.tui.widgets import add, palette
 
@@ -98,15 +101,53 @@ def create_profile(win):
 
 
 def bindings_view(win):
-    bindings = load_bindings(); h, w = win.getmaxyx(); rows = sorted(bindings.items()); height = min(max(8, len(rows) + 6), h - 4); width = min(110, w - 4)
+    """Show directory bindings grouped by profile plus current-path provenance."""
+    h, w = win.getmaxyx()
+    height = min(max(12, h - 4), h - 2)
+    width = min(110, w - 4)
     p = _popup(win, max(2, (h - height) // 2), max(2, (w - width) // 2), height, width, "Directory Bindings")
-    if not rows: p.addstr(2, 2, "No bindings. Press A to bind the current directory.")
-    for i, (directory, profile) in enumerate(rows[:height - 5]): p.addnstr(2 + i, 2, f"{profile:<28} {directory}", width - 4)
-    p.addstr(height - 2, 2, "A Bind current directory   Esc Close"); p.noutrefresh(); curses.doupdate(); key = p.getch()
-    if key in (ord("a"), ord("A")):
-        profile = profile_selector(win)
-        if profile: bind_directory(Path.cwd(), profile)
+    while True:
+        p.erase()
+        p.border()
+        p.addstr(0, 2, " Directory Bindings ")
+        prov = binding_provenance(Path.cwd())
+        y = 1
+        p.addnstr(y, 2, f"CWD: {prov['directory']}", width - 4); y += 1
+        src = prov["source"] or "(default/fallback)"
+        p.addnstr(y, 2, f"Effective profile: {prov['effective_profile']}  [{prov['source_kind']}]", width - 4); y += 1
+        p.addnstr(y, 2, f"Winning binding: {src}", width - 4); y += 1
+        parents = prov.get("parent_bindings") or []
+        if parents:
+            p.addnstr(y, 2, "Less-specific parents: " + "; ".join(f"{d}->{pr}" for d, pr in parents[:3]), width - 4)
+            y += 1
+        y += 1
+        p.addstr(y, 2, "Bindings by profile:"); y += 1
+        grouped = bindings_grouped_by_profile()
+        if not grouped:
+            p.addstr(y, 2, "  (none — press A to bind CWD)"); y += 1
+        for profile, dirs in sorted(grouped.items()):
+            p.addnstr(y, 2, f"  [{profile}]", width - 4); y += 1
+            if y >= height - 3:
+                break
+            for directory in dirs:
+                p.addnstr(y, 4, directory, width - 6); y += 1
+                if y >= height - 3:
+                    break
+            if y >= height - 3:
+                break
+        p.addstr(height - 2, 2, "A bind CWD  E edit/rebind CWD  R remove CWD  Esc close")
+        p.noutrefresh(); curses.doupdate()
+        key = p.getch()
+        if key in (27, ord("q")):
+            break
+        if key in (ord("a"), ord("A"), ord("e"), ord("E")):
+            profile = profile_selector(win)
+            if profile:
+                bind_directory(Path.cwd(), profile)
+        elif key in (ord("r"), ord("R")):
+            unbind_directory(Path.cwd())
     _close(p)
+
 
 
 def theme_selector(win):

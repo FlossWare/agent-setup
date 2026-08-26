@@ -81,3 +81,18 @@ FLOSSWARE_RELEASE_REF=v0.1.0 bash install.sh
 # Specific commit (reproducible)
 FLOSSWARE_RELEASE_REF=3d2e52ba601bd16d4451448d0b843ffb25d35a27 bash install.sh
 ```
+
+### Central project state layout
+
+```text
+~/.flossware/ai/
+├── profiles/
+├── profile-bindings.toml
+├── projects/
+│   └── <16-char-sha256-of-path>/
+│       ├── state.json
+│       ├── ai_config.py
+│       └── path.txt
+└── state/
+    └── active-project
+```

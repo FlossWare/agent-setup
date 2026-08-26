@@ -62,7 +62,7 @@ A work profile may restrict models to an organization's approved providers. A pe
 
 ## Project state: `.flossware-ai.json`
 
-Generated at the root of a configured git project by the setup TUI/CLI. **Do not commit this file** if your organization treats local paths or agent selections as sensitive; prefer leaving it untracked.
+Stored under the central FlossWare state root (`~/.flossware/ai/projects/<id>/state.json`), not inside the project tree. **Do not commit this file** if your organization treats local paths or agent selections as sensitive; prefer leaving it untracked.
 
 ### Schema (version 1)
 
@@ -109,3 +109,7 @@ API keys, tokens, passwords, cookies, email addresses, legal names, employee ids
   "repo_dir": "/home/you/projects/example"
 }
 ```
+
+## Directory bindings
+
+Directory → profile mappings live in `~/.flossware/ai/profile-bindings.toml` (never in the project). Resolution uses **longest-specific-path** matching: the most specific binding that is a parent of (or equal to) the working directory wins; less-specific parent bindings are still visible in the TUI provenance view.

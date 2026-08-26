@@ -8,7 +8,16 @@ from pathlib import Path
 
 from flossware_setup.artifacts import generate_artifacts
 from flossware_setup.catalog import AGENTS, BUDGET_POLICIES, CAPABILITIES, PROVIDERS
-from flossware_setup.config import Config, get_active_project, load_project_state, resolve_review_project, review_lines
+from flossware_setup.config import (
+    Config,
+    get_active_project,
+    git_status_label,
+    is_git_repository,
+    load_project_state,
+    project_state_path,
+    resolve_review_project,
+    review_lines,
+)
 from flossware_setup.credentials import credential_status
 from flossware_setup.installer import install_packages
 from flossware_setup.tui.input import is_cancel, is_confirm, primary_click
@@ -71,11 +80,10 @@ def credentials_screen(win) -> None:
 
 
 def _artifact_lines(repo_dir: Path, state: dict) -> list[str]:
-    lines = ["", "Generated artifacts (present):"]
-    for rel in (".flossware-ai.json", "ai_config.py"):
-        path = repo_dir / rel
-        mark = "yes" if path.is_file() else "no"
-        lines.append(f"  [{mark}] {rel}")
+    lines = ["", "Central FlossWare state (outside project):"]
+    central = project_state_path(repo_dir)
+    lines.append(f"  [{'yes' if central.is_file() else 'no'}] {central}")
+    lines.append(git_status_label(repo_dir))
     for agent_id in state.get("agents") or []:
         lines.append(f"  agent id: {agent_id}")
     return lines
@@ -174,6 +182,9 @@ def configure_wizard(win, profile: str = "default") -> Config | None:
         return None
     default_repo = str(get_active_project() or Path(os.getcwd()).resolve())
     cfg.repo_dir = text_input(win, "Project directory:", default_repo)
-    if not (Path(cfg.repo_dir).resolve() / ".git").exists():
-        raise ValueError(f"Not a git repository: {Path(cfg.repo_dir).resolve()}")
+    target = Path(cfg.repo_dir).expanduser().resolve()
+    if not target.is_dir():
+        raise ValueError(f"Not a directory: {target}")
+    # Git is optional; status is informational only.
+    _ = is_git_repository(target)
     return cfg

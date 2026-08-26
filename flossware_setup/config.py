@@ -9,6 +9,7 @@ not positional indexes, so catalog order can change without invalidating state.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -177,8 +178,44 @@ def resolve_review_project(explicit: str | Path | None = None) -> Path:
     return Path(".").resolve()
 
 
+def is_git_repository(path: str | Path) -> bool:
+    """True when *path* is inside a Git working tree (``.git`` present)."""
+    try:
+        root = Path(path).expanduser().resolve()
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return (root / ".git").exists()
+
+
+def git_status_label(path: str | Path) -> str:
+    """Human-readable Git status for review screens (never an error)."""
+    return "Git: repository" if is_git_repository(path) else "Git: not a repository"
+
+
+def project_identity(repo_dir: str | Path) -> str:
+    """Stable, collision-resistant id for a directory under the central state root.
+
+    Based on the normalized absolute path. Renamed/moved directories receive a new
+    identity; callers may migrate state explicitly if needed.
+    """
+    try:
+        normalized = os.path.normcase(str(Path(repo_dir).expanduser().resolve()))
+    except (OSError, RuntimeError, ValueError):
+        normalized = os.path.normcase(str(repo_dir))
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return digest[:16]
+
+
+def central_project_dir(repo_dir: str | Path) -> Path:
+    """Per-directory FlossWare state folder (never inside the user project)."""
+    path = managed_root() / "projects" / project_identity(repo_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def project_state_path(repo_dir: str | Path) -> Path:
-    return Path(repo_dir).resolve() / ".flossware-ai.json"
+    """Path to centralized project state JSON (not written into the project tree)."""
+    return central_project_dir(repo_dir) / "state.json"
 
 
 def load_project_state(repo_dir: str | Path = ".") -> dict[str, Any]:
@@ -267,6 +304,8 @@ def review_lines(repo_dir: str | Path = ".") -> list[str]:
     if not state:
         return [
             "No persisted FlossWare project configuration found.",
+            f"Project: {Path(repo_dir).resolve()}",
+            git_status_label(repo_dir),
             f"Looked for: {project_state_path(repo_dir)}",
             "Run Configure / Change Setup to generate configuration.",
             f"Supported integrations in catalog: {len(AGENTS)}",
@@ -275,6 +314,8 @@ def review_lines(repo_dir: str | Path = ".") -> list[str]:
     caps = state.get("capabilities") or []
     lines = [
         f"Project: {Path(repo_dir).resolve()}",
+        git_status_label(repo_dir),
+        f"Central state: {project_state_path(repo_dir)}",
         f"Profile: {state.get('profile', 'default')}",
         f"Budget policy: {state.get('budget_policy', '?')} "
         f"(id={state.get('budget_policy_id', '?')})",

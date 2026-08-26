@@ -113,16 +113,54 @@ def unbind_directory(directory: str | Path) -> Path:
     bindings = load_bindings(); bindings.pop(_norm(directory), None); return save_bindings(bindings)
 
 
-def profile_for_directory(directory: str | Path | None = None) -> tuple[str, str | None]:
-    target = Path(directory or Path.cwd()).expanduser().resolve(); normalized = _norm(target); best = None
+def matching_bindings(directory: str | Path | None = None) -> list[tuple[str, str]]:
+    """Return bindings that cover *directory*, longest path first."""
+    target = Path(directory or Path.cwd()).expanduser().resolve()
+    normalized = _norm(target)
+    matches: list[tuple[str, str]] = []
     for root, profile in load_bindings().items():
         try:
             Path(normalized).relative_to(root)
         except ValueError:
             continue
-        if best is None or len(root) > len(best[0]): best = (root, profile)
-    if best: return best[1], best[0]
+        matches.append((root, profile))
+    matches.sort(key=lambda item: len(item[0]), reverse=True)
+    return matches
+
+
+def profile_for_directory(directory: str | Path | None = None) -> tuple[str, str | None]:
+    """Return (profile, winning_binding_path_or_None) using longest-specific-path match."""
+    matches = matching_bindings(directory)
+    if matches:
+        root, profile = matches[0]
+        return profile, root
     return "personal", None
+
+
+def binding_provenance(directory: str | Path | None = None) -> dict[str, object]:
+    """Explain which binding won for *directory* and list less-specific parents."""
+    target = Path(directory or Path.cwd()).expanduser().resolve()
+    matches = matching_bindings(target)
+    profile, source = profile_for_directory(target)
+    return {
+        "directory": _norm(target),
+        "effective_profile": profile,
+        "source": source,  # None => default/fallback profile
+        "source_kind": "directory-binding" if source else "default-profile",
+        "winning_binding": matches[0] if matches else None,
+        "parent_bindings": matches[1:] if len(matches) > 1 else [],
+        "all_matches": matches,
+    }
+
+
+def bindings_grouped_by_profile() -> dict[str, list[str]]:
+    """Map profile name -> sorted list of bound directories."""
+    grouped: dict[str, list[str]] = {}
+    for directory, profile in load_bindings().items():
+        grouped.setdefault(profile, []).append(directory)
+    for dirs in grouped.values():
+        dirs.sort()
+    return grouped
 
 
 def theme_path() -> Path: return state_dir() / "theme"

@@ -113,3 +113,7 @@ API keys, tokens, passwords, cookies, email addresses, legal names, employee ids
 ## Directory bindings
 
 Directory → profile mappings live in `~/.flossware/ai/profile-bindings.toml` (never in the project). Resolution uses **longest-specific-path** matching: the most specific binding that is a parent of (or equal to) the working directory wins; less-specific parent bindings are still visible in the TUI provenance view.
+
+### Path moves
+
+`project_identity` is derived from the normalized absolute path. Use `migrate_project_state(old, new)` after a rename so configuration follows the directory; otherwise the new path starts with empty central state.

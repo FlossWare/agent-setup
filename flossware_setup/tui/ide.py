@@ -100,53 +100,82 @@ def create_profile(win):
     _close(p); return name
 
 
+def _draw_provenance(panel, y: int, width: int, prov: dict) -> int:
+    """Render CWD provenance lines; return next free row."""
+    panel.addnstr(y, 2, f"CWD: {prov['directory']}", width - 4)
+    y += 1
+    panel.addnstr(
+        y,
+        2,
+        f"Effective profile: {prov['effective_profile']}  [{prov['source_kind']}]",
+        width - 4,
+    )
+    y += 1
+    src = prov["source"] or "(default/fallback)"
+    panel.addnstr(y, 2, f"Winning binding: {src}", width - 4)
+    y += 1
+    parents = list(prov.get("parent_bindings") or [])[:3]
+    if parents:
+        text = "Less-specific parents: " + "; ".join(f"{d}->{pr}" for d, pr in parents)
+        panel.addnstr(y, 2, text, width - 4)
+        y += 1
+    return y + 1
+
+
+def _draw_bindings_list(panel, y: int, height: int, width: int) -> None:
+    """Render bindings grouped by profile until the footer row."""
+    panel.addstr(y, 2, "Bindings by profile:")
+    y += 1
+    grouped = bindings_grouped_by_profile()
+    if not grouped:
+        panel.addstr(y, 2, "  (none — press A to bind CWD)")
+        return
+    limit = height - 3
+    for profile, dirs in sorted(grouped.items()):
+        if y >= limit:
+            return
+        panel.addnstr(y, 2, f"  [{profile}]", width - 4)
+        y += 1
+        for directory in dirs:
+            if y >= limit:
+                return
+            panel.addnstr(y, 4, directory, width - 6)
+            y += 1
+
+
+def _handle_binding_key(win, key: int) -> bool:
+    """Handle bind/rebind/remove keys. Return True when the view should close."""
+    if key in (27, ord("q")):
+        return True
+    if key in (ord("a"), ord("A"), ord("e"), ord("E")):
+        profile = profile_selector(win)
+        if profile:
+            bind_directory(Path.cwd(), profile)
+    elif key in (ord("r"), ord("R")):
+        unbind_directory(Path.cwd())
+    return False
+
+
 def bindings_view(win):
     """Show directory bindings grouped by profile plus current-path provenance."""
     h, w = win.getmaxyx()
     height = min(max(12, h - 4), h - 2)
     width = min(110, w - 4)
-    p = _popup(win, max(2, (h - height) // 2), max(2, (w - width) // 2), height, width, "Directory Bindings")
+    panel = _popup(
+        win, max(2, (h - height) // 2), max(2, (w - width) // 2), height, width, "Directory Bindings"
+    )
     while True:
-        p.erase()
-        p.border()
-        p.addstr(0, 2, " Directory Bindings ")
-        prov = binding_provenance(Path.cwd())
-        y = 1
-        p.addnstr(y, 2, f"CWD: {prov['directory']}", width - 4); y += 1
-        src = prov["source"] or "(default/fallback)"
-        p.addnstr(y, 2, f"Effective profile: {prov['effective_profile']}  [{prov['source_kind']}]", width - 4); y += 1
-        p.addnstr(y, 2, f"Winning binding: {src}", width - 4); y += 1
-        parents = prov.get("parent_bindings") or []
-        if parents:
-            p.addnstr(y, 2, "Less-specific parents: " + "; ".join(f"{d}->{pr}" for d, pr in parents[:3]), width - 4)
-            y += 1
-        y += 1
-        p.addstr(y, 2, "Bindings by profile:"); y += 1
-        grouped = bindings_grouped_by_profile()
-        if not grouped:
-            p.addstr(y, 2, "  (none — press A to bind CWD)"); y += 1
-        for profile, dirs in sorted(grouped.items()):
-            p.addnstr(y, 2, f"  [{profile}]", width - 4); y += 1
-            if y >= height - 3:
-                break
-            for directory in dirs:
-                p.addnstr(y, 4, directory, width - 6); y += 1
-                if y >= height - 3:
-                    break
-            if y >= height - 3:
-                break
-        p.addstr(height - 2, 2, "A bind CWD  E edit/rebind CWD  R remove CWD  Esc close")
-        p.noutrefresh(); curses.doupdate()
-        key = p.getch()
-        if key in (27, ord("q")):
+        panel.erase()
+        panel.border()
+        panel.addstr(0, 2, " Directory Bindings ")
+        y = _draw_provenance(panel, 1, width, binding_provenance(Path.cwd()))
+        _draw_bindings_list(panel, y, height, width)
+        panel.addstr(height - 2, 2, "A bind CWD  E edit/rebind CWD  R remove CWD  Esc close")
+        panel.noutrefresh()
+        curses.doupdate()
+        if _handle_binding_key(win, panel.getch()):
             break
-        if key in (ord("a"), ord("A"), ord("e"), ord("E")):
-            profile = profile_selector(win)
-            if profile:
-                bind_directory(Path.cwd(), profile)
-        elif key in (ord("r"), ord("R")):
-            unbind_directory(Path.cwd())
-    _close(p)
+    _close(panel)
 
 
 

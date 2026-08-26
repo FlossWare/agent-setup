@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -216,6 +217,33 @@ def central_project_dir(repo_dir: str | Path) -> Path:
 def project_state_path(repo_dir: str | Path) -> Path:
     """Path to centralized project state JSON (not written into the project tree)."""
     return central_project_dir(repo_dir) / "state.json"
+
+
+def migrate_project_state(old_dir: str | Path, new_dir: str | Path) -> Path:
+    """Copy central project state from *old_dir* identity to *new_dir* identity.
+
+    Path-derived ids mean a rename/move creates a new empty identity. Call this
+    explicitly after moving a project so prior configuration follows the new path.
+    Existing destination state is not overwritten.
+    """
+    src = central_project_dir(old_dir)
+    dest = central_project_dir(new_dir)
+    if not (src / "state.json").is_file():
+        raise FileNotFoundError(f"no central state for {old_dir!s}")
+    if (dest / "state.json").is_file():
+        return dest
+    for name in ("state.json", "ai_config.py", "path.txt"):
+        item = src / name
+        if item.is_file():
+            shutil.copy2(item, dest / name)
+    try:
+        dest.joinpath("path.txt").write_text(
+            str(Path(new_dir).expanduser().resolve()) + "\n", encoding="utf-8"
+        )
+    except OSError:
+        pass
+    return dest
+
 
 
 def load_project_state(repo_dir: str | Path = ".") -> dict[str, Any]:

@@ -38,9 +38,8 @@ def test_non_git_directory_is_supported(tmp_path, monkeypatch):
     # No FlossWare metadata in the project tree
     assert not (project / ".flossware-ai.json").exists()
     assert not (project / ".flossware").exists()
-    assert not list(project.glob(".*")) or all(
-        p.name.startswith(".git") for p in project.iterdir() if p.name.startswith(".")
-    )
+    hidden = [p.name for p in project.iterdir() if p.name.startswith(".")]
+    assert hidden == []
 
 
 def test_central_state_uses_stable_identity(tmp_path, monkeypatch):
@@ -94,7 +93,8 @@ def test_bindings_grouped_and_unbind(tmp_path, monkeypatch):
     bind_directory(a, "personal")
     bind_directory(b, "default")
     grouped = bindings_grouped_by_profile()
-    assert "personal" in grouped and "default" in grouped
+    assert "personal" in grouped
+    assert "default" in grouped
     unbind_directory(a)
     assert profile_for_directory(a)[1] is None
     assert profile_for_directory(a)[0] == "personal"  # fallback name
@@ -106,3 +106,21 @@ def test_git_repo_status_when_present(tmp_path):
     (repo / ".git").mkdir()
     assert is_git_repository(repo)
     assert git_status_label(repo) == "Git: repository"
+
+
+def test_migrate_project_state_after_rename(tmp_path, monkeypatch):
+    monkeypatch.setenv("FLOSSWARE_AI_ROOT", str(tmp_path / "ai"))
+    from flossware_setup.config import migrate_project_state, project_state_path
+
+    old = tmp_path / "old-name"
+    new = tmp_path / "new-name"
+    old.mkdir()
+    new.mkdir()
+    generate_artifacts(Config(repo_dir=str(old)), write_agent_files=False)
+    assert project_state_path(old).is_file()
+    assert not project_state_path(new).is_file()
+    dest = migrate_project_state(old, new)
+    assert dest == project_state_path(new).parent
+    assert project_state_path(new).is_file()
+    loaded = load_project_state(new)
+    assert loaded.get("credential_values_written") is False

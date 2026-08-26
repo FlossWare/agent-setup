@@ -1,70 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1900" viewBox="0 0 1200 1900">
-<rect width="1200" height="1900" fill="#111827"/>
-<text x="60" y="55" font-family="sans-serif" font-size="28" font-weight="bold" fill="#f9fafb">FlossWare AI Coding Agent Setup — TUI Preview</text>
-<text x="60" y="85" font-family="sans-serif" font-size="15" fill="#9ca3af">Representative terminal captures rendered from the repository's documented TUI states. Not GUI mockups.</text>
-<g font-family="monospace" font-size="16" fill="#e5e7eb">
-<rect x="50" y="110" width="1100" height="190" rx="10" fill="#0b1220" stroke="#374151"/>
-<text x="75" y="140" fill="#f9fafb" font-weight="bold">WELCOME</text>
-<text x="75" y="170">┌──────────────────────────────────────────────────────────────┐</text>
-<text x="75" y="195">│ FlossWare AI — Coding Agent Setup                            │</text>
-<text x="75" y="220">└──────────────────────────────────────────────────────────────┘</text>
-<text x="75" y="245">  Configure AI coding agents with FlossWare libraries</text>
-<text x="75" y="270">  Theme: dark  (press 't' to change, Enter to start)</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1500" viewBox="0 0 1100 1500">
+<rect width="1100" height="1500" fill="#111827"/>
+<text x="55" y="55" font-family="sans-serif" font-size="28" font-weight="bold" fill="#f9fafb">FlossWare AI Setup TUI</text>
+<text x="55" y="84" font-family="sans-serif" font-size="15" fill="#9ca3af">Representative documentation rendering of the current curses UI. Keyboard + primary mouse click.</text>
+<g font-family="monospace" font-size="17" fill="#e5e7eb">
+<rect x="45" y="115" width="1010" height="300" rx="10" fill="#0b1220" stroke="#374151"/>
+<text x="70" y="150" fill="#f9fafb" font-weight="bold">SETUP CONTROL CENTER</text>
+<text x="70" y="185">&gt; Review Current Configuration</text>
+<text x="70" y="215">  Inspect persisted project configuration</text>
+<text x="70" y="260">  Configure / Change Setup</text>
+<text x="70" y="290">  Select agents, capabilities and budget</text>
+<text x="70" y="335">  Provider Credentials</text>
+<text x="70" y="365">  View detected credential sources (names only)</text>
+<text x="70" y="400">  Exit</text>
 
-<rect x="50" y="320" width="1100" height="250" rx="10" fill="#0b1220" stroke="#374151"/>
-<text x="75" y="350" fill="#f9fafb" font-weight="bold">AGENTS</text>
-<text x="75" y="380">┌──────────────────────────────────────────────────────────────┐</text>
-<text x="75" y="405">│ 1/5  Select Coding Agents                                    │</text>
-<text x="75" y="430">└──────────────────────────────────────────────────────────────┘</text>
-<text x="75" y="460"> &gt; [x] Claude Code       Terminal, desktop, web, IDE extensions</text>
-<text x="75" y="485">   [x] Cursor            AI-native IDE with built-in models</text>
-<text x="75" y="510">   [x] OpenCode / Codex  Terminal-based coding agents</text>
-<text x="75" y="545">  Space:toggle  Enter:confirm  a:all  n:none  q:quit</text>
+<rect x="45" y="445" width="1010" height="300" rx="10" fill="#0b1220" stroke="#374151"/>
+<text x="70" y="480" fill="#f9fafb" font-weight="bold">SELECT CODING AGENTS</text>
+<text x="70" y="520">&gt; [x] Claude Code</text>
+<text x="70" y="550">  [x] Cursor</text>
+<text x="70" y="580">  [ ] OpenCode</text>
+<text x="70" y="610">  [ ] Crush</text>
+<text x="70" y="640">  [ ] Codex</text>
+<text x="70" y="680">  ... 13 catalog integrations total</text>
+<text x="70" y="715">Space: toggle   Enter: confirm   a: all   n: none   Mouse: click</text>
 
-<rect x="50" y="590" width="1100" height="350" rx="10" fill="#0b1220" stroke="#374151"/>
-<text x="75" y="620" fill="#f9fafb" font-weight="bold">FLOSSWARE CAPABILITIES</text>
-<text x="75" y="650">┌──────────────────────────────────────────────────────────────┐</text>
-<text x="75" y="675">│ 2/5  FlossWare AI Capabilities                               │</text>
-<text x="75" y="700">└──────────────────────────────────────────────────────────────┘</text>
-<text x="75" y="730"> &gt; [x] model-router-ai       Smart LLM routing with failover</text>
-<text x="75" y="755">   [x] resilience-ai          Retry, circuit breaker, timeout</text>
-<text x="75" y="780">   [x] structured-output-ai   Schema-validated JSON from LLMs</text>
-<text x="75" y="805">   [ ] consensus-ai           Multi-model voting</text>
-<text x="75" y="830">   [ ] evaluation-ai          Quality scoring</text>
-<text x="75" y="855">   [ ] observability-ai       Logging, metrics, cost tracking</text>
-<text x="75" y="880">   [ ] security-ai            Validation, masking, audit logging</text>
-<text x="75" y="915">  Space:toggle  Enter:confirm  a:all  n:none  q:quit</text>
+<rect x="45" y="775" width="1010" height="300" rx="10" fill="#0b1220" stroke="#374151"/>
+<text x="70" y="810" fill="#f9fafb" font-weight="bold">FLOSSWARE AI CAPABILITIES</text>
+<text x="70" y="850">&gt; [x] model-router-ai</text>
+<text x="70" y="880">  [x] resilience-ai</text>
+<text x="70" y="910">  [x] structured-output-ai</text>
+<text x="70" y="940">  [ ] consensus-ai</text>
+<text x="70" y="970">  [ ] evaluation-ai</text>
+<text x="70" y="1000">  [ ] observability-ai</text>
+<text x="70" y="1035">Selection persists stable capability IDs.</text>
 
-<rect x="50" y="960" width="1100" height="230" rx="10" fill="#0b1220" stroke="#374151"/>
-<text x="75" y="990" fill="#f9fafb" font-weight="bold">MONTHLY BUDGET</text>
-<text x="75" y="1020">┌──────────────────────────────────────────────────────────────┐</text>
-<text x="75" y="1045">│ 3/5  Monthly Budget                                          │</text>
-<text x="75" y="1070">└──────────────────────────────────────────────────────────────┘</text>
-<text x="75" y="1100"> &gt; (o) Free only    Cohere, OpenRouter, Gemini free tiers</text>
-<text x="75" y="1125">   ( ) Light        $10/month — adds Groq, Cerebras</text>
-<text x="75" y="1150">   ( ) Medium       $50/month — adds Claude Haiku, GPT-4o-mini</text>
-
-<rect x="50" y="1210" width="1100" height="300" rx="10" fill="#0b1220" stroke="#374151"/>
-<text x="75" y="1240" fill="#f9fafb" font-weight="bold">BUILDING CONFIGURATION</text>
-<text x="75" y="1275">  Installing FlossWare AI libraries...</text>
-<text x="75" y="1300">  Libraries installed</text>
-<text x="75" y="1325">  Generating Claude Code config...  + CLAUDE.md</text>
-<text x="75" y="1350">  Generating Cursor config...       + .cursorrules</text>
-<text x="75" y="1375">  Generating OpenCode / Codex...    + AGENTS.md</text>
-<text x="75" y="1400">  Generating ai_config.py...        + ai_config.py</text>
-<text x="75" y="1425">  Writing build manifest...         + .flossware-ai.json</text>
-<text x="75" y="1460">  Build complete!</text>
-<text x="75" y="1490">  ████████████████████████████████████████ 6/6</text>
-
-<rect x="50" y="1530" width="1100" height="310" rx="10" fill="#0b1220" stroke="#374151"/>
-<text x="75" y="1560" fill="#f9fafb" font-weight="bold">SETUP COMPLETE</text>
-<text x="75" y="1595">  Agents: + Claude Code   + Cursor   + OpenCode / Codex</text>
-<text x="75" y="1625">  FlossWare AI Stack:</text>
-<text x="75" y="1650">    + model-router-ai  + resilience-ai  + structured-output-ai</text>
-<text x="75" y="1685">  Budget: Free only</text>
-<text x="75" y="1710">  Generated: ai_config.py  .flossware-ai.json  CLAUDE.md</text>
-<text x="75" y="1735">             .cursorrules  AGENTS.md</text>
-<text x="75" y="1775">  Press q to exit</text>
+<rect x="45" y="1105" width="1010" height="300" rx="10" fill="#0b1220" stroke="#374151"/>
+<text x="70" y="1140" fill="#f9fafb" font-weight="bold">SETUP COMPLETE</text>
+<text x="70" y="1180">Configuration generated successfully.</text>
+<text x="70" y="1220">No credential values were written to generated files.</text>
+<text x="70" y="1260">Active project: /path/to/project</text>
+<text x="70" y="1300">Review Current Configuration uses the active project.</text>
+<text x="70" y="1360">Press any key to continue.</text>
 </g>
-<text x="60" y="1870" font-family="sans-serif" font-size="14" fill="#9ca3af">Documentation artifact: representative terminal-state rendering based on screenshots/*.txt in this repository.</text>
 </svg>

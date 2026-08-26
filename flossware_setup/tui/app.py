@@ -1,98 +1,35 @@
-"""Application lifecycle and navigation for the setup TUI."""
+"""Application lifecycle for the Turbo C++ inspired setup IDE."""
 
 from __future__ import annotations
 
 import curses
 import sys
 
-from flossware_setup.tui.config_screen import configuration_contract_screen
+from flossware_setup.tui.ide import run as run_ide
 from flossware_setup.tui.input import enable_mouse
-from flossware_setup.tui.profile_screen import select_profile
-from flossware_setup.tui.screens import (
-    build_screen,
-    configure_wizard,
-    credentials_screen,
-    error_screen,
-    review_screen,
-    welcome_screen,
-)
-from flossware_setup.tui.widgets import menu, palette
-
-_BASE_CONTROL_CENTER_ITEMS = [
-    ("Profile", "Choose active configuration profile"),
-    ("Review Current Configuration", "Inspect persisted project configuration"),
-    ("Configure / Change Setup", "Select agents, capabilities and budget"),
-    ("Provider Credentials", "View detected credential sources (names only)"),
-    ("Configuration Contract", "Inspect layers, policy and reorder the menu"),
-    ("Exit", "Leave Setup"),
-]
+from flossware_setup.tui.widgets import palette
 
 
 def load_theme(name: str):
-    """Load FlossWare themes when available, without installing during TUI startup."""
+    """Load an optional FlossWare theme without installing during startup."""
     try:
         from curses_themes import ThemeManager
         return ThemeManager.load(name)
-    except Exception:  # noqa: BLE001 - optional dependency may raise anything
+    except Exception:  # noqa: BLE001 - optional dependency
         return None
 
 
-def _run_configure_flow(stdscr, profile: str) -> None:
-    """Wizard -> credentials -> build -> review. Errors are reported on-screen."""
-    try:
-        cfg = configure_wizard(stdscr, profile=profile)
-        if cfg is None:
-            return
-        credentials_screen(stdscr)
-        build_screen(stdscr, cfg)
-        review_screen(stdscr, cfg.repo_dir)
-    except (ValueError, OSError, RuntimeError, curses.error) as exc:
-        error_screen(stdscr, str(exc))
-    except Exception as exc:  # noqa: BLE001 - last-resort UI recovery
-        error_screen(stdscr, str(exc))
-
-
-def _dispatch_control_center(stdscr, choice: int, profile: str) -> tuple[bool, str]:
-    if choice == 0:
-        selected = select_profile(stdscr, profile)
-        return True, selected if selected is not None else profile
-    if choice == 1:
-        review_screen(stdscr)
-        return True, profile
-    if choice == 2:
-        _run_configure_flow(stdscr, profile)
-        return True, profile
-    if choice == 3:
-        credentials_screen(stdscr)
-        return True, profile
-    if choice == 4:
-        configuration_contract_screen(stdscr)
-        return True, profile
-    return False, profile
-
-
 def run(stdscr, theme_name: str = "dark") -> None:
+    """Run the persistent full-screen configuration IDE."""
     curses.curs_set(0)
     stdscr.keypad(True)
     palette()
     enable_mouse()
-    external_theme = load_theme(theme_name)
-    if not welcome_screen(stdscr, theme_name, external_theme):
-        return
-    profile = "default"
-    while True:
-        items = list(_BASE_CONTROL_CENTER_ITEMS)
-        items[0] = ("Profile", f"Active: {profile} | click or Enter to change")
-        choice = menu(stdscr, "Setup Control Center", items, multi=False)
-        if choice is None or int(choice) == 5:
-            return
-        keep_running, profile = _dispatch_control_center(stdscr, int(choice), profile)
-        if not keep_running:
-            return
+    load_theme(theme_name)
+    run_ide(stdscr)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry for the setup TUI."""
     args = list(sys.argv[1:] if argv is None else argv)
     theme_name = "dark"
     if "--help" in args or "-h" in args:
@@ -113,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     except (KeyboardInterrupt, curses.error) as exc:
         print(f"Setup cancelled: {exc}", file=sys.stderr)
         return 1
-    except Exception as exc:  # noqa: BLE001 - top-level CLI boundary
+    except Exception as exc:  # noqa: BLE001
         print(f"Setup failed: {exc}", file=sys.stderr)
         return 1
     return 0

@@ -16,6 +16,7 @@ include = ["flossware_setup*"]
 
 [project.scripts]
 flossware-setup = "flossware_setup.tui:main"
+flossware-ai = "flossware_setup.cli:main"
 
 [project.optional-dependencies]
 core = [

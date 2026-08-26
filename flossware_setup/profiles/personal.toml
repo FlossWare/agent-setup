@@ -1,0 +1,31 @@
+# Personal profile. No corporate policy restrictions.
+profile = "personal"
+
+[model_policy]
+allowed_providers = []
+allow_local_models = true
+allow_unconfigured_providers = true
+allow_personal_accounts = true
+allow_provider_fallback = true
+require_model_allowlist = false
+
+[cost]
+monthly_limit_usd = 0.0
+hard_limit = false
+prefer_lowest_cost_approved_model = true
+require_cost_estimate = false
+
+[optimization]
+enabled = true
+strategy = "hybrid"
+
+[credentials]
+persist_secrets = false
+persist_tokens = false
+persist_api_keys = false
+
+[logging]
+log_prompts = false
+log_responses = false
+log_credentials = false
+log_tokens = false

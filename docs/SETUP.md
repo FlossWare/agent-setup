@@ -180,3 +180,30 @@ Use this guide for the operator workflow, the repository README for project arch
 - **Do not commit `.flossware-ai.json` to version control** unless your team explicitly accepts local paths and agent selections in the repository. Prefer gitignore.
 - The file is designed to be secret-free (presence flags and env-var names only). If a credential was ever pasted into it by hand, rotate that credential, delete the file, and re-run setup.
 - Recovery: `rm .flossware-ai.json` in the project, ensure secrets live only in the environment or OS/agent store, then run `flossware-ai` configure again.
+
+## Git is optional
+
+FlossWare works against any directory. A `.git` directory enables Git-aware features when present; its absence is reported as `Git: not a repository` rather than an error.
+
+Project **state and metadata** are stored under the managed FlossWare root (default `~/.flossware/ai/projects/<id>/`), not as `.flossware-ai.json` inside the project tree. Optional agent instruction files (`CLAUDE.md`, `AGENTS.md`, …) are written into the project only when you configure agents for that directory.
+
+## Agent instruction files (opt-in project content)
+
+FlossWare **state** never lives in the project directory. Separately, when you select coding agents, setup may create **agent instruction files** (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, …) inside the project:
+
+- Created only when agents are selected (`write_agent_files=true`; disabled when no agents are chosen).
+- **Never overwrites** an existing file (`_write_if_missing`).
+- Contains policy/capability text only — **no secrets**.
+- Whether to **commit** those files is a team choice; they are ordinary project docs for the chosen agents, not FlossWare control-plane state.
+
+## Renamed or moved project directories
+
+Central state is keyed by a hash of the absolute path. After a move/rename, either:
+
+```bash
+# Python API
+from flossware_setup.config import migrate_project_state
+migrate_project_state("/old/path", "/new/path")
+```
+
+or re-run configure for the new path. Unmigrated old state remains under the previous identity until removed.

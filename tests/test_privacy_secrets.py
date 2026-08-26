@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -107,7 +106,6 @@ def test_assert_no_secret_material_raises() -> None:
 def test_generate_artifacts_never_embeds_env_secrets(tmp_path, monkeypatch) -> None:
     repo = tmp_path / "proj"
     repo.mkdir()
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
     secret = "sk-" + "live" + "Z" * 24
     monkeypatch.setenv("OPENAI_API_KEY", secret)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "should-never-land-in-files")

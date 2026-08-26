@@ -25,7 +25,6 @@ def test_review_uses_active_project_not_cwd(tmp_path, monkeypatch):
     project = tmp_path / "proj-a"
     other = tmp_path / "other-cwd"
     project.mkdir()
-    (project / ".git").mkdir()
     other.mkdir()
     cfg = Config(
         agents=["claude-code"],

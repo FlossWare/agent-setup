@@ -2,8 +2,11 @@
 from __future__ import annotations
 import curses
 from pathlib import Path
-from flossware_setup.config_control import (THEMES, available_profiles, bind_directory, effective_config,
-    load_bindings, load_theme, profile_for_directory, profiles_dir, save_theme, state_dir)
+from flossware_setup.config_control import (
+    THEMES, available_profiles, bind_directory, binding_provenance,
+    bindings_grouped_by_profile, effective_config, load_bindings, load_theme,
+    profile_for_directory, profiles_dir, save_theme, state_dir, unbind_directory,
+)
 from flossware_setup.tui.input import enable_mouse, mouse_event
 from flossware_setup.tui.widgets import add, palette
 
@@ -97,16 +100,83 @@ def create_profile(win):
     _close(p); return name
 
 
-def bindings_view(win):
-    bindings = load_bindings(); h, w = win.getmaxyx(); rows = sorted(bindings.items()); height = min(max(8, len(rows) + 6), h - 4); width = min(110, w - 4)
-    p = _popup(win, max(2, (h - height) // 2), max(2, (w - width) // 2), height, width, "Directory Bindings")
-    if not rows: p.addstr(2, 2, "No bindings. Press A to bind the current directory.")
-    for i, (directory, profile) in enumerate(rows[:height - 5]): p.addnstr(2 + i, 2, f"{profile:<28} {directory}", width - 4)
-    p.addstr(height - 2, 2, "A Bind current directory   Esc Close"); p.noutrefresh(); curses.doupdate(); key = p.getch()
-    if key in (ord("a"), ord("A")):
+def _draw_provenance(panel, y: int, width: int, prov: dict) -> int:
+    """Render CWD provenance lines; return next free row."""
+    panel.addnstr(y, 2, f"CWD: {prov['directory']}", width - 4)
+    y += 1
+    panel.addnstr(
+        y,
+        2,
+        f"Effective profile: {prov['effective_profile']}  [{prov['source_kind']}]",
+        width - 4,
+    )
+    y += 1
+    src = prov["source"] or "(default/fallback)"
+    panel.addnstr(y, 2, f"Winning binding: {src}", width - 4)
+    y += 1
+    parents = list(prov.get("parent_bindings") or [])[:3]
+    if parents:
+        text = "Less-specific parents: " + "; ".join(f"{d}->{pr}" for d, pr in parents)
+        panel.addnstr(y, 2, text, width - 4)
+        y += 1
+    return y + 1
+
+
+def _draw_bindings_list(panel, y: int, height: int, width: int) -> None:
+    """Render bindings grouped by profile until the footer row."""
+    panel.addstr(y, 2, "Bindings by profile:")
+    y += 1
+    grouped = bindings_grouped_by_profile()
+    if not grouped:
+        panel.addstr(y, 2, "  (none — press A to bind CWD)")
+        return
+    limit = height - 3
+    for profile, dirs in sorted(grouped.items()):
+        if y >= limit:
+            return
+        panel.addnstr(y, 2, f"  [{profile}]", width - 4)
+        y += 1
+        for directory in dirs:
+            if y >= limit:
+                return
+            panel.addnstr(y, 4, directory, width - 6)
+            y += 1
+
+
+def _handle_binding_key(win, key: int) -> bool:
+    """Handle bind/rebind/remove keys. Return True when the view should close."""
+    if key in (27, ord("q")):
+        return True
+    if key in (ord("a"), ord("A"), ord("e"), ord("E")):
         profile = profile_selector(win)
-        if profile: bind_directory(Path.cwd(), profile)
-    _close(p)
+        if profile:
+            bind_directory(Path.cwd(), profile)
+    elif key in (ord("r"), ord("R")):
+        unbind_directory(Path.cwd())
+    return False
+
+
+def bindings_view(win):
+    """Show directory bindings grouped by profile plus current-path provenance."""
+    h, w = win.getmaxyx()
+    height = min(max(12, h - 4), h - 2)
+    width = min(110, w - 4)
+    panel = _popup(
+        win, max(2, (h - height) // 2), max(2, (w - width) // 2), height, width, "Directory Bindings"
+    )
+    while True:
+        panel.erase()
+        panel.border()
+        panel.addstr(0, 2, " Directory Bindings ")
+        y = _draw_provenance(panel, 1, width, binding_provenance(Path.cwd()))
+        _draw_bindings_list(panel, y, height, width)
+        panel.addstr(height - 2, 2, "A bind CWD  E edit/rebind CWD  R remove CWD  Esc close")
+        panel.noutrefresh()
+        curses.doupdate()
+        if _handle_binding_key(win, panel.getch()):
+            break
+    _close(panel)
+
 
 
 def theme_selector(win):

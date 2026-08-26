@@ -57,7 +57,6 @@ def test_pip_packages_pinned():
 def test_generate_artifacts_writes_state_without_secrets(tmp_path, monkeypatch):
     repo = tmp_path / "project"
     repo.mkdir()
-    (repo / ".git").mkdir()
     secret = "sk-live-should-never-appear"
     monkeypatch.setenv("GROQ_API_KEY", secret)
 
@@ -77,12 +76,14 @@ def test_generate_artifacts_writes_state_without_secrets(tmp_path, monkeypatch):
     assert "crush" in state["agents"]
     assert secret not in json.dumps(state)
 
-    marker = repo / ".flossware-ai.json"
+    from flossware_setup.config import project_state_path
+    marker = project_state_path(repo)
     assert marker.is_file()
+    assert not (repo / ".flossware-ai.json").exists()
     body = marker.read_text(encoding="utf-8")
     assert secret not in body
 
-    ai_config = (repo / "ai_config.py").read_text(encoding="utf-8")
+    ai_config = (project_state_path(repo).parent / "ai_config.py").read_text(encoding="utf-8")
     assert secret not in ai_config
     assert "MONTHLY_BUDGET" in ai_config
 
@@ -94,7 +95,6 @@ def test_generate_artifacts_writes_state_without_secrets(tmp_path, monkeypatch):
 def test_generate_artifacts_does_not_overwrite_existing(tmp_path):
     repo = tmp_path / "project"
     repo.mkdir()
-    (repo / ".git").mkdir()
     existing = repo / "CLAUDE.md"
     existing.write_text("user owned content\n", encoding="utf-8")
 
@@ -103,10 +103,15 @@ def test_generate_artifacts_does_not_overwrite_existing(tmp_path):
     assert existing.read_text(encoding="utf-8") == "user owned content\n"
 
 
-def test_generate_artifacts_requires_git_repo(tmp_path):
-    cfg = Config(agents=["claude-code"], capabilities=["model-router-ai"], repo_dir=str(tmp_path))
-    with pytest.raises(ValueError, match="Not a git repository"):
-        generate_artifacts(cfg)
+def test_generate_artifacts_accepts_non_git_directory(tmp_path, monkeypatch):
+    monkeypatch.setenv("FLOSSWARE_AI_ROOT", str(tmp_path / "ai-root"))
+    repo = tmp_path / "not-a-repo"
+    repo.mkdir()
+    state = generate_artifacts(Config(repo_dir=str(repo)), write_agent_files=False)
+    assert state["credential_values_written"] is False
+    from flossware_setup.config import project_state_path
+    assert project_state_path(repo).is_file()
+    assert not (repo / ".flossware-ai.json").exists()
 
 
 def test_review_lines_empty_and_populated(tmp_path):
@@ -115,7 +120,6 @@ def test_review_lines_empty_and_populated(tmp_path):
 
     repo = tmp_path / "proj"
     repo.mkdir()
-    (repo / ".git").mkdir()
     cfg = Config(agents=["claude-code"], capabilities=["model-router-ai"], repo_dir=str(repo), profile="default")
     generate_artifacts(cfg)
     lines = review_lines(repo)
@@ -151,7 +155,6 @@ def test_load_project_state_missing(tmp_path):
 def test_aider_conf_created_when_missing(tmp_path):
     repo = tmp_path / "proj"
     repo.mkdir()
-    (repo / ".git").mkdir()
     cfg = Config(agents=["aider"], capabilities=["model-router-ai"], repo_dir=str(repo))
     generate_artifacts(cfg)
     conf = (repo / ".aider.conf.yml").read_text(encoding="utf-8")
@@ -162,7 +165,6 @@ def test_aider_conf_created_when_missing(tmp_path):
 def test_aider_conf_appends_read_when_missing_key(tmp_path):
     repo = tmp_path / "proj"
     repo.mkdir()
-    (repo / ".git").mkdir()
     existing = "# user settings\nauto-commits: false\nmodel: gpt-4o\n"
     (repo / ".aider.conf.yml").write_text(existing, encoding="utf-8")
     cfg = Config(agents=["aider"], capabilities=["model-router-ai"], repo_dir=str(repo))
@@ -176,7 +178,6 @@ def test_aider_conf_appends_read_when_missing_key(tmp_path):
 def test_aider_conf_untouched_when_read_key_exists(tmp_path):
     repo = tmp_path / "proj"
     repo.mkdir()
-    (repo / ".git").mkdir()
     original = "read: MY_RULES.md\nother: value\n"
     path = repo / ".aider.conf.yml"
     path.write_text(original, encoding="utf-8")
@@ -193,7 +194,6 @@ def test_windsurf_generates_devin_rules_path(tmp_path):
     assert adapter.files == (".devin/rules/FlossWare.md",)
     repo = tmp_path / "proj"
     repo.mkdir()
-    (repo / ".git").mkdir()
     cfg = Config(agents=["windsurf"], capabilities=["model-router-ai"], repo_dir=str(repo))
     generate_artifacts(cfg)
     path = repo / ".devin" / "rules" / "FlossWare.md"

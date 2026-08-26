@@ -7,6 +7,7 @@ import sys
 
 from flossware_setup.tui.config_screen import configuration_contract_screen
 from flossware_setup.tui.input import enable_mouse
+from flossware_setup.tui.profile_screen import select_profile
 from flossware_setup.tui.screens import (
     build_screen,
     configure_wizard,
@@ -15,9 +16,10 @@ from flossware_setup.tui.screens import (
     review_screen,
     welcome_screen,
 )
-from flossware_setup.tui.widgets import menu, palette
+from flossware_setup.tui.widgets import add, menu, palette
 
 _CONTROL_CENTER_ITEMS = [
+    ("Profile", "Choose active configuration profile"),
     ("Review Current Configuration", "Inspect persisted project configuration"),
     ("Configure / Change Setup", "Select agents, capabilities and budget"),
     ("Provider Credentials", "View detected credential sources (names only)"),
@@ -35,10 +37,10 @@ def load_theme(name: str):
         return None
 
 
-def _run_configure_flow(stdscr) -> None:
+def _run_configure_flow(stdscr, profile: str) -> None:
     """Wizard -> credentials -> build -> review. Errors are reported on-screen."""
     try:
-        cfg = configure_wizard(stdscr)
+        cfg = configure_wizard(stdscr, profile=profile)
         if cfg is None:
             return
         credentials_screen(stdscr)
@@ -50,20 +52,23 @@ def _run_configure_flow(stdscr) -> None:
         error_screen(stdscr, str(exc))
 
 
-def _dispatch_control_center(stdscr, choice: int) -> bool:
+def _dispatch_control_center(stdscr, choice: int, profile: str) -> tuple[bool, str]:
     if choice == 0:
-        review_screen(stdscr)
-        return True
+        selected = select_profile(stdscr, profile)
+        return True, selected if selected is not None else profile
     if choice == 1:
-        _run_configure_flow(stdscr)
-        return True
+        review_screen(stdscr)
+        return True, profile
     if choice == 2:
-        credentials_screen(stdscr)
-        return True
+        _run_configure_flow(stdscr, profile)
+        return True, profile
     if choice == 3:
+        credentials_screen(stdscr)
+        return True, profile
+    if choice == 4:
         configuration_contract_screen(stdscr)
-        return True
-    return False
+        return True, profile
+    return False, profile
 
 
 def run(stdscr, theme_name: str = "dark") -> None:
@@ -74,9 +79,13 @@ def run(stdscr, theme_name: str = "dark") -> None:
     external_theme = load_theme(theme_name)
     if not welcome_screen(stdscr, theme_name, external_theme):
         return
+    profile = "default"
     while True:
         choice = menu(stdscr, "Setup Control Center", _CONTROL_CENTER_ITEMS, multi=False)
-        if choice is None or not _dispatch_control_center(stdscr, int(choice)):
+        if choice is None or int(choice) == 5:
+            return
+        keep_running, profile = _dispatch_control_center(stdscr, int(choice), profile)
+        if not keep_running:
             return
 
 

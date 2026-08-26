@@ -16,7 +16,7 @@ def configuration_contract_screen(win) -> None:
     while True:
         y = header(win, "Configuration Contract")
         h, _ = win.getmaxyx()
-        add(win, y, 2, "Layer precedence: defaults → system → user → profile → project → environment → CLI", 5)
+        add(win, y, 2, "Layer precedence: defaults -> system -> user -> profile -> project -> environment -> CLI", 5)
         add(win, y + 1, 2, "Profile: redhat-cost-conscious | Provider: Anthropic | Budget: $300 hard ceiling", 5)
         add(win, y + 3, 2, "Menu order", 1, curses.A_BOLD)
         visible = min(len(order), max(1, h - y - 7))
@@ -24,7 +24,7 @@ def configuration_contract_screen(win) -> None:
             active = i == cursor
             add(win, y + 4 + i, 2, ">" if active else " ", 1 if active else 5, curses.A_BOLD)
             add(win, y + 4 + i, 5, item, 1 if active else 5, curses.A_BOLD if active else 0)
-        add(win, h - 3, 2, "↑/↓ or mouse: select   Ctrl+↑/Ctrl+↓: reorder   Enter: save   q/Esc: back", 6)
+        add(win, h - 3, 2, "Up/Down or mouse: select   Ctrl-P/Ctrl-V: reorder   Enter: save   q/Esc: back", 6)
         add(win, h - 2, 2, f"STATUS: {order[cursor]} | ordering constraints enforced | secrets hidden", 1, curses.A_BOLD)
         win.refresh()
         key = win.getch()
@@ -47,14 +47,14 @@ def configuration_contract_screen(win) -> None:
         if is_down(key):
             cursor = min(len(order) - 1, cursor + 1)
             continue
-        if key in (curses.KEY_SLEFT, curses.KEY_SR) or key == 21:
+        if key == 16:  # Ctrl-P: move up
             try:
                 order = reorder(order, order[cursor], -1, DEFAULT_CONSTRAINTS)
                 cursor = max(0, cursor - 1)
             except OrderingError:
                 pass
             continue
-        if key in (curses.KEY_SRIGHT, curses.KEY_SF) or key == 22:
+        if key == 22:  # Ctrl-V: move down
             try:
                 order = reorder(order, order[cursor], 1, DEFAULT_CONSTRAINTS)
                 cursor = min(len(order) - 1, cursor + 1)

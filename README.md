@@ -20,7 +20,7 @@ On Windows, use `scripts/install.ps1`. The managed runtime lives at `~/.flosswar
 
 ## Start here
 
-For a complete operator workflow, read [`docs/operator-guide.md`](docs/operator-guide.md). It covers installation, the Setup Control Center, agents, capabilities, accounts/models, runtimes, profiles, validation, mouse/keyboard operation, reinstall/cleanup, and troubleshooting.
+For a complete operator workflow, read [`docs/operator-guide.md`](docs/operator-guide.md). It covers installation, the Setup Control Center, agents, capabilities, accounts/models, runtimes, profiles, validation, mouse/keyboard operation, contextual status, reinstall/cleanup, and troubleshooting.
 
 ## Architecture
 
@@ -43,6 +43,8 @@ The setup layer provides common configuration, profiles, account/model discovery
 
 ![FlossWare AI Setup TUI preview](screenshots/tui-preview.svg)
 
+The TUI provides a contextual status line above its key legend. Move with arrow keys or mouse hover to see information about the current item. Hovering is informational only; Enter/Space/click performs the action. Status text never contains credentials or PII.
+
 The repository also keeps the underlying terminal-state transcripts in [`screenshots/`](screenshots/).
 
 ## Documentation
@@ -50,7 +52,7 @@ The repository also keeps the underlying terminal-state transcripts in [`screens
 ### Operator documentation
 
 - [`docs/operator-guide.md`](docs/operator-guide.md) — canonical end-to-end operator guide
-- [`docs/setup-tui.md`](docs/setup-tui.md) — current Setup TUI behavior, screens, keyboard/mouse operation
+- [`docs/setup-tui.md`](docs/setup-tui.md) — current Setup TUI behavior, screens, keyboard/mouse operation, contextual status
 - [`docs/cli-reference.md`](docs/cli-reference.md) — CLI commands and validation lifecycle
 - [`docs/profile-schema.md`](docs/profile-schema.md) — profile fields, policy, and security invariants
 - [`docs/discovery.md`](docs/discovery.md) — provider/account/model discovery lifecycle and status states

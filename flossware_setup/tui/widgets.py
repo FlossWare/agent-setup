@@ -4,13 +4,8 @@ from __future__ import annotations
 
 import curses
 
-from flossware_setup.tui.input import (
-    is_cancel,
-    is_confirm,
-    is_down,
-    is_up,
-    primary_click,
-)
+from flossware_setup.tui.input import is_cancel, is_confirm, is_down, is_up, mouse_event
+from flossware_setup.tui.status import item_status
 
 
 def palette() -> None:
@@ -28,26 +23,15 @@ def add(win, y: int, x: int, text: str, pair: int = 5, attr: int = 0) -> None:
     h, w = win.getmaxyx()
     if 0 <= y < h and x < w - 1:
         try:
-            win.addnstr(
-                y,
-                max(0, x),
-                text,
-                max(0, w - max(0, x) - 1),
-                curses.color_pair(pair) | attr,
-            )
+            win.addnstr(y, max(0, x), text, max(0, w - max(0, x) - 1), curses.color_pair(pair) | attr)
         except curses.error:
             pass
 
 
 def header(win, title: str, step: int | None = None) -> int:
-    """Draw the standard header and return the first content row."""
     win.erase()
     _, w = win.getmaxyx()
-    label = (
-        f" FlossWare AI  |  {title} "
-        if step is None
-        else f" FlossWare AI  |  {step}/5  {title} "
-    )
+    label = f" FlossWare AI  |  {title} " if step is None else f" FlossWare AI  |  {step}/5  {title} "
     add(win, 1, 2, "=" * min(max(10, w - 4), 72), 1)
     add(win, 2, 2, label, 1, curses.A_BOLD)
     add(win, 3, 2, "=" * min(max(10, w - 4), 72), 1)
@@ -61,15 +45,7 @@ def _toggle(selected_set: set[int], index: int) -> None:
         selected_set.add(index)
 
 
-def _handle_mouse_row(
-    click_y: int,
-    content_y: int,
-    visible: int,
-    multi: bool,
-    selected_set: set[int],
-    cursor: int,
-) -> tuple[int, set[int], bool]:
-    """Update selection from a mouse row click. Returns (cursor, selected, done)."""
+def _handle_mouse_row(click_y: int, content_y: int, visible: int, multi: bool, selected_set: set[int], cursor: int) -> tuple[int, set[int], bool]:
     clicked_index = click_y - content_y
     if not (0 <= clicked_index < visible):
         return cursor, selected_set, False
@@ -80,14 +56,7 @@ def _handle_mouse_row(
     return cursor, selected_set, True
 
 
-def _dispatch_menu_key(
-    key: int,
-    multi: bool,
-    selected_set: set[int],
-    cursor: int,
-    item_count: int,
-) -> tuple[int, set[int], str]:
-    """Handle a non-mouse key. Returns (cursor, selected, action)."""
+def _dispatch_menu_key(key: int, multi: bool, selected_set: set[int], cursor: int, item_count: int) -> tuple[int, set[int], str]:
     if is_up(key):
         return max(0, cursor - 1), selected_set, "continue"
     if is_down(key):
@@ -112,18 +81,15 @@ def _item_mark(multi: bool, index: int, cursor: int, selected_set: set[int]) -> 
     return "(o)" if index == cursor else "( )"
 
 
-def _render_menu_frame(
-    win,
-    title: str,
-    items: list[tuple[str, str]],
-    multi: bool,
-    selected_set: set[int],
-    cursor: int,
-) -> tuple[int, int]:
-    """Draw the menu and return (content_y, visible_count)."""
+def _hover_cursor(y: int, content_y: int, visible: int, current: int) -> int:
+    index = y - content_y
+    return index if 0 <= index < visible else current
+
+
+def _render_menu_frame(win, title: str, items: list[tuple[str, str]], multi: bool, selected_set: set[int], cursor: int) -> tuple[int, int]:
     y = header(win, title)
     h, _ = win.getmaxyx()
-    visible = min(len(items), max(0, h - y - 3))
+    visible = min(len(items), max(0, h - y - 4))
     for i, (name, desc) in enumerate(items[:visible]):
         active = i == cursor
         chosen = i in selected_set or (not multi and active)
@@ -131,13 +97,9 @@ def _render_menu_frame(
         add(win, y + i, 5, _item_mark(multi, i, cursor, selected_set), 2 if chosen else 3)
         add(win, y + i, 10, name, 1 if active else 5, curses.A_BOLD if active else 0)
         add(win, y + i, 10 + len(name) + 3, desc, 5)
-    add(
-        win,
-        h - 2,
-        2,
-        "↑/↓ navigate  Space/click toggle  Enter confirm  a all  n none  q quit",
-        6,
-    )
+    status = item_status(*items[cursor]) if items and 0 <= cursor < len(items) else "STATUS: ready"
+    add(win, h - 3, 2, status, 1, curses.A_BOLD)
+    add(win, h - 2, 2, "↑/↓/mouse move  Space/click toggle  Enter confirm  a all  n none  q quit", 6)
     win.refresh()
     return y, visible
 
@@ -146,37 +108,26 @@ def _menu_result(multi: bool, selected_set: set[int], cursor: int) -> list[int] 
     return sorted(selected_set) if multi else cursor
 
 
-def menu(
-    win,
-    title: str,
-    items: list[tuple[str, str]],
-    selected: list[int] | None = None,
-    multi: bool = True,
-) -> list[int] | int | None:
-    """Interactive single- or multi-select menu with keyboard and mouse support.
-
-    Returns sorted selected indexes (multi), a single index (single), or None on cancel.
-    """
+def menu(win, title: str, items: list[tuple[str, str]], selected: list[int] | None = None, multi: bool = True) -> list[int] | int | None:
+    """Interactive menu with keyboard, click, and hover status support."""
     selected_set = set(selected or [])
     cursor = 0
     while True:
-        content_y, visible = _render_menu_frame(
-            win, title, items, multi, selected_set, cursor
-        )
+        content_y, visible = _render_menu_frame(win, title, items, multi, selected_set, cursor)
         key = win.getch()
         if key == curses.KEY_MOUSE:
-            click = primary_click()
-            if click is None:
+            event = mouse_event()
+            if event is None:
                 continue
-            cursor, selected_set, done = _handle_mouse_row(
-                click[1], content_y, visible, multi, selected_set, cursor
-            )
-            if done:
-                return cursor
+            _x, mouse_y, bstate = event
+            cursor = _hover_cursor(mouse_y, content_y, visible, cursor)
+            clicked = getattr(curses, "BUTTON1_CLICKED", 0) | getattr(curses, "BUTTON1_PRESSED", 0)
+            if bstate & clicked and 0 <= mouse_y - content_y < visible:
+                cursor, selected_set, done = _handle_mouse_row(mouse_y, content_y, visible, multi, selected_set, cursor)
+                if done:
+                    return cursor
             continue
-        cursor, selected_set, action = _dispatch_menu_key(
-            key, multi, selected_set, cursor, len(items)
-        )
+        cursor, selected_set, action = _dispatch_menu_key(key, multi, selected_set, cursor, len(items))
         if action == "confirm":
             return _menu_result(multi, selected_set, cursor)
         if action == "cancel":
@@ -184,11 +135,9 @@ def menu(
 
 
 def _redraw_input_line(win, row: int, buffer: str, cursor: int) -> None:
-    """Paint the editable buffer and place the terminal cursor."""
     _, w = win.getmaxyx()
     max_width = max(1, w - 3)
     display = buffer[:max_width]
-    # Clear the field width then redraw so deletes/backspaces are visible.
     try:
         win.move(row, 2)
         win.clrtoeol()
@@ -203,17 +152,10 @@ def _redraw_input_line(win, row: int, buffer: str, cursor: int) -> None:
     win.refresh()
 
 
-def _apply_text_input_key(
-    key: int, buffer: list[str], cursor: int
-) -> tuple[list[str], int, str]:
-    """Apply one keystroke to the editable buffer.
-
-    Returns ``(buffer, cursor, action)`` where action is one of
-    ``"confirm"``, ``"cancel"``, or ``"continue"``.
-    """
+def _apply_text_input_key(key: int, buffer: list[str], cursor: int) -> tuple[list[str], int, str]:
     if key in (10, 13, curses.KEY_ENTER):
         return buffer, cursor, "confirm"
-    if key == 27:  # Esc
+    if key == 27:
         return buffer, cursor, "cancel"
     if key in (curses.KEY_BACKSPACE, 127, 8):
         if cursor > 0:
@@ -239,11 +181,6 @@ def _apply_text_input_key(
 
 
 def text_input(win, prompt: str, default: str = "") -> str:
-    """Prompt for a single line of text with an editable pre-populated buffer.
-
-    The ``default`` value is the initial contents of the field (not a hint).
-    Enter confirms; Esc cancels and returns ``default``.
-    """
     curses.noecho()
     curses.curs_set(1)
     y = header(win, "Input")
@@ -255,9 +192,7 @@ def text_input(win, prompt: str, default: str = "") -> str:
     _redraw_input_line(win, row, "".join(buffer), cursor)
     try:
         while True:
-            buffer, cursor, action = _apply_text_input_key(
-                win.getch(), buffer, cursor
-            )
+            buffer, cursor, action = _apply_text_input_key(win.getch(), buffer, cursor)
             if action == "confirm":
                 text = "".join(buffer).strip()
                 return text if text else default

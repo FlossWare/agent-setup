@@ -72,7 +72,7 @@ def validate_generated_artifacts(failures: int) -> int:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp) / "proj"
             repo.mkdir()
-            (repo / ".git").mkdir()
+            os.environ["FLOSSWARE_AI_ROOT"] = str(Path(tmp) / "ai-root")
             cfg = Config(
                 agents=["claude-code", "crush"],
                 capabilities=["model-router-ai", "resilience-ai", "structured-output-ai"],
@@ -80,13 +80,36 @@ def validate_generated_artifacts(failures: int) -> int:
             )
             state = generate_artifacts(cfg)
             failures += not check("Artifact metadata", state.get("credential_values_written") is False, "credential_values_written is False")
-            for rel in (".flossware-ai.json", "ai_config.py", "CLAUDE.md", "AGENTS.md"):
+            from flossware_setup.config import project_state_path
+            central_state = project_state_path(repo)
+            failures += not check(
+                "Central state present",
+                central_state.is_file(),
+                str(central_state),
+            )
+            failures += not check(
+                "Project tree clean of FlossWare metadata",
+                not (repo / ".flossware-ai.json").exists() and not (repo / ".flossware").exists(),
+                "no .flossware-ai.json / .flossware in project",
+            )
+            if central_state.is_file():
+                body = central_state.read_text(encoding="utf-8")
+                failures += not check(
+                    "Generated artifact",
+                    not (secret in body or looks_like_secret(body)),
+                    "central state.json has no secret values",
+                )
+            for rel in ("CLAUDE.md", "AGENTS.md"):
                 path = repo / rel
                 if not path.is_file():
-                    failures += not check("Artifact present", False, rel)
+                    failures += not check("Agent instruction present", False, rel)
                     continue
                 body = path.read_text(encoding="utf-8")
-                failures += not check("Generated artifact", not (secret in body or looks_like_secret(body)), f"{rel} has no secret values")
+                failures += not check(
+                    "Generated artifact",
+                    not (secret in body or looks_like_secret(body)),
+                    f"{rel} has no secret values",
+                )
     finally:
         os.environ.pop("GROQ_API_KEY", None)
     return failures

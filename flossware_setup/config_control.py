@@ -32,16 +32,17 @@ def load_order() -> list[str]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         order = data.get("order")
-        if not isinstance(order, list) or set(order) != set(DEFAULT_ORDER):
+        if not isinstance(order, list) or set(order) != set(DEFAULT_ORDER) or len(order) != len(DEFAULT_ORDER):
             return list(DEFAULT_ORDER)
-        resolve_order(order, DEFAULT_CONSTRAINTS)
-        return [str(x) for x in order]
+        # Return the constraint-resolved order, never a persisted order that
+        # merely happened to contain all the right names.
+        return resolve_order([str(x) for x in order], DEFAULT_CONSTRAINTS)
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return list(DEFAULT_ORDER)
 
 
 def save_order(order: list[str]) -> Path:
-    resolved = resolve_order(order, DEFAULT_CONSTRAINTS)
+    resolved = resolve_order([str(x) for x in order], DEFAULT_CONSTRAINTS)
     path = order_path()
     path.write_text(json.dumps({"version": 1, "order": resolved}, indent=2) + "\n", encoding="utf-8")
     return path

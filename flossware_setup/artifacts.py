@@ -18,7 +18,12 @@ from flossware_setup.catalog import (
     AgentAdapter,
 )
 from flossware_setup.config import Config, build_state_dict, resolve_budget, set_active_project
-from flossware_setup.credentials import credential_status, environment_names
+from flossware_setup.credentials import (
+    assert_no_secret_material,
+    credential_status,
+    environment_names,
+    scan_mapping_for_secrets,
+)
 
 _AIDER_CONF = ".aider.conf.yml"
 _AIDER_READ_LINE = "read: CONVENTIONS.md"
@@ -124,6 +129,8 @@ def generate_artifacts(config: Config) -> dict:
         "",
     ]
 
+    assert_no_secret_material("\n".join(base), label="artifact body")
+
     for agent_id in config.agents:
         adapter = AGENT_BY_ID.get(agent_id)
         if adapter is None:
@@ -149,6 +156,14 @@ def generate_artifacts(config: Config) -> dict:
         ),
         encoding="utf-8",
     )
-    (repo / ".flossware-ai.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+    state_findings = scan_mapping_for_secrets(state)
+    if state_findings:
+        raise ValueError(
+            "refusing to write project state with secret-like material: "
+            + "; ".join(state_findings)
+        )
+    state_json = json.dumps(state, indent=2) + "\n"
+    assert_no_secret_material(state_json, label=".flossware-ai.json")
+    (repo / ".flossware-ai.json").write_text(state_json, encoding="utf-8")
     set_active_project(repo)
     return state

@@ -174,3 +174,9 @@ See [`privacy.md`](privacy.md), [`SECURITY.md`](SECURITY.md), and [`credentials-
 ## Documentation authority
 
 Use this guide for the operator workflow, the repository README for project architecture and quick start, and platform-specific documentation for installation details. CLI help and the running TUI are authoritative when an agent/version-specific option differs from a static example.
+
+## Project state file safety
+
+- **Do not commit `.flossware-ai.json` to version control** unless your team explicitly accepts local paths and agent selections in the repository. Prefer gitignore.
+- The file is designed to be secret-free (presence flags and env-var names only). If a credential was ever pasted into it by hand, rotate that credential, delete the file, and re-run setup.
+- Recovery: `rm .flossware-ai.json` in the project, ensure secrets live only in the environment or OS/agent store, then run `flossware-ai` configure again.

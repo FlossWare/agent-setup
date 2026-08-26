@@ -58,3 +58,9 @@ Generated `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, and equivalent files contain
 ## Tests
 
 Tests should use synthetic provider/account identifiers and fake credentials. Secret-scanning and privacy tests should fail if obvious credential or identity-bearing values are emitted into managed configuration, generated files, or diagnostics.
+
+## Automated regression coverage
+
+- `tests/test_privacy_secrets.py` — secret key/value scanners, state whitelist, artifact generation with live env secrets
+- `tests/test_policy_invariant.py` — policy applied after resolve; budget/provider overrides cannot escape policy
+- Existing package tests assert `credential_values_written` is always false and env secret values never appear in generated files

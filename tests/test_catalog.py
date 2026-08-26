@@ -40,19 +40,9 @@ def test_agent_files_are_relative_paths():
 
 def test_expected_agent_ids():
     assert [a.id for a in AGENTS] == [
-        "claude-code",
-        "cursor",
-        "opencode",
-        "crush",
-        "codex",
-        "aider",
-        "cline",
-        "roo-code",
-        "gemini-cli",
-        "github-copilot",
-        "windsurf",
-        "amazon-q",
-        "kiro",
+        "claude-code", "cursor", "opencode", "crush", "codex", "aider",
+        "cline", "roo-code", "gemini-cli", "github-copilot", "windsurf",
+        "amazon-q", "kiro",
     ]
 
 
@@ -75,6 +65,15 @@ def test_providers_have_env_vars():
 def test_providers_have_https_urls():
     for name, env, url in PROVIDERS:
         assert url.startswith("https://")
+
+
+def test_anthropic_provider_is_cataloged():
+    assert ("Anthropic", "ANTHROPIC_API_KEY", "https://console.anthropic.com/settings/keys") in PROVIDERS
+
+
+def test_no_duplicate_provider_env_vars():
+    envs = [env for _name, env, _url in PROVIDERS]
+    assert len(envs) == len(set(envs))
 
 
 def test_no_agent_adapters_alias():

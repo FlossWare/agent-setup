@@ -18,6 +18,10 @@ On Windows, use `scripts/install.ps1`. The managed runtime lives at `~/.flosswar
 
 `--clean` removes only the managed FlossWare AI installation. It does not remove project instruction files, native agent credentials, or provider credentials.
 
+## Start here
+
+For a complete operator workflow, read [`docs/operator-guide.md`](docs/operator-guide.md). It covers installation, the Setup Control Center, agents, capabilities, accounts/models, runtimes, profiles, validation, mouse/keyboard operation, reinstall/cleanup, and troubleshooting.
+
 ## Architecture
 
 Loom AI is the complete external orchestration platform, but Loom is optional. FlossWare AI libraries remain independently usable from Claude Code, Crush, Codex, OpenCode, Cursor, and other agents.
@@ -43,10 +47,22 @@ The repository also keeps the underlying terminal-state transcripts in [`screens
 
 ## Documentation
 
-- [`docs/setup-tui.md`](docs/setup-tui.md) — complete Setup TUI operator guide
+### Operator documentation
+
+- [`docs/operator-guide.md`](docs/operator-guide.md) — canonical end-to-end operator guide
+- [`docs/setup-tui.md`](docs/setup-tui.md) — current Setup TUI behavior, screens, keyboard/mouse operation
+- [`docs/cli-reference.md`](docs/cli-reference.md) — CLI commands and validation lifecycle
+- [`docs/profile-schema.md`](docs/profile-schema.md) — profile fields, policy, and security invariants
+- [`docs/discovery.md`](docs/discovery.md) — provider/account/model discovery lifecycle and status states
+- [`docs/troubleshooting.md`](docs/troubleshooting.md) — common failures and recovery
+
+### Architecture, integration, and security
+
+- [`docs/architecture.md`](docs/architecture.md) — setup control-plane architecture
 - [`docs/agent-integrations.md`](docs/agent-integrations.md) — coding-agent and MCP integration model
-- [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md) — profiles, multiple accounts, credential safety, and status states
+- [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md) — profiles, accounts, credential safety, and status states
 - [`docs/privacy.md`](docs/privacy.md) — mandatory non-PII and secret-handling invariant
+- [`docs/SECURITY.md`](docs/SECURITY.md) — security policy
 - [`docs/artifacts.md`](docs/artifacts.md) — artifact-first installation and source fallback
 - [`docs/platforms.md`](docs/platforms.md) — Fedora/RHEL, Debian, FreeBSD, Termux, and Windows support
 - [`docs/decorators.md`](docs/decorators.md) — declarative decorator pipeline and ordering
@@ -68,8 +84,11 @@ flossware-ai runtime select podman
 flossware-ai runtime select docker
 flossware-ai runtime auto
 flossware-ai doctor
+flossware-ai dogfood --strict
 flossware-ai tui
 ```
+
+See [`docs/cli-reference.md`](docs/cli-reference.md) for the canonical command reference.
 
 Supported agents include Claude Code, Cursor, OpenCode, Crush, Codex, Aider, Cline, Roo Code, Gemini CLI, GitHub Copilot, Windsurf, Amazon Q Developer, and Kiro. Shared `AGENTS.md` consumers intentionally use one common project instruction file.
 
@@ -79,20 +98,9 @@ Profiles are **user-defined policy boundaries**, not hardcoded organizational id
 
 A profile controls which providers, accounts, models, local models, and FlossWare capabilities are permitted for that workload. The repository does not assume that any particular employer, organization, provider, or compliance regime applies to every user.
 
-For example:
+For the exact shipped schema and policy semantics, see [`docs/profile-schema.md`](docs/profile-schema.md).
 
-```text
-~/.flossware/ai/profiles/
-├── default.toml
-├── personal.toml
-└── work.toml
-```
-
-On a Red Hat workstation, `work.toml` may enforce an organization's approved model policy. In another environment, the same mechanism can represent an entirely different policy. Organizational profiles are local configuration and should not be committed to this public repository.
-
-An account is distinct from a provider, so multiple accounts can reference the same provider. The active profile determines which accounts are allowed. Account metadata uses opaque local aliases and credential-source references only. Actual credentials and human identity data remain outside FlossWare managed configuration.
-
-Status vocabulary:
+## Provider/account/model status
 
 - **configured**: a credential source is present
 - **verified**: authentication/credential validation succeeded
@@ -102,7 +110,7 @@ Status vocabulary:
 - **active**: selected for the current workload
 - **blocked**: policy or platform prevents use
 
-See [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md) and [`docs/privacy.md`](docs/privacy.md).
+See [`docs/discovery.md`](docs/discovery.md).
 
 ## Cross-cutting decorators
 
@@ -116,21 +124,13 @@ Decorator configuration is provider-neutral and contains no secrets or human ide
 
 Podman and Docker are supported as execution backends. On Linux, Podman is preferred when healthy, while Docker is fully supported. Windows supports Docker Desktop and Podman where available. FreeBSD and Termux report a runtime only when it is actually reachable; the setup layer does not claim native container support where an external VM or compatibility layer is required. Native execution remains available when no runtime is configured.
 
-## TUI
-
-`flossware-ai tui` is the full operator/configuration **Setup TUI**. It is separate from Loom's optional `loom-tui` and is intended for using FlossWare capabilities in isolation with coding agents.
-
-Every major TUI selection has a contextual status/description panel explaining what the component does and its current state. Cross-cutting behavior is presented as a configurable policy stack rather than raw implementation details. Container Runtime is configurable as Auto, Podman, Docker, or Native, with health/version status.
-
-Loom itself has a headless core plus its own optional curses-themes-based operator TUI.
-
 ## Privacy and credential safety
 
 FlossWare managed configuration is **non-identifying and secret-free**. API keys, OAuth tokens, passwords, cookies, email addresses, employee/customer identifiers, phone numbers, and other PII are not persisted in profiles, account metadata, generated agent files, MCP definitions, logs, or diagnostics.
 
 Credential references such as `environment:OPENAI_API_KEY` identify where a secret is obtained; they are not secret values. Account aliases must be opaque local identifiers, such as `openai-account-1`, rather than human names, emails, or employee identifiers.
 
-See [`docs/privacy.md`](docs/privacy.md).
+See [`docs/privacy.md`](docs/privacy.md) and [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ## Related repositories
 

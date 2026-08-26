@@ -90,14 +90,20 @@ VALUE_KEY_SPECS: tuple[ValueKeySpec, ...] = V1_VALUE_KEYS
 SAFE_VALUE_KEYS: frozenset[str] = frozenset(spec.key for spec in VALUE_KEY_SPECS)
 KEY_SPEC_BY_NAME: dict[str, ValueKeySpec] = {spec.key: spec for spec in VALUE_KEY_SPECS}
 
+_OWNER_SETUP_PROFILES = "coding-agent-setup profiles + shared contract"
+_OWNER_CONTRACT_POLICY = "config_contract (shared) — enforced after merge"
+_OWNER_SETUP_FUTURE = "coding-agent-setup (future v1 additive or v2)"
+_OWNER_LOOM_FUTURE = "Loom orchestration (future; must not own secrets)"
+_OWNER_SHARED_FUTURE = "shared / Loom (future)"
+
 DOMAIN_OWNERS: dict[str, str] = {
-    "provider": "coding-agent-setup profiles + shared contract",
-    "budget": "coding-agent-setup profiles + shared contract",
-    "optimization": "coding-agent-setup profiles + shared contract",
-    "policy": "config_contract (shared) — enforced after merge",
-    "agent": "coding-agent-setup (future v1 additive or v2)",
-    "routing": "Loom orchestration (future; must not own secrets)",
-    "context": "shared / Loom (future)",
+    "provider": _OWNER_SETUP_PROFILES,
+    "budget": _OWNER_SETUP_PROFILES,
+    "optimization": _OWNER_SETUP_PROFILES,
+    "policy": _OWNER_CONTRACT_POLICY,
+    "agent": _OWNER_SETUP_FUTURE,
+    "routing": _OWNER_LOOM_FUTURE,
+    "context": _OWNER_SHARED_FUTURE,
 }
 
 

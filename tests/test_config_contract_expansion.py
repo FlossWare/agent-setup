@@ -63,3 +63,66 @@ def test_unsupported_key_listed_in_extras_when_resolved(tmp_path, monkeypatch) -
     )
     assert "provider" in cleaned
     assert "future.feature_flag" in excluded
+
+
+def test_value_type_enforcement() -> None:
+    cleaned, excluded = _sanitize_values(
+        {
+            "provider": "anthropic",  # string ok
+            "budget.monthly": "50",  # string for number -> drop
+            "optimization.population": True,  # bool for number -> drop
+            "policy.hard_budget": 1,  # int for boolean -> drop
+            "policy.allow_personal_accounts": False,  # bool ok
+            "optimization.strategy": None,  # None -> drop
+        }
+    )
+    assert cleaned.get("provider") == "anthropic"
+    assert cleaned.get("policy.allow_personal_accounts") is False
+    assert "budget.monthly" in excluded
+    assert "optimization.population" in excluded
+    assert "policy.hard_budget" in excluded
+    assert "optimization.strategy" in excluded
+
+
+def test_number_accepts_int_and_float_not_bool() -> None:
+    cleaned, excluded = _sanitize_values(
+        {
+            "budget.monthly": 50,
+            "optimization.population": 30.5,
+        }
+    )
+    assert cleaned["budget.monthly"] == 50
+    assert cleaned["optimization.population"] == 30.5
+    assert "budget.monthly" not in excluded
+
+
+def test_allows_nested_false_rejects_maps() -> None:
+    """v1 keys all have allows_nested=False — maps must be excluded."""
+    cleaned, excluded = _sanitize_values(
+        {"optimization.strategy": {"name": "hybrid"}}
+    )
+    assert "optimization.strategy" not in cleaned
+    assert "optimization.strategy" in excluded
+
+
+def test_allows_nested_true_accepts_secret_free_map(monkeypatch) -> None:
+    """When a key allows nested, secret-free maps pass; secret maps fail."""
+    from flossware_setup.config_contract import keys as keys_mod
+    from flossware_setup.config_contract.keys import ValueKeySpec
+
+    nested_spec = ValueKeySpec(
+        key="provider",
+        domain="provider",
+        value_type="string",
+        introduced_in=1,
+        description="test nested",
+        allows_nested=True,
+    )
+    monkeypatch.setitem(keys_mod.KEY_SPEC_BY_NAME, "provider", nested_spec)
+    cleaned, excluded = _sanitize_values({"provider": {"id": "anthropic"}})
+    assert cleaned["provider"] == {"id": "anthropic"}
+    cleaned2, excluded2 = _sanitize_values(
+        {"provider": {"api_key": "sk-abcdefghijklmnopqrstuvwxyz0123"}}
+    )
+    assert "provider" not in cleaned2
+    assert "provider" in excluded2

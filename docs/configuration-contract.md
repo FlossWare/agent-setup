@@ -154,7 +154,8 @@ surface (`contract_id` = `flossware.config.v1`), not the Python class.
 
 - `values` is intentionally restricted to a fixed v1 safe key set (`SAFE_VALUE_KEYS` in the Python binding: provider, budget, optimization, policy flags). Unknown keys are dropped—not silently preserved. Expanding the set is a **versioned contract change** (bump `schema_version` / `contract_id`). No `api_key` / `token` keys are ever accepted.
 - Credential **values** never appear; only `credentials_present` booleans.
-- Nested maps are not accepted in `values` for v1.
+- Nested maps/lists are accepted only when the key's `allows_nested` flag is true **and** the nested structure is secret-free. All v1 keys set `allows_nested=false`.
+- Each key's `value_type` (`string` | `number` | `boolean`) is enforced. Python `bool` is **not** accepted as a `number`. `None` is excluded.
 
 ## Expanding the values surface (process)
 

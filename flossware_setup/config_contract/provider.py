@@ -91,12 +91,49 @@ class ConfigurationProvider(Protocol):
         """Human-readable provenance for a single key."""
 
 
+def _value_matches_type(value: Any, value_type: str) -> bool:
+    """Check wire primitive types. ``bool`` is not accepted as ``number``."""
+    if value_type == "string":
+        return isinstance(value, str)
+    if value_type == "boolean":
+        return isinstance(value, bool)
+    if value_type == "number":
+        # bool is a subclass of int — reject it for number fields.
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return False
+
+
+def _nested_is_secret_free(value: Any) -> bool:
+    """Nested dict/list must contain no secret keys or secret-like strings."""
+    from flossware_setup.credentials import (
+        is_secret_key_name,
+        text_contains_secret_material,
+    )
+
+    if isinstance(value, str):
+        return not text_contains_secret_material(value)
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if is_secret_key_name(str(k)):
+                return False
+            if not _nested_is_secret_free(v):
+                return False
+        return True
+    if isinstance(value, list):
+        return all(_nested_is_secret_free(item) for item in value)
+    if isinstance(value, bool) or value is None:
+        return True
+    if isinstance(value, (int, float)):
+        return not isinstance(value, bool)
+    return False
+
+
 def _sanitize_values(
     values: dict[str, Any],
     *,
     schema_version: int = SCHEMA_VERSION,
 ) -> tuple[dict[str, Any], tuple[str, ...]]:
-    """Keep supported keys and drop secret-like / nested material.
+    """Keep supported keys with matching types; honor ``allows_nested``.
 
     Returns ``(cleaned_values, excluded_keys)``. Exclusion is intentional and
     documented: unsupported keys are not preserved on the wire.
@@ -109,20 +146,30 @@ def _sanitize_values(
     cleaned: dict[str, Any] = {}
     excluded: list[str] = []
     for key, value in values.items():
-        if not is_supported_key(str(key), schema_version):
-            excluded.append(str(key))
+        key_s = str(key)
+        if not is_supported_key(key_s, schema_version):
+            excluded.append(key_s)
             continue
-        if is_secret_key_name(str(key)):
-            excluded.append(str(key))
+        if is_secret_key_name(key_s):
+            excluded.append(key_s)
             continue
+        spec = KEY_SPEC_BY_NAME[key_s]
         if isinstance(value, (dict, list)):
-            # Nested structures are forbidden on v1 keys (secret-safety).
-            excluded.append(str(key))
+            if not spec.allows_nested or not _nested_is_secret_free(value):
+                excluded.append(key_s)
+                continue
+            cleaned[key_s] = value
+            continue
+        if value is None:
+            excluded.append(key_s)
+            continue
+        if not _value_matches_type(value, spec.value_type):
+            excluded.append(key_s)
             continue
         if isinstance(value, str) and text_contains_secret_material(value):
-            excluded.append(str(key))
+            excluded.append(key_s)
             continue
-        cleaned[key] = value
+        cleaned[key_s] = value
     return cleaned, tuple(sorted(set(excluded)))
 
 

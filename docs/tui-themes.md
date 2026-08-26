@@ -21,9 +21,12 @@ Aliases: `modern` / `default` → `monochrome`; `dbase` / `dbase-iv` → `dbase4
 
 ## Adding a theme
 
+`tui/themes.py` is the **only** source of theme ids (`THEME_NAMES` is derived from `_THEME_PAIRS`).
+
 1. Add pair definitions in `flossware_setup/tui/themes.py` (`_THEME_PAIRS`).
 2. Add a label in `THEME_LABELS`.
-3. Append the id to `THEMES` in `flossware_setup/config_control.py`.
-4. Extend tests in `tests/test_themes.py`.
+3. Extend tests in `tests/test_themes.py`.
+
+`config_control.THEMES` re-exports `THEME_NAMES` and must not define its own list.
 
 Terminals with fewer than 8 colors fall back to default pairs automatically.

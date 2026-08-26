@@ -75,7 +75,7 @@ THEME_LABELS: dict[str, str] = {
 
 def normalize_theme(name: str | None) -> str:
     key = (name or "turbo").strip().lower()
-    if key in ("dbase", "dbase-iv", "dBase4"):
+    if key in ("dbase", "dbase-iv"):
         return "dbase4"
     if key in ("modern", "default"):
         return "monochrome"

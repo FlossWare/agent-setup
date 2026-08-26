@@ -139,10 +139,18 @@ def _policy_violations_for(profile: str, values: dict[str, Any]) -> tuple[str, .
             Policy(allowed={"provider": allowed}).validate(values)
         except PolicyError as exc:
             violations.append(str(exc))
-        ceiling = float(cost.get("monthly_limit_usd", 300.0) or 300.0)
-        # Organizational templates use a hard $300 ceiling in validate_effective_config.
-        if float(values.get("budget.monthly", 0) or 0) > max(ceiling, 300.0):
-            violations.append("budget.monthly exceeds the configured $300 ceiling")
+        budget = float(values.get("budget.monthly", 0) or 0)
+        configured_limit = float(cost.get("monthly_limit_usd", 0) or 0)
+        if configured_limit > 0 and budget > configured_limit:
+            violations.append(
+                f"budget.monthly exceeds the profile limit of ${configured_limit:g}"
+            )
+        # Independent organizational hard maximum (not a raise of the profile limit).
+        org_hard_limit = float(cost.get("org_hard_limit_usd", 300.0) or 300.0)
+        if budget > org_hard_limit:
+            violations.append(
+                f"budget.monthly exceeds the organizational hard limit of ${org_hard_limit:g}"
+            )
         if values.get("policy.allow_personal_accounts"):
             violations.append("personal accounts are forbidden by the selected work profile")
         if values.get("policy.allow_unknown_providers"):

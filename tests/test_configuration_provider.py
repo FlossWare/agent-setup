@@ -121,3 +121,89 @@ def test_wire_form_is_json_serializable(tmp_path, monkeypatch) -> None:
     encoded = json.dumps(wire)
     assert CONTRACT_ID in encoded
     assert "schema_version" in wire
+
+
+def test_profile_budget_limit_enforced_as_is(tmp_path, monkeypatch) -> None:
+    """A $50 profile limit must reject $200; must not be raised to $300."""
+    from flossware_setup.config_contract.provider import _policy_violations_for
+
+    monkeypatch.setattr(
+        "flossware_setup.config_control.state_dir", lambda: tmp_path / "ai"
+    )
+    profiles = tmp_path / "ai" / "profiles"
+    profiles.mkdir(parents=True)
+    (profiles / "tight.toml").write_text(
+        """
+profile = "tight"
+[model_policy]
+allowed_providers = ["anthropic"]
+allow_personal_accounts = false
+allow_unconfigured_providers = false
+allow_provider_fallback = false
+[cost]
+monthly_limit_usd = 50.0
+hard_limit = true
+""",
+        encoding="utf-8",
+    )
+    # Over profile limit but under 300 — must still violate
+    violations = _policy_violations_for(
+        "tight",
+        {
+            "provider": "anthropic",
+            "budget.monthly": 200.0,
+            "policy.allow_personal_accounts": False,
+            "policy.allow_unknown_providers": False,
+            "policy.allow_provider_fallback": False,
+        },
+    )
+    assert violations
+    assert any("50" in v or "profile limit" in v for v in violations)
+    # Within profile limit is fine for budget (other flags ok)
+    ok = _policy_violations_for(
+        "tight",
+        {
+            "provider": "anthropic",
+            "budget.monthly": 40.0,
+            "policy.allow_personal_accounts": False,
+            "policy.allow_unknown_providers": False,
+            "policy.allow_provider_fallback": False,
+        },
+    )
+    assert not any("budget" in v for v in ok)
+
+
+def test_org_hard_limit_independent_of_profile_limit(tmp_path, monkeypatch) -> None:
+    from flossware_setup.config_contract.provider import _policy_violations_for
+
+    monkeypatch.setattr(
+        "flossware_setup.config_control.state_dir", lambda: tmp_path / "ai"
+    )
+    profiles = tmp_path / "ai" / "profiles"
+    profiles.mkdir(parents=True)
+    (profiles / "org.toml").write_text(
+        """
+profile = "org"
+[model_policy]
+allowed_providers = ["anthropic"]
+allow_personal_accounts = false
+allow_unconfigured_providers = false
+allow_provider_fallback = false
+[cost]
+monthly_limit_usd = 500.0
+org_hard_limit_usd = 300.0
+hard_limit = true
+""",
+        encoding="utf-8",
+    )
+    violations = _policy_violations_for(
+        "org",
+        {
+            "provider": "anthropic",
+            "budget.monthly": 400.0,
+            "policy.allow_personal_accounts": False,
+            "policy.allow_unknown_providers": False,
+            "policy.allow_provider_fallback": False,
+        },
+    )
+    assert any("organizational hard limit" in v for v in violations)

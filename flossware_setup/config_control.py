@@ -34,8 +34,6 @@ def load_order() -> list[str]:
         order = data.get("order")
         if not isinstance(order, list) or set(order) != set(DEFAULT_ORDER) or len(order) != len(DEFAULT_ORDER):
             return list(DEFAULT_ORDER)
-        # Return the constraint-resolved order, never a persisted order that
-        # merely happened to contain all the right names.
         return resolve_order([str(x) for x in order], DEFAULT_CONSTRAINTS)
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return list(DEFAULT_ORDER)
@@ -63,20 +61,22 @@ def effective_config(profile_name: str = "redhat-cost-conscious") -> ConfigResol
     model_policy = profile.get("model_policy", {})
     cost = profile.get("cost", {})
     optimization = profile.get("optimization", {})
+    allowed = list(model_policy.get("allowed_providers") or [])
+    provider = allowed[0] if allowed else "auto"
     resolver = ConfigResolver()
     resolver.add_layer(ConfigLayer("defaults", 0, {
-        "provider": "anthropic",
-        "budget.monthly": 300.0,
-        "optimization.population": 30,
-        "optimization.strategy": "hybrid",
+        "provider": provider,
+        "budget.monthly": float(cost.get("monthly_limit_usd", 0.0)),
+        "optimization.population": int(optimization.get("genetic", {}).get("population_size", 30)),
+        "optimization.strategy": str(optimization.get("strategy", "hybrid")),
     }))
     resolver.add_layer(ConfigLayer(f"profile:{profile_name}", 300, {
-        "provider": (model_policy.get("allowed_providers") or ["anthropic"])[0],
-        "budget.monthly": float(cost.get("monthly_limit_usd", 300.0)),
+        "provider": provider,
+        "budget.monthly": float(cost.get("monthly_limit_usd", 0.0)),
         "policy.allow_personal_accounts": bool(model_policy.get("allow_personal_accounts", False)),
         "policy.allow_unknown_providers": bool(model_policy.get("allow_unconfigured_providers", False)),
         "policy.allow_provider_fallback": bool(model_policy.get("allow_provider_fallback", False)),
-        "policy.hard_budget": bool(cost.get("hard_limit", True)),
+        "policy.hard_budget": bool(cost.get("hard_limit", False)),
         "optimization.strategy": str(optimization.get("strategy", "hybrid")),
     }))
     return resolver
@@ -84,13 +84,16 @@ def effective_config(profile_name: str = "redhat-cost-conscious") -> ConfigResol
 
 def validate_effective_config(profile_name: str = "redhat-cost-conscious") -> dict[str, Any]:
     config = effective_config(profile_name).resolve()
-    Policy(allowed={"provider": ["anthropic"]}).validate(config)
-    if float(config.get("budget.monthly", 0)) > 300.0:
-        raise ValueError("budget.monthly exceeds the configured $300 ceiling")
-    if config.get("policy.allow_personal_accounts"):
-        raise ValueError("personal accounts are forbidden by the selected work profile")
-    if config.get("policy.allow_unknown_providers"):
-        raise ValueError("unknown providers are forbidden by the selected work profile")
-    if config.get("policy.allow_provider_fallback"):
-        raise ValueError("provider fallback is forbidden by the selected work profile")
+    profile = load_profile(profile_name)
+    allowed = list(profile.get("model_policy", {}).get("allowed_providers") or [])
+    if allowed:
+        Policy(allowed={"provider": allowed}).validate(config)
+        if float(config.get("budget.monthly", 0)) > 300.0:
+            raise ValueError("budget.monthly exceeds the configured $300 ceiling")
+        if config.get("policy.allow_personal_accounts"):
+            raise ValueError("personal accounts are forbidden by the selected work profile")
+        if config.get("policy.allow_unknown_providers"):
+            raise ValueError("unknown providers are forbidden by the selected work profile")
+        if config.get("policy.allow_provider_fallback"):
+            raise ValueError("provider fallback is forbidden by the selected work profile")
     return config

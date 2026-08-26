@@ -66,8 +66,15 @@ fi
 # Normal installs never clone this repository. Fetch the exact GitHub source archive into a temp directory.
 # Source checkout remains available only when FLOSSWARE_USE_SOURCE=true for contributors/developers.
 if [[ "$USE_SOURCE" == true ]]; then
-  if [[ -d "$SETUP_DIR/.git" ]]; then git -C "$SETUP_DIR" fetch --force origin "$RELEASE_REF"; git -C "$SETUP_DIR" checkout --force "$RELEASE_REF"; git -C "$SETUP_DIR" reset --hard "origin/$RELEASE_REF" 2>/dev/null || true
-  else rm -rf "$SETUP_DIR"; git clone --depth 1 --branch "$RELEASE_REF" "$SETUP_REPO" "$SETUP_DIR"; fi
+  if [[ -d "$SETUP_DIR/.git" ]]; then
+    git -C "$SETUP_DIR" fetch --force --depth 1 origin "$RELEASE_REF"
+    git -C "$SETUP_DIR" checkout --force FETCH_HEAD
+  else
+    rm -rf "$SETUP_DIR"
+    git clone --filter=blob:none "$SETUP_REPO" "$SETUP_DIR"
+    git -C "$SETUP_DIR" fetch --force --depth 1 origin "$RELEASE_REF"
+    git -C "$SETUP_DIR" checkout --force FETCH_HEAD
+  fi
 else
   TMP_SETUP="$(mktemp -d)"; trap 'rm -rf "$TMP_SETUP"' EXIT
   rm -rf "$SETUP_DIR"

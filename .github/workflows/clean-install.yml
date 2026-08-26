@@ -1,0 +1,84 @@
+name: clean-install
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  platform-install:
+    name: ${{ matrix.platform }} clean install
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: fedora
+            image: fedora:latest
+          - platform: debian
+            image: debian:bookworm
+    steps:
+      - name: Install bootstrap tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          if command -v dnf >/dev/null 2>&1; then
+            dnf install -y git ca-certificates curl
+          else
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y git ca-certificates curl
+          fi
+      - name: Fetch exact revision
+        shell: bash
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          git clone --no-checkout "$REPO_URL" /workspace/coding-agent-setup
+          git -C /workspace/coding-agent-setup fetch --depth 1 origin "$REVISION"
+          git -C /workspace/coding-agent-setup checkout --detach FETCH_HEAD
+      - name: Clean install from source revision
+        shell: bash
+        env:
+          FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
+          FLOSSWARE_RELEASE_REF: ${{ github.head_ref || github.ref_name }}
+          FLOSSWARE_USE_SOURCE: "true"
+        run: |
+          set -euxo pipefail
+          cd /workspace/coding-agent-setup
+          ./scripts/install.sh --reinstall --profile default
+          test -x /tmp/flossware-ai/bin/flossware-ai
+          test -f /tmp/flossware-ai/state/active-profile
+          test "$(cat /tmp/flossware-ai/state/active-profile)" = default
+      - name: Run installed acceptance checks
+        shell: bash
+        env:
+          FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
+        run: |
+          set -euxo pipefail
+          /tmp/flossware-ai/venv/bin/python /tmp/flossware-ai/dogfood.py
+          /tmp/flossware-ai/bin/flossware-ai doctor
+          /tmp/flossware-ai/bin/flossware-ai agents
+          /tmp/flossware-ai/bin/flossware-ai components
+      - name: Verify reinstall boundary
+        shell: bash
+        env:
+          FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
+          FLOSSWARE_RELEASE_REF: ${{ github.head_ref || github.ref_name }}
+          FLOSSWARE_USE_SOURCE: "true"
+        run: |
+          set -euxo pipefail
+          cd /workspace/coding-agent-setup
+          ./scripts/install.sh --reinstall --profile default
+          test -f /tmp/flossware-ai/state/active-profile
+          test "$(cat /tmp/flossware-ai/state/active-profile)" = default
+      - name: Verify clean boundary
+        shell: bash
+        env:
+          FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
+        run: |
+          set -euxo pipefail
+          cd /workspace/coding-agent-setup
+          ./scripts/install.sh --clean
+          test ! -e /tmp/flossware-ai

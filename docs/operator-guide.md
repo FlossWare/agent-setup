@@ -2,21 +2,20 @@
 
 This is the canonical end-to-end guide for `coding-agent-setup`.
 
-## 1. Install
+## 1. Install without cloning
 
-Linux/Termux:
+A normal user starts from an empty directory. No Git checkout is required:
 
 ```bash
-./scripts/install.sh
+curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+flossware-ai tui
 ```
 
-Windows:
+The public bootstrap installs the managed control plane from distribution artifacts/source archives. It does not create a `.git` checkout. See [`bootstrap-install.md`](bootstrap-install.md) and [`artifacts.md`](artifacts.md).
 
-```powershell
-.\scripts\install.ps1
-```
+For Windows, use the platform installer documented in [`platforms.md`](platforms.md). Contributors who need editable source use `FLOSSWARE_USE_SOURCE=true` from a repository checkout. That is a developer path, not the consumer path.
 
-The installer prefers released artifacts and uses source installation only as an explicit fallback. Managed state is isolated under the platform-appropriate FlossWare user-data directory.
+The managed runtime lives under the platform-appropriate FlossWare user-data directory.
 
 ## 2. Launch the Setup Control Center
 
@@ -26,7 +25,7 @@ flossware-ai tui
 
 The TUI is the operator/configuration interface. It is not Loom's optional TUI.
 
-The main control center provides access to configuration, credentials, review, and diagnostics. The current UI is intentionally organized around stable IDs rather than positional catalog indexes, so catalog ordering can change without corrupting persisted selections.
+The main control center provides access to configuration, credentials, review, and diagnostics. The current UI is organized around stable IDs rather than positional catalog indexes, so catalog ordering can change without corrupting persisted selections.
 
 ### Status line
 
@@ -90,7 +89,7 @@ Podman, Docker, and native execution are supported according to platform capabil
 
 ## 7. Review
 
-Review should operate on the explicitly active project context rather than assuming the current shell directory is the configured project. Review output is intended to show policy/configuration state without exposing credentials.
+Review operates on the explicitly active project context rather than assuming the current shell directory is the configured project. Review output is intended to show policy/configuration state without exposing credentials.
 
 ## 8. Mouse and keyboard
 
@@ -123,9 +122,11 @@ flossware-ai dogfood --strict
 
 Strict dogfood requires Claude Code and Crush on `PATH`. It does not print credentials.
 
-CI additionally exercises clean Fedora and Debian installation boundaries. CI is not a substitute for authenticated operator dogfood.
+CI exercises clean installation boundaries for the consumer bootstrap as well as source/development paths. CI is not a substitute for authenticated operator dogfood.
 
 ## 11. Reinstall or remove managed state
+
+Use the managed installer lifecycle documented by the installed distribution. For a source checkout, contributors can use:
 
 ```bash
 ./scripts/install.sh --reinstall
@@ -136,6 +137,8 @@ Cleanup removes only FlossWare-managed installation state. Native agent credenti
 
 ## Related references
 
+- [Bootstrap installation](bootstrap-install.md)
+- [Artifact-first installation](artifacts.md)
 - [CLI reference](cli-reference.md)
 - [Profile schema](profile-schema.md)
 - [Provider/account/model discovery](discovery.md)

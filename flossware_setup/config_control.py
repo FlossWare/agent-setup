@@ -10,15 +10,58 @@ from typing import Any
 from flossware_setup.config_contract import ConfigLayer, ConfigResolver, Policy, resolve_order
 
 DEFAULT_ORDER = ["agents", "providers", "models", "optimization", "validation"]
-DEFAULT_CONSTRAINTS = [
-    {"item": "optimization", "after": ["models"], "before": ["validation"]},
-]
+DEFAULT_CONSTRAINTS = [{"item": "optimization", "after": ["models"], "before": ["validation"]}]
+BUILTIN_PROFILES = ("default", "personal")
+ORGANIZATION_PROFILES = ("redhat", "redhat-cost-conscious")
 
 
 def state_dir() -> Path:
     path = Path.home() / ".flossware" / "ai"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def profiles_dir() -> Path:
+    path = state_dir() / "profiles"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def available_profiles() -> tuple[str, ...]:
+    """Public profiles plus organization profiles explicitly provisioned locally."""
+    local = {p.stem for p in profiles_dir().glob("*.toml") if p.is_file()}
+    extra = tuple(name for name in ORGANIZATION_PROFILES if name in local)
+    custom = tuple(sorted(local - set(BUILTIN_PROFILES) - set(ORGANIZATION_PROFILES)))
+    return BUILTIN_PROFILES + extra + custom
+
+
+def profile_path(name: str) -> Path:
+    return profiles_dir() / f"{name}.toml"
+
+
+def load_profile(name: str = "personal") -> dict[str, Any]:
+    if name not in available_profiles():
+        raise ValueError(f"unknown profile: {name}")
+    local = profile_path(name)
+    if local.is_file():
+        try:
+            return tomllib.loads(local.read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            raise ValueError(f"invalid profile: {name}") from exc
+    if name == "default":
+        resource = resources.files("flossware_setup.profiles").joinpath("default.toml")
+        with resource.open("rb") as stream:
+            return tomllib.load(stream)
+    if name == "personal":
+        return {
+            "profile": "personal",
+            "model_policy": {"allowed_providers": ["*configured*"], "allow_local_models": True,
+                              "allow_unconfigured_providers": False, "allow_personal_accounts": True,
+                              "allow_provider_fallback": True},
+            "optimization": {"enabled": True, "strategy": "hybrid"},
+            "cost": {"monthly_limit_usd": 0.0, "hard_limit": False},
+        }
+    raise ValueError(f"unknown profile: {name}")
 
 
 def order_path() -> Path:
@@ -46,23 +89,13 @@ def save_order(order: list[str]) -> Path:
     return path
 
 
-def load_profile(name: str = "redhat-cost-conscious") -> dict[str, Any]:
-    """Load a packaged TOML profile without network access or credentials."""
-    resource = resources.files("flossware_setup.profiles").joinpath(f"{name}.toml")
-    try:
-        with resource.open("rb") as stream:
-            return tomllib.load(stream)
-    except FileNotFoundError as exc:
-        raise ValueError(f"unknown profile: {name}") from exc
-
-
-def effective_config(profile_name: str = "redhat-cost-conscious") -> ConfigResolver:
+def effective_config(profile_name: str = "personal") -> ConfigResolver:
     profile = load_profile(profile_name)
     model_policy = profile.get("model_policy", {})
     cost = profile.get("cost", {})
     optimization = profile.get("optimization", {})
     allowed = list(model_policy.get("allowed_providers") or [])
-    provider = allowed[0] if allowed else "auto"
+    provider = allowed[0] if allowed and allowed[0] != "*configured*" else "auto"
     resolver = ConfigResolver()
     resolver.add_layer(ConfigLayer("defaults", 0, {
         "provider": provider,
@@ -73,7 +106,7 @@ def effective_config(profile_name: str = "redhat-cost-conscious") -> ConfigResol
     resolver.add_layer(ConfigLayer(f"profile:{profile_name}", 300, {
         "provider": provider,
         "budget.monthly": float(cost.get("monthly_limit_usd", 0.0)),
-        "policy.allow_personal_accounts": bool(model_policy.get("allow_personal_accounts", False)),
+        "policy.allow_personal_accounts": bool(model_policy.get("allow_personal_accounts", profile_name == "personal")),
         "policy.allow_unknown_providers": bool(model_policy.get("allow_unconfigured_providers", False)),
         "policy.allow_provider_fallback": bool(model_policy.get("allow_provider_fallback", False)),
         "policy.hard_budget": bool(cost.get("hard_limit", False)),
@@ -82,11 +115,11 @@ def effective_config(profile_name: str = "redhat-cost-conscious") -> ConfigResol
     return resolver
 
 
-def validate_effective_config(profile_name: str = "redhat-cost-conscious") -> dict[str, Any]:
+def validate_effective_config(profile_name: str = "personal") -> dict[str, Any]:
     config = effective_config(profile_name).resolve()
     profile = load_profile(profile_name)
     allowed = list(profile.get("model_policy", {}).get("allowed_providers") or [])
-    if allowed:
+    if allowed and allowed != ["*configured*"]:
         Policy(allowed={"provider": allowed}).validate(config)
         if float(config.get("budget.monthly", 0)) > 300.0:
             raise ValueError("budget.monthly exceeds the configured $300 ceiling")

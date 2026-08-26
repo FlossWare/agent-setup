@@ -4,13 +4,7 @@ from __future__ import annotations
 
 import curses
 
-from flossware_setup.tui.input import (
-    is_cancel,
-    is_confirm,
-    is_down,
-    is_up,
-    primary_click,
-)
+from flossware_setup.tui.input import is_cancel, is_confirm, is_down, is_up, mouse_position, primary_click
 from flossware_setup.tui.status import item_status
 
 
@@ -35,7 +29,6 @@ def add(win, y: int, x: int, text: str, pair: int = 5, attr: int = 0) -> None:
 
 
 def header(win, title: str, step: int | None = None) -> int:
-    """Draw the standard header and return the first content row."""
     win.erase()
     _, w = win.getmaxyx()
     label = f" FlossWare AI  |  {title} " if step is None else f" FlossWare AI  |  {step}/5  {title} "
@@ -88,6 +81,11 @@ def _item_mark(multi: bool, index: int, cursor: int, selected_set: set[int]) -> 
     return "(o)" if index == cursor else "( )"
 
 
+def _hover_cursor(y: int, content_y: int, visible: int, current: int) -> int:
+    index = y - content_y
+    return index if 0 <= index < visible else current
+
+
 def _render_menu_frame(win, title: str, items: list[tuple[str, str]], multi: bool, selected_set: set[int], cursor: int) -> tuple[int, int]:
     y = header(win, title)
     h, _ = win.getmaxyx()
@@ -111,7 +109,7 @@ def _menu_result(multi: bool, selected_set: set[int], cursor: int) -> list[int] 
 
 
 def menu(win, title: str, items: list[tuple[str, str]], selected: list[int] | None = None, multi: bool = True) -> list[int] | int | None:
-    """Interactive menu. Navigation updates the contextual status line; selection changes only on activation."""
+    """Interactive menu with keyboard, click, and hover status support."""
     selected_set = set(selected or [])
     cursor = 0
     while True:
@@ -119,12 +117,17 @@ def menu(win, title: str, items: list[tuple[str, str]], selected: list[int] | No
         key = win.getch()
         if key == curses.KEY_MOUSE:
             click = primary_click()
-            if click is None:
+            if click is not None:
+                cursor, selected_set, done = _handle_mouse_row(click[1], content_y, visible, multi, selected_set, cursor)
+                if done:
+                    return cursor
                 continue
-            cursor, selected_set, done = _handle_mouse_row(click[1], content_y, visible, multi, selected_set, cursor)
-            if done:
-                return cursor
-            continue
+            position = mouse_position()
+            if position is not None:
+                new_cursor = _hover_cursor(position[1], content_y, visible, cursor)
+                if new_cursor != cursor:
+                    cursor = new_cursor
+                continue
         cursor, selected_set, action = _dispatch_menu_key(key, multi, selected_set, cursor, len(items))
         if action == "confirm":
             return _menu_result(multi, selected_set, cursor)
@@ -179,7 +182,6 @@ def _apply_text_input_key(key: int, buffer: list[str], cursor: int) -> tuple[lis
 
 
 def text_input(win, prompt: str, default: str = "") -> str:
-    """Prompt for one editable line. Enter confirms; Esc cancels."""
     curses.noecho()
     curses.curs_set(1)
     y = header(win, "Input")

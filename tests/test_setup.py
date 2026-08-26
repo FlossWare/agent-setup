@@ -53,7 +53,9 @@ def test_default_capabilities_include_core_stack() -> None:
 def test_providers_do_not_embed_secret_values() -> None:
     for name, env, url in PROVIDERS:
         assert name
-        assert env.endswith("_API_KEY") or "KEY" in env
+        # Credential *names* only — DeepInfra uses DEEPINFRA_API_TOKEN, others *_API_KEY.
+        assert env.endswith(("_API_KEY", "_API_TOKEN", "_TOKEN")) or "KEY" in env or "TOKEN" in env
+        assert not env.startswith("sk-")
         assert url.startswith("https://")
 
 

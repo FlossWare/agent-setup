@@ -56,6 +56,11 @@ jobs:
           /tmp/flossware-ai/bin/flossware-ai doctor
           /tmp/flossware-ai/bin/flossware-ai agents
           /tmp/flossware-ai/bin/flossware-ai components
+          /tmp/flossware-ai/bin/flossware-ai config validate
+          /tmp/flossware-ai/bin/flossware-ai config order show
+          /tmp/flossware-ai/bin/flossware-ai config explain provider
+          /tmp/flossware-ai/bin/flossware-ai demo > /tmp/flossware-demo.txt
+          grep -q "PASS" /tmp/flossware-demo.txt
       - name: Explicit source fallback
         shell: bash
         env:

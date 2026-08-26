@@ -15,24 +15,22 @@ usage() {
 Usage: flossware-ai <command> [options]
 
 Commands:
-  tui                 Launch the Setup TUI (flossware_setup.tui)
-  setup               Same as tui (unified entry)
-  doctor              Runtime inventory and discovery checks
-  dogfood [--strict]  Acceptance gate for the setup layer
-  providers           List providers
-  accounts [--verify] List/verify account identities
-  models [--refresh]  List models
-  components          List FlossWare capabilities
-  agents [setup NAME] List agents or configure one
-  runtime ...         Container runtime selection
-  profile [NAME]      Show or set active profile (any local name)
-  mcp-config          MCP configuration helpers
-  router ...          Model-router MCP bridge
-  update|reinstall    Re-run the installer
-  clean               Remove managed install only
-
-Profiles: the public project ships only "default". Any other name is a
-user-defined local profile (no Personal/Red Hat hard-coding).
+  tui | setup          Launch the Setup Control Center
+  config ...            Inspect, validate, explain, and reorder configuration
+  demo                  Run the deterministic offline optimization demo
+  doctor                Runtime inventory and discovery checks
+  dogfood [--strict]    Acceptance gate for the setup layer
+  providers             List providers
+  accounts [--verify]   List/verify account identities
+  models [--refresh]    List models
+  components            List FlossWare capabilities
+  agents [setup NAME]   List agents or configure one
+  runtime ...            Container runtime selection
+  profile [NAME]         Show or set active profile
+  mcp-config             MCP configuration helpers
+  router ...             Model-router MCP bridge
+  update|reinstall       Re-run the installer
+  clean                  Remove managed install only
 USAGE
 }
 
@@ -60,9 +58,7 @@ py() { if [[ -x "$ROOT/venv/bin/python" ]]; then echo "$ROOT/venv/bin/python"; e
 
 run_tui() {
   local PY; PY="$(py)"
-  # Preferred: the setuptools console entry point declared by pyproject.toml.
   if [[ -x "$ROOT/venv/bin/flossware-setup" ]]; then exec "$ROOT/venv/bin/flossware-setup" "$@"; fi
-  # Compatibility: invoke the package's public main() directly.
   if "$PY" -c 'import flossware_setup.tui' 2>/dev/null; then
     exec "$PY" -c 'import sys; from flossware_setup.tui import main; sys.argv=["flossware-setup"]+sys.argv[1:]; main()' "$@"
   fi
@@ -71,6 +67,8 @@ run_tui() {
   if [[ -f "$ROOT/coding-agent-setup/scripts/setup.py" ]]; then exec "$PY" "$ROOT/coding-agent-setup/scripts/setup.py" "$@"; fi
   echo "ERROR: Setup TUI not found (install coding-agent-setup package)" >&2; exit 1
 }
+
+run_cli() { exec "$(py)" -m flossware_setup.cli "$@"; }
 
 components() {
   if [[ $# -eq 0 ]]; then printf '%s\n' model-router-ai resilience-ai structured-output-ai consensus-ai evaluation-ai observability-ai security-ai rag-ai genetic-optimizer-ai; return 0; fi
@@ -89,6 +87,7 @@ launch_agent() {
 
 case "${1:-}" in
   ""|--help|-h|help) usage;;
+  demo|config) run_cli "$@";;
   profile) shift; profile "$@";;
   providers) exec "$(py)" "$ROOT/discovery.py" providers;;
   accounts) shift; exec "$(py)" "$ROOT/discovery.py" accounts "$@";;

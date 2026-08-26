@@ -8,6 +8,7 @@ from flossware_setup.config_control import (
     profile_for_directory, profiles_dir, save_theme, state_dir, unbind_directory,
 )
 from flossware_setup.tui.input import enable_mouse, mouse_event
+from flossware_setup.tui.themes import THEME_LABELS
 from flossware_setup.tui.widgets import add, palette
 
 MENUS = ("File", "Edit", "View", "Config", "Models", "Agents", "Optimize", "Help")
@@ -180,15 +181,44 @@ def bindings_view(win):
 
 
 def theme_selector(win):
-    h, w = win.getmaxyx(); p = _popup(win, max(2, (h - 10) // 2), max(2, (w - 42) // 2), 10, 42, "Theme")
-    cur = THEMES.index(load_theme())
+    h, w = win.getmaxyx()
+    height = min(4 + len(THEMES), max(8, h - 4))
+    width = min(56, w - 4)
+    p = _popup(win, max(2, (h - height) // 2), max(2, (w - width) // 2), height, width, "Theme")
+    current = load_theme()
+    cur = THEMES.index(current) if current in THEMES else 0
     while True:
-        for i, theme in enumerate(THEMES): p.addstr(2 + i, 2, ("> " if i == cur else "  ") + theme, curses.A_REVERSE if i == cur else 0)
-        p.noutrefresh(); curses.doupdate(); key = p.getch()
-        if key in (curses.KEY_UP, ord("k")): cur = (cur - 1) % len(THEMES)
-        elif key in (curses.KEY_DOWN, ord("j")): cur = (cur + 1) % len(THEMES)
-        elif key in (10, 13, curses.KEY_ENTER): save_theme(THEMES[cur]); _close(p); return
-        elif key == 27: _close(p); return
+        for i, theme in enumerate(THEMES):
+            label = THEME_LABELS.get(theme, theme)
+            mark = "> " if i == cur else "  "
+            attr = curses.A_REVERSE if i == cur else 0
+            try:
+                p.addnstr(2 + i, 2, f"{mark}{theme:<12} {label}", width - 4, attr)
+            except curses.error:
+                pass
+        try:
+            p.addstr(height - 2, 2, "Enter select  Esc cancel (applies immediately)")
+        except curses.error:
+            pass
+        p.noutrefresh()
+        curses.doupdate()
+        key = p.getch()
+        if key in (curses.KEY_UP, ord("k")):
+            cur = (cur - 1) % len(THEMES)
+        elif key in (curses.KEY_DOWN, ord("j")):
+            cur = (cur + 1) % len(THEMES)
+        elif key in (10, 13, curses.KEY_ENTER):
+            save_theme(THEMES[cur])
+            palette(THEMES[cur])
+            try:
+                win.bkgd(" ", curses.color_pair(5))
+            except curses.error:
+                pass
+            _close(p)
+            return
+        elif key == 27:
+            _close(p)
+            return
 
 
 def _popup_menu(win, index):
@@ -248,7 +278,7 @@ def _box(win, top, left, bottom, right, title):
 
 
 def run(win):
-    palette(); win.keypad(True); enable_mouse(); pc = 0
+    palette(load_theme()); win.keypad(True); enable_mouse(); pc = 0
     while True:
         active, source = _active(); profiles = _draw(win, active, source, pc); pc = profiles.index(active) if active in profiles else min(pc, max(0, len(profiles) - 1)); key = win.getch()
         if key == curses.KEY_MOUSE:

@@ -34,6 +34,7 @@ jobs:
           FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
           BOOTSTRAP_REF: ${{ github.head_ref || github.ref_name }}
           FLOSSWARE_RELEASE_REF: ${{ github.head_ref || github.ref_name }}
+          FLOSSWARE_AI_REF: main
         run: |
           set -euxo pipefail
           mkdir -p /workspace/empty-home
@@ -74,6 +75,7 @@ jobs:
         env:
           FLOSSWARE_INSTALL_ROOT: /tmp/flossware-source
           FLOSSWARE_RELEASE_REF: ${{ github.head_ref || github.ref_name }}
+          FLOSSWARE_AI_REF: main
           FLOSSWARE_USE_SOURCE: "true"
         run: |
           set -euxo pipefail
@@ -89,6 +91,7 @@ jobs:
         env:
           FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
           FLOSSWARE_RELEASE_REF: ${{ github.head_ref || github.ref_name }}
+          FLOSSWARE_AI_REF: main
         run: |
           set -euxo pipefail
           cd /workspace/empty-home

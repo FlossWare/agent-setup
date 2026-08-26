@@ -1,59 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
-<defs>
-  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#151922"/><stop offset="1" stop-color="#0d1016"/></linearGradient>
-  <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity=".35"/></filter>
-  <style>
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}.sans{font-family:Inter,ui-sans-serif,system-ui,sans-serif}.white{fill:#f3f4f6}.muted{fill:#9ca3af}.green{fill:#34d399}.blue{fill:#60a5fa}.yellow{fill:#fbbf24}.red{fill:#f87171}.small{font-size:18px}.body{font-size:22px}.title{font-size:28px;font-weight:700}
-  </style>
-</defs>
-<rect width="1600" height="1200" fill="#090b0f"/>
-<!-- Terminal window -->
-<rect x="55" y="45" width="1490" height="1110" rx="18" fill="url(#bg)" stroke="#303642" stroke-width="2" filter="url(#shadow)"/>
-<rect x="55" y="45" width="1490" height="62" rx="18" fill="#20242d"/>
-<circle cx="88" cy="76" r="9" fill="#ff5f57"/><circle cx="116" cy="76" r="9" fill="#febc2e"/><circle cx="144" cy="76" r="9" fill="#28c840"/>
-<text x="800" y="84" text-anchor="middle" class="sans muted" font-size="18">flossware-ai • terminal</text>
-
-<!-- left navigation -->
-<rect x="90" y="140" width="300" height="970" rx="12" fill="#11151c" stroke="#2b303a"/>
-<text x="120" y="188" class="sans white title">FlossWare AI</text>
-<text x="120" y="220" class="mono muted small">CODING AGENT SETUP</text>
-<rect x="115" y="258" width="250" height="58" rx="9" fill="#1d4ed8"/>
-<text x="140" y="295" class="sans white" font-size="20" font-weight="700">1  Welcome</text>
-<text x="140" y="355" class="sans muted" font-size="20">2  Agents</text>
-<text x="140" y="410" class="sans muted" font-size="20">3  Providers &amp; Models</text>
-<text x="140" y="465" class="sans muted" font-size="20">4  FlossWare Stack</text>
-<text x="140" y="520" class="sans muted" font-size="20">5  Build</text>
-<line x1="120" y1="575" x2="360" y2="575" stroke="#2b303a"/>
-<text x="120" y="625" class="sans muted" font-size="17">Environment</text>
-<text x="120" y="660" class="mono white" font-size="18">Linux / x86_64</text>
-<text x="120" y="700" class="mono green" font-size="18">● providers discovered</text>
-<text x="120" y="740" class="mono green" font-size="18">● credentials protected</text>
-<text x="120" y="780" class="mono green" font-size="18">● doctor: ready</text>
-<text x="120" y="1050" class="mono muted" font-size="16">v0.1 • FlossWare</text>
-
-<!-- main -->
-<text x="430" y="185" class="sans white" font-size="38" font-weight="750">Coding Agent Setup</text>
-<text x="430" y="225" class="sans muted body">Configure your coding agents and connect the FlossWare AI stack.</text>
-<rect x="430" y="265" width="1050" height="145" rx="14" fill="#121821" stroke="#303845"/>
-<text x="465" y="315" class="mono blue title">WELCOME</text>
-<text x="465" y="350" class="sans white body">A guided setup for Claude Code, Crush, Cursor, Codex and OpenCode.</text>
-<text x="465" y="383" class="mono muted small">Your native credentials stay in their existing locations.</text>
-<rect x="430" y="445" width="510" height="250" rx="14" fill="#11161e" stroke="#303845"/>
-<text x="465" y="490" class="sans white title">What gets configured</text>
-<text x="465" y="535" class="sans muted body">✓ Agent-specific instructions</text>
-<text x="465" y="575" class="sans muted body">✓ FlossWare routing configuration</text>
-<text x="465" y="615" class="sans muted body">✓ Provider/model discovery</text>
-<text x="465" y="655" class="sans muted body">✓ Safe managed-state tracking</text>
-<rect x="965" y="445" width="515" height="250" rx="14" fill="#11161e" stroke="#303845"/>
-<text x="1000" y="490" class="sans white title">Ready checks</text>
-<circle cx="1008" cy="535" r="8" fill="#34d399"/><text x="1030" y="542" class="mono white body">Python 3.11+</text>
-<circle cx="1008" cy="580" r="8" fill="#34d399"/><text x="1030" y="587" class="mono white body">FlossWare components</text>
-<circle cx="1008" cy="625" r="8" fill="#34d399"/><text x="1030" y="632" class="mono white body">Provider discovery</text>
-<rect x="430" y="730" width="1050" height="300" rx="14" fill="#0f141b" stroke="#303845"/>
-<text x="465" y="775" class="sans white title">Setup flow</text>
-<g class="sans" font-size="18"><text x="465" y="825" class="muted">SELECT AGENTS</text><text x="680" y="825" class="muted">DISCOVER PROVIDERS</text><text x="950" y="825" class="muted">BUILD CONFIG</text><text x="1225" y="825" class="muted">VERIFY</text></g>
-<line x1="475" y1="855" x2="1420" y2="855" stroke="#374151" stroke-width="6" stroke-linecap="round"/>
-<circle cx="475" cy="855" r="12" fill="#60a5fa"/><circle cx="680" cy="855" r="12" fill="#374151"/><circle cx="950" cy="855" r="12" fill="#374151"/><circle cx="1420" cy="855" r="12" fill="#374151"/>
-<text x="465" y="925" class="mono green body">Enter</text><text x="550" y="925" class="sans muted body">start setup</text><text x="760" y="925" class="mono yellow body">t</text><text x="795" y="925" class="sans muted body">change theme</text><text x="1030" y="925" class="mono red body">q</text><text x="1065" y="925" class="sans muted body">quit</text>
-<text x="465" y="980" class="mono muted small">No secrets are written to generated configuration.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000" viewBox="0 0 1400 1000">
+<rect width="1400" height="1000" fill="#090b0f"/>
+<rect x="45" y="40" width="1310" height="920" rx="16" fill="#11151c" stroke="#303642" stroke-width="2"/>
+<text x="80" y="95" font-family="ui-monospace,monospace" font-size="22" fill="#9ca3af">flossware-ai • terminal • representative current UI</text>
+<text x="85" y="155" font-family="ui-sans-serif,sans-serif" font-size="34" font-weight="700" fill="#f3f4f6">Setup Control Center</text>
+<text x="85" y="195" font-family="ui-sans-serif,sans-serif" font-size="20" fill="#9ca3af">Provider-neutral coding-agent setup. Keyboard and mouse are supported when available.</text>
+<rect x="85" y="245" width="1230" height="500" rx="12" fill="#0b1220" stroke="#303845"/>
+<g font-family="ui-monospace,monospace" font-size="22" fill="#e5e7eb">
+<text x="120" y="295" fill="#f9fafb" font-weight="700">SETUP CONTROL CENTER</text>
+<text x="120" y="345">&gt; Review Current Configuration</text>
+<text x="120" y="380" fill="#9ca3af">  Inspect persisted project configuration</text>
+<text x="120" y="435">  Configure / Change Setup</text>
+<text x="120" y="470" fill="#9ca3af">  Select agents, capabilities and budget</text>
+<text x="120" y="525">  Provider Credentials</text>
+<text x="120" y="560" fill="#9ca3af">  View detected credential sources (names only)</text>
+<text x="120" y="615">  Exit</text>
+<text x="120" y="690" fill="#60a5fa">Enter / click</text><text x="300" y="690" fill="#9ca3af">select</text>
+<text x="120" y="725" fill="#fbbf24">q</text><text x="150" y="725" fill="#9ca3af">quit</text>
+</g>
+<text x="85" y="805" font-family="ui-monospace,monospace" font-size="19" fill="#34d399">● Mouse reporting enabled when supported by the terminal</text>
+<text x="85" y="840" font-family="ui-monospace,monospace" font-size="19" fill="#34d399">● Active project is persisted for Review</text>
+<text x="85" y="875" font-family="ui-monospace,monospace" font-size="19" fill="#34d399">● Stable IDs and secret-free managed state</text>
+<text x="85" y="930" font-family="ui-sans-serif,sans-serif" font-size="16" fill="#9ca3af">Documentation rendering, not a pixel-identical terminal capture.</text>
 </svg>

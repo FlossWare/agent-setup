@@ -53,3 +53,24 @@ which shows each contributing layer and the effective value.
 **Schema defines structure. Configuration defines values. Policy defines limits. Algorithms operate inside the resulting permitted search space.**
 
 The contract deliberately does not make Python decorators authoritative. Decorators are optional registration conveniences that emit the same schema metadata.
+
+## Ordering algorithm
+
+Menu and pipeline ordering constraints use topological resolution with cycle detection:
+
+1. Build a directed graph from `before` / `after` constraints registered by components.
+2. Detect cycles; if any exist, raise `OrderingError` and keep the previous valid order.
+3. Emit a total order that respects every constraint (stable among unconstrained peers).
+4. Apply that order to resolver execution and TUI navigation.
+
+Example constraint chain:
+
+```text
+providers → agents → models → optimization → validation
+```
+
+A user reorder that would violate a constraint is rejected; the UI keeps the last valid order.
+
+## Policy evaluation timing
+
+**Policy is evaluated after configuration resolution.** Layers merge first (higher priority wins). Then `Policy.validate` (or `ConfigResolver.resolve_with_policy`) enforces allowlists, numeric ceilings, and required flags. A project-layer override cannot escape a higher-level policy maximum or forbidden provider list—the effective map is still rejected when it violates policy.

@@ -24,7 +24,13 @@ from flossware_setup.catalog import (
     CAPABILITY_BY_ID,
     PROVIDERS,
 )
-from flossware_setup.credentials import credential_status, environment_names
+from flossware_setup.credentials import (
+    ALLOWED_STATE_KEYS,
+    credential_status,
+    environment_names,
+    filter_state_keys,
+    scan_mapping_for_secrets,
+)
 
 
 @dataclass
@@ -176,7 +182,11 @@ def project_state_path(repo_dir: str | Path) -> Path:
 
 
 def load_project_state(repo_dir: str | Path = ".") -> dict[str, Any]:
-    """Load persisted project configuration if present."""
+    """Load persisted project configuration if present.
+
+    Only whitelist keys are returned. Secret-like keys/values are dropped so a
+    compromised or hand-edited ``.flossware-ai.json`` cannot leak into the TUI.
+    """
     path = project_state_path(repo_dir)
     if not path.is_file():
         return {}
@@ -186,7 +196,15 @@ def load_project_state(repo_dir: str | Path = ".") -> dict[str, Any]:
         return {}
     if not isinstance(data, dict):
         return {}
-    return data
+    cleaned = filter_state_keys(data)
+    findings = scan_mapping_for_secrets(cleaned)
+    if findings:
+        # Drop any remaining secret-like string fields rather than failing open.
+        for key in list(cleaned.keys()):
+            val = cleaned[key]
+            if isinstance(val, str) and key not in {"tool", "profile", "budget_policy", "theme", "repo_dir", "budget_policy_id"}:
+                cleaned.pop(key, None)
+    return cleaned
 
 
 def resolve_budget(config: Config) -> tuple[str, float]:
@@ -198,13 +216,18 @@ def resolve_budget(config: Config) -> tuple[str, float]:
 
 
 def build_state_dict(config: Config) -> dict[str, Any]:
-    """Build the serializable project state. Never includes secret values."""
+    """Build the serializable project state. Never includes secret values.
+
+    Output keys are restricted to :data:`ALLOWED_STATE_KEYS`. Provider entries
+    are presence booleans and env-var *names* only.
+    """
     policy_label, budget = resolve_budget(config)
     providers = credential_status()
     env_vars = environment_names()
     agent_ids = [a for a in config.agents if a in AGENT_BY_ID]
     capability_ids = [c for c in config.capabilities if c in CAPABILITY_BY_ID]
-    return {
+    state = {
+        "schema_version": 1,
         "tool": "FlossWare/coding-agent-setup",
         "profile": config.profile,
         "budget_policy_id": config.budget_policy,
@@ -218,6 +241,16 @@ def build_state_dict(config: Config) -> dict[str, Any]:
         "theme": config.theme,
         "repo_dir": str(Path(config.repo_dir).resolve()),
     }
+    # Defense in depth: refuse to emit anything outside the whitelist.
+    state = filter_state_keys(state)
+    findings = scan_mapping_for_secrets(state)
+    if findings:
+        raise ValueError(
+            "refusing to persist project state with secret-like material: "
+            + "; ".join(findings)
+            + ". Use environment variables or an OS/agent credential store."
+        )
+    return state
 
 
 def _format_agent_lines(agent_ids: set[str]) -> list[str]:

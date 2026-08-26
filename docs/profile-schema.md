@@ -59,3 +59,53 @@ Profiles contain policy and references only. API keys, OAuth tokens, passwords, 
 ```
 
 A work profile may restrict models to an organization's approved providers. A personal profile may permit a broader set of free or local models. The public setup code does not hard-code either policy.
+
+## Project state: `.flossware-ai.json`
+
+Generated at the root of a configured git project by the setup TUI/CLI. **Do not commit this file** if your organization treats local paths or agent selections as sensitive; prefer leaving it untracked.
+
+### Schema (version 1)
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `schema_version` | number | State schema version (`1`) |
+| `tool` | string | Always `FlossWare/coding-agent-setup` |
+| `profile` | string | Active profile name (policy name, not a person) |
+| `budget_policy_id` | string | Stable budget policy id from the catalog |
+| `budget_policy` | string | Human-readable policy label |
+| `monthly_budget` | number | Monthly ceiling in USD |
+| `capabilities` | string[] | Selected capability ids |
+| `agents` | string[] | Selected agent adapter ids |
+| `providers` | object | Map of provider display name → **boolean presence only** |
+| `provider_env_vars` | object | Map of provider display name → **environment variable name** (never values) |
+| `credential_values_written` | boolean | Always `false`; credentials are never written by this tool |
+| `theme` | string | TUI theme id |
+| `repo_dir` | string | Absolute path of the configured project |
+
+### Safe to persist
+
+Agent ids, capability ids, budget policy ids, theme, provider presence flags, and env-var **names**.
+
+### Must never be persisted
+
+API keys, tokens, passwords, cookies, email addresses, legal names, employee ids, or any other secret/PII. Keys matching credential patterns (`api_key`, `token`, `secret`, …) are rejected. Loaders drop unknown keys so a hand-edited file cannot inject secrets into the TUI review screen.
+
+### Example
+
+```json
+{
+  "schema_version": 1,
+  "tool": "FlossWare/coding-agent-setup",
+  "profile": "default",
+  "budget_policy_id": "medium",
+  "budget_policy": "Medium",
+  "monthly_budget": 50.0,
+  "capabilities": ["coding-agent-ai"],
+  "agents": ["claude-code"],
+  "providers": {"OpenAI": true, "Anthropic": false},
+  "provider_env_vars": {"OpenAI": "OPENAI_API_KEY", "Anthropic": "ANTHROPIC_API_KEY"},
+  "credential_values_written": false,
+  "theme": "dark",
+  "repo_dir": "/home/you/projects/example"
+}
+```

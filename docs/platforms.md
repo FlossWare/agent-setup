@@ -47,3 +47,37 @@ All platforms share these invariants:
 - source installation remains an explicit fallback;
 - native execution remains available when containers are absent;
 - `doctor` reports platform-specific failures without hiding them behind generic success states.
+
+## Platform path reference
+
+| Platform | User / config style | Default managed runtime (`FLOSSWARE_AI_ROOT` unset) | Notes |
+|----------|---------------------|------------------------------------------------------|-------|
+| Linux (Fedora/Debian) | XDG-style under `$HOME` | `~/.flossware/ai` | Override with absolute `FLOSSWARE_AI_ROOT` |
+| FreeBSD | Same as Linux | `~/.flossware/ai` | |
+| macOS | Same as Linux | `~/.flossware/ai` | Not forced under `~/Library` |
+| Windows | `%USERPROFILE%\.flossware\ai` | Same pattern via home | Use `install.ps1` |
+| Termux | `$HOME` under Termux prefix | `$HOME/.flossware/ai` | See `docs/platforms/termux.md` |
+
+### Environment variables that control install paths
+
+| Variable | Role |
+|----------|------|
+| `FLOSSWARE_INSTALL_ROOT` | Managed install root used by `scripts/install.sh` (default `~/.flossware/ai`) |
+| `FLOSSWARE_AI_ROOT` | Runtime/state root read by the Python package (active project, themes) |
+| `FLOSSWARE_RELEASE_REF` | Git branch, tag, or commit for the **coding-agent-setup** archive |
+| `FLOSSWARE_AI_REF` | Git ref for **coding-agent-ai** (defaults to `main`; independent of setup ref) |
+| `FLOSSWARE_USE_SOURCE` | When `true`, clone setup with git instead of the source archive |
+| `FLOSSWARE_INSTALL_URL` | Override base URL for bootstrap download of `scripts/install.sh` |
+
+### Reproducible bootstrap examples
+
+```bash
+# Stable release (default main)
+curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+
+# Specific branch or tag
+FLOSSWARE_RELEASE_REF=v0.1.0 bash install.sh
+
+# Specific commit (reproducible)
+FLOSSWARE_RELEASE_REF=3d2e52ba601bd16d4451448d0b843ffb25d35a27 bash install.sh
+```

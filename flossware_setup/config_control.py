@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Any
 
 from flossware_setup.config_contract import ConfigLayer, ConfigResolver, Policy, resolve_order
-
-THEMES = ("turbo", "dbase4", "classic", "monochrome")
 from flossware_setup.tui.themes import THEME_NAMES as THEMES
 
 DEFAULT_ORDER = ["agents", "providers", "models", "optimization", "validation"]

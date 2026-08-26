@@ -114,3 +114,44 @@ print(provider.explain("budget.monthly", "/path/to/workdir"))
 | Secret values | Environment / OS / agent stores only |
 
 coding-agent-setup remains fully functional without Loom.
+
+## Wire representation (language-neutral)
+
+`EffectiveConfiguration.to_wire()` emits a JSON object suitable for inter-process
+use. Loom and other tools should treat this shape as the versioned contract
+surface (`contract_id` = `flossware.config.v1`), not the Python class.
+
+```json
+{
+  "schema_version": 1,
+  "contract_id": "flossware.config.v1",
+  "directory": "/abs/path",
+  "profile": "personal",
+  "profile_source": null,
+  "values": {
+    "provider": "auto",
+    "budget.monthly": 0.0,
+    "optimization.strategy": "hybrid"
+  },
+  "provenance": {
+    "provider": [["defaults", "auto"], ["profile:personal", "auto"]]
+  },
+  "credentials_present": { "OpenAI": true, "Anthropic": false },
+  "theme": "turbo",
+  "policy_violations": [],
+  "extras": {}
+}
+```
+
+### Policy semantics
+
+- `resolve()` **does not raise** when policy fails.
+- `policy_violations` lists human-readable reasons; empty means `policy_ok`.
+- Work-profile restrictions are evaluated **after** layer merge so a
+  project/user layer cannot bypass them by override alone.
+
+### Secret handling
+
+- `values` is restricted to a fixed safe key set (no `api_key` / `token` keys).
+- Credential **values** never appear; only `credentials_present` booleans.
+- Nested maps are not accepted in `values` for v1.

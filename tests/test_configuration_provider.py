@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from flossware_setup.config_contract import (
     CONTRACT_ID,
     LAYER_ORDER,
@@ -10,6 +12,7 @@ from flossware_setup.config_contract import (
     EffectiveConfiguration,
     LocalConfigurationProvider,
 )
+from flossware_setup.config_contract.provider import SAFE_VALUE_KEYS, _sanitize_values
 
 
 def test_contract_constants() -> None:
@@ -41,10 +44,62 @@ def test_resolve_returns_secret_free_snapshot(tmp_path, monkeypatch) -> None:
     assert cfg.directory == str(project.resolve())
     assert cfg.profile
     assert isinstance(cfg.values, dict)
+    assert set(cfg.values.keys()) <= SAFE_VALUE_KEYS
     assert isinstance(cfg.credentials_present, dict)
     assert all(isinstance(v, bool) for v in cfg.credentials_present.values())
-    blob = str(cfg)
+    blob = json.dumps(cfg.to_wire())
     assert "sk-should-not-appear" not in blob
+    assert "sk-" not in blob or "sk-should" not in blob
+
+
+def test_sanitize_drops_secret_keys_and_values() -> None:
+    cleaned = _sanitize_values(
+        {
+            "provider": "anthropic",
+            "openai_api_key": "sk-abcdefghijklmnopqrstuvwxyz",
+            "budget.monthly": 50.0,
+            "nested_secret": {"token": "ghp_" + "A" * 30},
+        }
+    )
+    assert "openai_api_key" not in cleaned
+    assert "nested_secret" not in cleaned
+    assert cleaned["provider"] == "anthropic"
+    assert cleaned["budget.monthly"] == 50.0
+
+
+def test_resolve_never_raises_on_policy_failure(tmp_path, monkeypatch) -> None:
+    """Contract: resolve returns policy_violations instead of raising."""
+    monkeypatch.setattr(
+        "flossware_setup.config_control.state_dir", lambda: tmp_path / "ai"
+    )
+    profiles = tmp_path / "ai" / "profiles"
+    profiles.mkdir(parents=True)
+    # Minimal work-like profile that forbids personal accounts
+    (profiles / "strict-work.toml").write_text(
+        """
+profile = "strict-work"
+[model_policy]
+allowed_providers = ["anthropic"]
+allow_personal_accounts = false
+allow_unconfigured_providers = false
+allow_provider_fallback = false
+[cost]
+monthly_limit_usd = 50.0
+hard_limit = true
+""",
+        encoding="utf-8",
+    )
+    # Force profile_for_directory to return our strict profile
+    monkeypatch.setattr(
+        "flossware_setup.config_control.profile_for_directory",
+        lambda directory=None: ("strict-work", None),
+    )
+    # effective_config will still build from profile; allow personal may be false
+    cfg = LocalConfigurationProvider().resolve(tmp_path)
+    assert isinstance(cfg, EffectiveConfiguration)
+    # Does not raise; policy_ok is a boolean
+    assert isinstance(cfg.policy_ok, bool)
+    assert isinstance(cfg.policy_violations, tuple)
 
 
 def test_explain_returns_text(tmp_path, monkeypatch) -> None:
@@ -55,3 +110,14 @@ def test_explain_returns_text(tmp_path, monkeypatch) -> None:
     text = LocalConfigurationProvider().explain("provider", tmp_path)
     assert isinstance(text, str)
     assert len(text) > 0
+
+
+def test_wire_form_is_json_serializable(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "flossware_setup.config_control.state_dir", lambda: tmp_path / "ai"
+    )
+    (tmp_path / "ai").mkdir(parents=True)
+    wire = LocalConfigurationProvider().resolve(tmp_path).to_wire()
+    encoded = json.dumps(wire)
+    assert CONTRACT_ID in encoded
+    assert "schema_version" in wire

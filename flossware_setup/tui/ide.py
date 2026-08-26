@@ -180,44 +180,66 @@ def bindings_view(win):
 
 
 
+def _theme_index(current: str) -> int:
+    return THEMES.index(current) if current in THEMES else 0
+
+
+def _draw_theme_list(panel, cur: int, height: int, width: int) -> None:
+    for i, theme in enumerate(THEMES):
+        label = THEME_LABELS.get(theme, theme)
+        mark = "> " if i == cur else "  "
+        attr = curses.A_REVERSE if i == cur else 0
+        try:
+            panel.addnstr(2 + i, 2, f"{mark}{theme:<12} {label}", width - 4, attr)
+        except curses.error:
+            pass
+    try:
+        panel.addstr(height - 2, 2, "Enter select  Esc cancel (applies immediately)")
+    except curses.error:
+        pass
+
+
+def _apply_selected_theme(win, theme: str) -> None:
+    save_theme(theme)
+    palette(theme)
+    try:
+        win.bkgd(" ", curses.color_pair(5))
+    except curses.error:
+        pass
+
+
+def _theme_key_action(key: int, cur: int) -> tuple[int, str]:
+    """Return (new_cursor, action) where action is continue|select|cancel."""
+    if key in (curses.KEY_UP, ord("k")):
+        return (cur - 1) % len(THEMES), "continue"
+    if key in (curses.KEY_DOWN, ord("j")):
+        return (cur + 1) % len(THEMES), "continue"
+    if key in (10, 13, curses.KEY_ENTER):
+        return cur, "select"
+    if key == 27:
+        return cur, "cancel"
+    return cur, "continue"
+
+
 def theme_selector(win):
     h, w = win.getmaxyx()
     height = min(4 + len(THEMES), max(8, h - 4))
     width = min(56, w - 4)
-    p = _popup(win, max(2, (h - height) // 2), max(2, (w - width) // 2), height, width, "Theme")
-    current = load_theme()
-    cur = THEMES.index(current) if current in THEMES else 0
+    panel = _popup(
+        win, max(2, (h - height) // 2), max(2, (w - width) // 2), height, width, "Theme"
+    )
+    cur = _theme_index(load_theme())
     while True:
-        for i, theme in enumerate(THEMES):
-            label = THEME_LABELS.get(theme, theme)
-            mark = "> " if i == cur else "  "
-            attr = curses.A_REVERSE if i == cur else 0
-            try:
-                p.addnstr(2 + i, 2, f"{mark}{theme:<12} {label}", width - 4, attr)
-            except curses.error:
-                pass
-        try:
-            p.addstr(height - 2, 2, "Enter select  Esc cancel (applies immediately)")
-        except curses.error:
-            pass
-        p.noutrefresh()
+        _draw_theme_list(panel, cur, height, width)
+        panel.noutrefresh()
         curses.doupdate()
-        key = p.getch()
-        if key in (curses.KEY_UP, ord("k")):
-            cur = (cur - 1) % len(THEMES)
-        elif key in (curses.KEY_DOWN, ord("j")):
-            cur = (cur + 1) % len(THEMES)
-        elif key in (10, 13, curses.KEY_ENTER):
-            save_theme(THEMES[cur])
-            palette(THEMES[cur])
-            try:
-                win.bkgd(" ", curses.color_pair(5))
-            except curses.error:
-                pass
-            _close(p)
+        cur, action = _theme_key_action(panel.getch(), cur)
+        if action == "select":
+            _apply_selected_theme(win, THEMES[cur])
+            _close(panel)
             return
-        elif key == 27:
-            _close(p)
+        if action == "cancel":
+            _close(panel)
             return
 
 

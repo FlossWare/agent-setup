@@ -43,6 +43,8 @@ jobs:
           chmod +x install.sh
           ./install.sh --profile default
           test ! -d /tmp/flossware-ai/coding-agent-setup/.git
+          test -f /tmp/flossware-ai/coding-agent-setup/profiles/default.toml
+          test -f /tmp/flossware-ai/venv/lib/python*/site-packages/flossware_setup/profiles/default.toml || test -f /tmp/flossware-ai/venv/lib/python*/site-packages/flossware_setup/profiles/default.toml
           test -x /tmp/flossware-ai/bin/flossware-ai
           test -f /tmp/flossware-ai/state/active-profile
           test "$(cat /tmp/flossware-ai/state/active-profile)" = default
@@ -52,6 +54,7 @@ jobs:
           FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
         run: |
           set -euxo pipefail
+          /tmp/flossware-ai/venv/bin/python -c 'from importlib import resources; import tomllib; p=resources.files("flossware_setup.profiles").joinpath("default.toml"); assert p.is_file(); tomllib.loads(p.read_text())'
           /tmp/flossware-ai/venv/bin/python /tmp/flossware-ai/dogfood.py
           /tmp/flossware-ai/bin/flossware-ai doctor
           /tmp/flossware-ai/bin/flossware-ai agents
@@ -86,6 +89,7 @@ jobs:
           cd /workspace/empty-home
           ./install.sh --reinstall --profile default
           test ! -d /tmp/flossware-ai/coding-agent-setup/.git
+          test -f /tmp/flossware-ai/coding-agent-setup/profiles/default.toml
           test -f /tmp/flossware-ai/state/active-profile
           test "$(cat /tmp/flossware-ai/state/active-profile)" = default
       - name: Verify clean boundary

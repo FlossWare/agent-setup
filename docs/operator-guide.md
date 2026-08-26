@@ -28,6 +28,24 @@ The TUI is the operator/configuration interface. It is not Loom's optional TUI.
 
 The main control center provides access to configuration, credentials, review, and diagnostics. The current UI is intentionally organized around stable IDs rather than positional catalog indexes, so catalog ordering can change without corrupting persisted selections.
 
+### Status line
+
+Selectable menus provide a contextual status line immediately above the key legend. Move with the arrow keys or hover with the mouse. The status line follows the current item and explains what that item represents or what safe state is known about it.
+
+For example:
+
+```text
+STATUS: Crush | Shared project context
+```
+
+or:
+
+```text
+STATUS: Provider Credentials | source presence only | secret values hidden
+```
+
+Status is informational. Hovering does not change configuration. Enter/Space or a supported primary mouse click performs the actual selection/action. Status rendering never displays credentials or PII.
+
 ## 3. Configure an agent
 
 Use the TUI or:
@@ -76,13 +94,15 @@ Review should operate on the explicitly active project context rather than assum
 
 ## 8. Mouse and keyboard
 
-The TUI supports normal curses keyboard navigation plus primary mouse clicks where the terminal exposes mouse events. Mouse support is terminal-dependent; SSH clients, multiplexers, and terminal emulators may differ.
+The TUI supports normal curses keyboard navigation plus primary mouse clicks where the terminal exposes mouse events. Mouse movement can move the current cursor and update the contextual status line. SSH clients, multiplexers, and terminal emulators may differ.
 
 Common keys:
 
-- Arrow keys: navigate
+- Arrow keys: navigate and update status
 - Enter: activate/confirm
 - Space: toggle
+- Mouse movement: hover/navigate without changing configuration
+- Primary click: select/toggle/activate
 - `a`: select all where offered
 - `n`: select none where offered
 - Escape: back/cancel

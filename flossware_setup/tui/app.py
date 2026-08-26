@@ -16,9 +16,9 @@ from flossware_setup.tui.screens import (
     review_screen,
     welcome_screen,
 )
-from flossware_setup.tui.widgets import add, menu, palette
+from flossware_setup.tui.widgets import menu, palette
 
-_CONTROL_CENTER_ITEMS = [
+_BASE_CONTROL_CENTER_ITEMS = [
     ("Profile", "Choose active configuration profile"),
     ("Review Current Configuration", "Inspect persisted project configuration"),
     ("Configure / Change Setup", "Select agents, capabilities and budget"),
@@ -81,7 +81,9 @@ def run(stdscr, theme_name: str = "dark") -> None:
         return
     profile = "default"
     while True:
-        choice = menu(stdscr, "Setup Control Center", _CONTROL_CENTER_ITEMS, multi=False)
+        items = list(_BASE_CONTROL_CENTER_ITEMS)
+        items[0] = ("Profile", f"Active: {profile} | click or Enter to change")
+        choice = menu(stdscr, "Setup Control Center", items, multi=False)
         if choice is None or int(choice) == 5:
             return
         keep_running, profile = _dispatch_control_center(stdscr, int(choice), profile)

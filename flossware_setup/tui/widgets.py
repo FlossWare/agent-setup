@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import curses
 
-from flossware_setup.tui.input import is_cancel, is_confirm, is_down, is_up, mouse_position, primary_click
+from flossware_setup.tui.input import is_cancel, is_confirm, is_down, is_up, mouse_event
 from flossware_setup.tui.status import item_status
 
 
@@ -116,18 +116,17 @@ def menu(win, title: str, items: list[tuple[str, str]], selected: list[int] | No
         content_y, visible = _render_menu_frame(win, title, items, multi, selected_set, cursor)
         key = win.getch()
         if key == curses.KEY_MOUSE:
-            click = primary_click()
-            if click is not None:
-                cursor, selected_set, done = _handle_mouse_row(click[1], content_y, visible, multi, selected_set, cursor)
+            event = mouse_event()
+            if event is None:
+                continue
+            _x, mouse_y, bstate = event
+            cursor = _hover_cursor(mouse_y, content_y, visible, cursor)
+            clicked = getattr(curses, "BUTTON1_CLICKED", 0) | getattr(curses, "BUTTON1_PRESSED", 0)
+            if bstate & clicked and 0 <= mouse_y - content_y < visible:
+                cursor, selected_set, done = _handle_mouse_row(mouse_y, content_y, visible, multi, selected_set, cursor)
                 if done:
                     return cursor
-                continue
-            position = mouse_position()
-            if position is not None:
-                new_cursor = _hover_cursor(position[1], content_y, visible, cursor)
-                if new_cursor != cursor:
-                    cursor = new_cursor
-                continue
+            continue
         cursor, selected_set, action = _dispatch_menu_key(key, multi, selected_set, cursor, len(items))
         if action == "confirm":
             return _menu_result(multi, selected_set, cursor)

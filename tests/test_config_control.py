@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from flossware_setup import config_control
 
 

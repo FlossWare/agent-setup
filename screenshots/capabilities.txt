@@ -1,15 +1,17 @@
 ┌──────────────────────────────────────────────────────────────┐
-│ 2/5  FlossWare AI Capabilities                               │
+│ FlossWare AI Capabilities                                    │
 └──────────────────────────────────────────────────────────────┘
 
- > [x] model-router-ai       Smart LLM routing with provider failover
-   [x] resilience-ai          Retry, circuit breaker, timeout patterns
-   [x] structured-output-ai   Schema-validated JSON from LLMs
-   [ ] consensus-ai           Multi-model voting for critical decisions
-   [ ] evaluation-ai          Quality scoring and adversarial verification
-   [ ] observability-ai       Structured logging, metrics, cost tracking
-   [ ] security-ai            Input validation, secrets masking, audit logging
-   [ ] rag-ai                 Document retrieval and hybrid search
-   [ ] genetic-optimizer-ai   Parameter tuning via genetic algorithms
+ > [x] model-router-ai
+   [x] resilience-ai
+   [x] structured-output-ai
+   [ ] consensus-ai
+   [ ] evaluation-ai
+   [ ] observability-ai
+   [ ] security-ai
+   [ ] rag-ai
+   [ ] genetic-optimizer-ai
 
-  Space:toggle  Enter:confirm  a:all  n:none  q:quit
+  Selection is stored by capability ID, not screen position.
+  Space: toggle   Enter: confirm   a: all   n: none   q: quit
+  Mouse: primary click selects/toggles menu entries

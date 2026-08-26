@@ -11,7 +11,14 @@ curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/i
 flossware-ai tui
 ```
 
-For a local checkout, contributor build, or explicit source fallback, use the repository's `scripts/install.sh` and set `FLOSSWARE_USE_SOURCE=true` when source checkout behavior is desired.
+The control-plane CLI is also available non-interactively:
+
+```bash
+flossware-ai config show
+flossware-ai config explain optimization.population
+flossware-ai config validate
+flossware-ai demo
+```
 
 The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user data location). Reinstallation and cleanup never require manually deleting that directory.
 
@@ -20,15 +27,13 @@ The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user
 ./scripts/install.sh --clean
 ```
 
-`--clean` removes only the managed FlossWare AI installation. It does not remove project instruction files, native agent credentials, or provider credentials.
-
-## Start here
-
-For a complete operator workflow, read [`docs/operator-guide.md`](docs/operator-guide.md). It covers bootstrap installation, the Setup Control Center, agents, capabilities, accounts/models, runtimes, profiles, validation, mouse/keyboard operation, contextual status, reinstall/cleanup, and troubleshooting.
+For a local checkout, contributor build, or explicit source fallback, use the repository's `scripts/install.sh` and set `FLOSSWARE_USE_SOURCE=true` when source checkout behavior is desired.
 
 ## Configuration contract
 
-Configuration is **layered and language-neutral**. TOML is the human-editable format; Python decorators or other language metadata are optional adapters, not the contract. Values resolve from defaults through system, user, profile, project, environment, and CLI layers. Provenance is retained so every effective value can be explained.
+Configuration is **layered and language-neutral**. TOML is the human-editable format; Python decorators or other language metadata are optional adapters, not the contract. Values resolve from defaults, system, user, profile, project, environment, and CLI layers. Provenance is retained so every effective value can be explained.
+
+The implemented contract also provides schema validation, declarative `before`/`after` ordering with cycle detection, component registration, and post-resolution policy enforcement.
 
 ```text
 built-in defaults
@@ -37,12 +42,22 @@ system → user → profile → project → environment → CLI
       ↓
 effective configuration
       ↓
-policy validation
+policy validation + ordering
       ↓
-TUI / CLI / runtime / optimization
+TUI / CLI / optimization
 ```
 
-Schema defines structure, configuration defines values, and policy defines limits. See [`docs/configuration-contract.md`](docs/configuration-contract.md).
+See [`docs/configuration-contract.md`](docs/configuration-contract.md).
+
+## Optimization
+
+The setup package includes a deterministic, standard-library-only optimization engine used by the offline showcase. It demonstrates genetic search over bounded candidates and Thompson Sampling over candidate arms. The production integration path can delegate to FlossWare's `genetic-optimizer-ai` and `model-router-ai` packages when those optional capabilities are installed.
+
+```bash
+flossware-ai demo
+```
+
+The demo requires no credentials, network, or paid APIs and is deterministic for reproducible testing.
 
 ## Installation model
 
@@ -51,146 +66,67 @@ The consumer path is artifact-first and repository-independent:
 ```text
 curl bootstrap
     |
-    +--> coding-agent-ai package artifact
+    +--> managed package/artifacts
     |
-    +--> coding-agent-setup GitHub source archive
+    +--> coding-agent-setup source archive
     |
     +--> managed install
     |
-    +--> flossware-ai tui / doctor / dogfood
+    +--> flossware-ai tui / config / demo / doctor / dogfood
 ```
 
-No Git clone is required for a normal installation. `FLOSSWARE_USE_SOURCE=true` is an explicit contributor/developer escape hatch for source checkout and editable installation. See [`docs/artifacts.md`](docs/artifacts.md).
+No Git clone is required for a normal installation. `FLOSSWARE_USE_SOURCE=true` is an explicit contributor/developer escape hatch for source checkout and editable installation.
 
-## Architecture
+## TUI
 
-Loom AI is the complete external orchestration platform, but Loom is optional. FlossWare AI libraries remain independently usable from Claude Code, Crush, Codex, OpenCode, Cursor, and other agents.
-
-```text
-Agent
-  |
-  +--> individual FlossWare capability
-  |      model-router / RAG / search / evaluation / ...
-  |
-  +--> Loom AI (complete orchestration platform)
-```
-
-The setup layer provides common configuration, profiles, account/model discovery, credential-source references, MCP integration, CLI, and the operator Setup TUI. It does not copy provider secrets or human identity data into generated files.
-
-## TUI preview
-
-`flossware-ai tui` is a terminal-based operator interface. The preview below is a **representative terminal-state rendering based on the repository's documented TUI transcripts**, not a desktop GUI mockup. Actual appearance varies with terminal size, font, and platform.
+`flossware-ai tui` is a terminal-based operator interface with keyboard and mouse support. Hovering a menu row updates the contextual status line. Clicking performs the same action as selecting and confirming that row. Status text is catalog-derived and never renders credential values.
 
 ![FlossWare AI Setup TUI preview](screenshots/tui-preview.svg)
 
-The TUI provides a contextual status line above its key legend. Move with arrow keys or mouse hover to see information about the current item. Hovering is informational only; Enter/Space/click performs the action. Status text never contains credentials or PII.
+The screenshot is a representative terminal-state rendering, not a desktop GUI mockup. Actual appearance varies with terminal size, font, and platform.
 
-The repository also keeps the underlying terminal-state transcripts in [`screenshots/`](screenshots/).
+## Profiles
 
-## Demo
+Profiles are **user-defined policy boundaries**, not hardcoded organizational identities. The public repository ships only a neutral `default` profile. Users can create profiles such as `personal`, `work`, `redhat`, `government`, `client-a`, or any other appropriate name.
 
-The configuration/optimization showcase is specified as a deterministic, offline-safe demo:
+A conservative work profile can enforce an approved provider allowlist, forbid personal accounts, require known model costs, and enforce a hard monthly ceiling. The exact approved provider/model policy remains environment-specific and must be supplied by the organization rather than inferred from this public repository.
 
-```bash
-flossware-ai demo
+## Cross-cutting behavior and ordering
+
+Cross-cutting decorators/interceptors/middleware are explicitly enabled and can be configured through the common contract. Ordering is declarative:
+
+```text
+Models → Optimization → Capabilities → Validation
 ```
 
-It is intended to demonstrate layered configuration, provenance, ordering constraints, policy validation, genetic optimization, Thompson Sampling, and explainable decisions without requiring credentials or paid APIs. The current demo contract is documented in [`docs/demo.md`](docs/demo.md); implementation remains an explicit work item until the command is present and tested.
-
-## Documentation
-
-### Operator documentation
-
-- [`docs/operator-guide.md`](docs/operator-guide.md) — canonical end-to-end operator guide
-- [`docs/configuration-contract.md`](docs/configuration-contract.md) — layered, language-neutral configuration contract
-- [`docs/setup-tui.md`](docs/setup-tui.md) — current Setup TUI behavior, screens, keyboard/mouse operation, contextual status
-- [`docs/cli-reference.md`](docs/cli-reference.md) — CLI commands and validation lifecycle
-- [`docs/profile-schema.md`](docs/profile-schema.md) — profile fields, policy, and security invariants
-- [`docs/discovery.md`](docs/discovery.md) — provider/account/model discovery lifecycle and status states
-- [`docs/troubleshooting.md`](docs/troubleshooting.md) — common failures and recovery
-
-### Architecture, integration, and security
-
-- [`docs/architecture.md`](docs/architecture.md) — setup control-plane architecture
-- [`docs/agent-integrations.md`](docs/agent-integrations.md) — coding-agent and MCP integration model
-- [`docs/credentials-and-accounts.md`](docs/credentials-and-accounts.md) — profiles, accounts, credential safety, and status states
-- [`docs/privacy.md`](docs/privacy.md) — mandatory non-PII and secret-handling invariant
-- [`docs/SECURITY.md`](docs/SECURITY.md) — security policy
-- [`docs/artifacts.md`](docs/artifacts.md) — artifact-first installation and explicit source fallback
-- [`docs/platforms.md`](docs/platforms.md) — Fedora/RHEL, Debian, FreeBSD, Termux, and Windows support
-- [`docs/decorators.md`](docs/decorators.md) — declarative decorator pipeline and ordering
-- [`docs/container-runtimes.md`](docs/container-runtimes.md) — Podman/Docker execution backends
-
-## CLI
-
-```bash
-flossware-ai agents
-flossware-ai agents setup crush
-flossware-ai components
-flossware-ai components model-router-ai
-flossware-ai accounts --verify
-flossware-ai models --refresh
-flossware-ai providers
-flossware-ai runtime list
-flossware-ai runtime status
-flossware-ai runtime select podman
-flossware-ai runtime select docker
-flossware-ai runtime auto
-flossware-ai doctor
-flossware-ai dogfood --strict
-flossware-ai tui
-```
-
-See [`docs/cli-reference.md`](docs/cli-reference.md) for the canonical command reference.
-
-Supported agents include Claude Code, Cursor, OpenCode, Crush, Codex, Aider, Cline, Roo Code, Gemini CLI, GitHub Copilot, Windsurf, Amazon Q Developer, and Kiro. Shared `AGENTS.md` consumers intentionally use one common project instruction file.
-
-## Profiles and accounts
-
-Profiles are **user-defined policy boundaries**, not hardcoded organizational identities. The public repository ships only a neutral `default` profile. Users can create profiles such as `personal`, `work`, `redhat`, `government`, `client-a`, or any other name appropriate to their environment.
-
-A profile controls which providers, accounts, models, local models, and FlossWare capabilities are permitted for that workload. The repository does not assume that any particular employer, organization, provider, or compliance regime applies to every user.
-
-For the exact shipped schema and policy semantics, see [`docs/profile-schema.md`](docs/profile-schema.md).
-
-## Provider/account/model status
-
-- **configured**: a credential source is present
-- **verified**: authentication/credential validation succeeded
-- **discovered**: an authenticated provider advertised the account/model
-- **available**: discovered and permitted by the active profile
-- **ready**: credentials, policy, and connectivity checks pass
-- **active**: selected for the current workload
-- **blocked**: policy or platform prevents use
-
-See [`docs/discovery.md`](docs/discovery.md).
-
-## Cross-cutting decorators
-
-FlossWare uses explicitly enabled decorators/interceptors/middleware for cross-cutting behavior such as retries, circuit breaking, observability, auditing, caching, evaluation, security/policy enforcement, structured-output validation, and token/cost accounting. This follows Engineering Standards ADR-0006.
-
-The TUI configures these declaratively under **Components → Cross-Cutting Behavior**. Users can enable/disable decorators, edit their policy settings, and reorder the stack when ordering affects semantics. The runtime translates that policy into the appropriate decorator/interceptor/middleware implementation.
-
-Decorator configuration is provider-neutral and contains no secrets or human identity data. Profile defaults may supply policy, while component configuration provides explicit opt-in or override.
-
-## Container runtimes
-
-Podman and Docker are supported as execution backends. On Linux, Podman is preferred when healthy, while Docker is fully supported. Windows supports Docker Desktop and Podman where available. FreeBSD and Termux report a runtime only when it is actually reachable; the setup layer does not claim native container support where an external VM or compatibility layer is required. Native execution remains available when no runtime is configured.
+The resolver supports `before` and `after` constraints, stable ordering, and cycle rejection. The same contract can be consumed by Python decorators or another language adapter.
 
 ## Privacy and credential safety
 
-FlossWare managed configuration is **non-identifying and secret-free**. API keys, OAuth tokens, passwords, cookies, email addresses, employee/customer identifiers, phone numbers, and other PII are not persisted in profiles, account metadata, generated agent files, MCP definitions, logs, or diagnostics.
+Managed configuration is **non-identifying and secret-free**. API keys, OAuth tokens, passwords, cookies, email addresses, employee/customer identifiers, phone numbers, and other PII are not persisted in profiles, generated agent files, logs, or diagnostics.
 
-Credential references such as `environment:OPENAI_API_KEY` identify where a secret is obtained; they are not secret values. Account aliases must be opaque local identifiers, such as `openai-account-1`, rather than human names, emails, or employee identifiers.
+Credential references identify where a secret is obtained; they are not secret values.
 
-See [`docs/privacy.md`](docs/privacy.md) and [`docs/SECURITY.md`](docs/SECURITY.md).
+## Documentation
+
+- [`docs/operator-guide.md`](docs/operator-guide.md) — canonical operator workflow
+- [`docs/configuration-contract.md`](docs/configuration-contract.md) — layered contract, schema, provenance, policy, and ordering
+- [`docs/demo.md`](docs/demo.md) — deterministic optimization showcase
+- [`docs/cli-reference.md`](docs/cli-reference.md) — CLI commands
+- [`docs/setup-tui.md`](docs/setup-tui.md) — TUI behavior and mouse/status line
+- [`docs/architecture.md`](docs/architecture.md) — control-plane architecture
+- [`docs/profile-schema.md`](docs/profile-schema.md) — profile schema and policy boundaries
+- [`docs/discovery.md`](docs/discovery.md) — provider/account/model discovery
+- [`docs/troubleshooting.md`](docs/troubleshooting.md) — recovery guidance
+- [`docs/privacy.md`](docs/privacy.md) — secret/PII handling
+- [`docs/SECURITY.md`](docs/SECURITY.md) — security policy
 
 ## Related repositories
 
-- [FlossWare/loom-ai](https://github.com/FlossWare/loom-ai) — complete orchestration platform
-- [FlossWare/model-router-ai](https://github.com/FlossWare/model-router-ai) — provider/account/model routing
-- [FlossWare/curses-themes](https://github.com/FlossWare/curses-themes) — shared TUI themes
-- [FlossWare/coding-agent-ai](https://github.com/FlossWare/coding-agent-ai) — coding-agent runtime
+- [FlossWare/loom-ai](https://github.com/FlossWare/loom-ai)
+- [FlossWare/model-router-ai](https://github.com/FlossWare/model-router-ai)
+- [FlossWare/genetic-optimizer-ai](https://github.com/FlossWare/genetic-optimizer-ai)
+- [FlossWare/coding-agent-ai](https://github.com/FlossWare/coding-agent-ai)
 
 ## License
 

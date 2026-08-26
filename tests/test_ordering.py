@@ -1,6 +1,6 @@
 import pytest
 
-from flossware_setup.config.ordering import OrderingError, resolve_order
+from flossware_setup.config_contract import OrderingError, resolve_order
 
 
 def test_resolves_before_after_constraints():

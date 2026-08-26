@@ -1,9 +1,13 @@
 ┌──────────────────────────────────────────────────────────────┐
-│ 1/5  Select Coding Agents                                    │
+│ Select Coding Agents                                         │
 └──────────────────────────────────────────────────────────────┘
 
- > [x] Claude Code       Terminal, desktop, web, IDE extensions
-   [x] Cursor            AI-native IDE with built-in models
-   [x] OpenCode / Codex  Terminal-based coding agents
+ > [x] Claude Code
+   [x] Cursor
+   [ ] OpenCode
+   [ ] Crush
+   [ ] Codex
+   ... 13 catalog integrations total
 
-  Space:toggle  Enter:confirm  a:all  n:none  q:quit
+  Space: toggle   Enter: confirm   a: all   n: none   q: quit
+  Mouse: primary click selects/toggles menu entries

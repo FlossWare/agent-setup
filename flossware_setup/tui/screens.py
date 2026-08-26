@@ -123,7 +123,7 @@ def build_screen(win, cfg: Config) -> None:
     add(win, y, 2, "Configuration generated successfully.", 2, curses.A_BOLD)
     add(win, y + 1, 2, f"Profile: {cfg.profile}", 1, curses.A_BOLD)
     add(win, y + 3, 2, "No credential values were written. FlossWare state is outside the project.", 2)
-    add(win, y + 4, 2, f"Central state: see managed root under projects/<id>/", 5)
+    add(win, y + 4, 2, "Central state: see managed root under projects/<id>/", 5)
     add(win, y + 5, 2, f"Active project: {Path(cfg.repo_dir).resolve()}", 1)
     add(win, y + 7, 2, "Press any key to continue.", 6)
     win.refresh()

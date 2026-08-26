@@ -207,6 +207,11 @@ def project_identity(repo_dir: str | Path) -> str:
     return digest[:16]
 
 
+STATE_JSON_NAME = "state.json"
+AI_CONFIG_NAME = "ai_config.py"
+PATH_TXT_NAME = "path.txt"
+
+
 def central_project_dir(repo_dir: str | Path) -> Path:
     """Per-directory FlossWare state folder (never inside the user project)."""
     path = managed_root() / "projects" / project_identity(repo_dir)
@@ -216,7 +221,7 @@ def central_project_dir(repo_dir: str | Path) -> Path:
 
 def project_state_path(repo_dir: str | Path) -> Path:
     """Path to centralized project state JSON (not written into the project tree)."""
-    return central_project_dir(repo_dir) / "state.json"
+    return central_project_dir(repo_dir) / STATE_JSON_NAME
 
 
 def migrate_project_state(old_dir: str | Path, new_dir: str | Path) -> Path:
@@ -228,11 +233,11 @@ def migrate_project_state(old_dir: str | Path, new_dir: str | Path) -> Path:
     """
     src = central_project_dir(old_dir)
     dest = central_project_dir(new_dir)
-    if not (src / "state.json").is_file():
+    if not (src / STATE_JSON_NAME).is_file():
         raise FileNotFoundError(f"no central state for {old_dir!s}")
-    if (dest / "state.json").is_file():
+    if (dest / STATE_JSON_NAME).is_file():
         return dest
-    for name in ("state.json", "ai_config.py", "path.txt"):
+    for name in (STATE_JSON_NAME, AI_CONFIG_NAME, PATH_TXT_NAME):
         item = src / name
         if item.is_file():
             shutil.copy2(item, dest / name)

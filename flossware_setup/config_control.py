@@ -47,16 +47,13 @@ def flossware_root() -> Path:
 
 
 def state_dir() -> Path: return flossware_root()
-
 def profiles_dir() -> Path:
     path = state_dir() / "profiles"; path.mkdir(parents=True, exist_ok=True); return path
-
 def available_profiles() -> tuple[str, ...]:
     local = {p.stem for p in profiles_dir().glob("*.toml") if p.is_file()}
     extra = tuple(name for name in ORGANIZATION_PROFILES if name in local)
     custom = tuple(sorted(local - set(BUILTIN_PROFILES) - set(ORGANIZATION_PROFILES)))
     return BUILTIN_PROFILES + extra + custom
-
 def profile_path(name: str) -> Path: return profiles_dir() / f"{name}.toml"
 
 def load_profile(name: str = "default") -> dict[str, Any]:

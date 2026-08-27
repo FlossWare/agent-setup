@@ -11,16 +11,13 @@ from flossware_setup.tui.input import enable_mouse, mouse_event
 from flossware_setup.tui.themes import THEME_LABELS
 from flossware_setup.tui.widgets import add, palette
 
-MENUS = ("File", "Edit", "View", "Config", "Models", "Agents", "Optimize", "Help")
+MENUS = ("File", "Edit", "View", "Config", "Help")
 ITEMS = {
-    "File": ("Save", "Exit"),
-    "Edit": ("Reorder menus", "Reset layout"),
-    "View": ("Profiles", "Directory Bindings", "Configuration", "Status", "Theme"),
-    "Config": ("Profiles", "Create Profile", "Directory Bindings", "Validate", "Explain"),
-    "Models": ("Discover models", "Refresh models"),
-    "Agents": ("Agent configuration", "Run agent with profile"),
-    "Optimize": ("Thompson Sampling", "Genetic Optimizer"),
-    "Help": ("Keyboard and mouse", "About"),
+    "File": ("Exit",),
+    "Edit": ("Reorder menus",),
+    "View": ("Profiles", "Directory Bindings", "Configuration", "Theme"),
+    "Config": ("Profiles", "Directory Bindings", "Validate"),
+    "Help": ("About",),
 }
 MNEMONICS = {x[0].lower(): i for i, x in enumerate(MENUS)}
 
@@ -275,7 +272,20 @@ def _open_menu(win, index):
         if result == "Create Profile": return create_profile(win)
         if result == "Directory Bindings": return bindings_view(win)
         if result == "Theme": return theme_selector(win)
-        if result == "Exit": return "__EXIT__"
+        if result == "Configuration":
+            return None  # already shown on the main surface
+        if result == "Validate":
+            return _validate_popup(win)
+        if result == "Reorder menus":
+            return _about_popup(win, "Menu reorder", "Use config order CLI: flossware-ai config order show")
+        if result == "About":
+            return _about_popup(
+                win,
+                "About",
+                "FlossWare Setup Control Center — central state, directory bindings, themes.",
+            )
+        if result == "Exit":
+            return "__EXIT__"
         return None
 
 

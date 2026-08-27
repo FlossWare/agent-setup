@@ -16,6 +16,7 @@ include = ["flossware_setup*"]
 
 [tool.setuptools.package-data]
 "flossware_setup.profiles" = ["*.toml"]
+"flossware_setup.profiles.examples" = ["*.toml"]
 
 [project.scripts]
 flossware-setup = "flossware_setup.tui:main"

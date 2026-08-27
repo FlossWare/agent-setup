@@ -75,14 +75,62 @@ components() {
   echo "Component detail: $1 (see docs and pip package metadata)"
 }
 
+resolve_directory_profile() {
+  # Prefer Python binding resolution; fall back to active-profile file.
+  local out
+  if out="$("$(py)" -c 'from flossware_setup.config_control import profile_for_directory
+p, s = profile_for_directory()
+print(p)
+print(s or "")' 2>/dev/null)"; then
+    printf '%s
+' "$out"
+    return 0
+  fi
+  printf '%s
+' "$(active_profile)"
+  printf '
+'
+}
+
 launch_agent() {
-  local name="$1"; shift; local prof; prof="$(active_profile)"
-  if [[ "${1:-}" == --profile ]]; then [[ $# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }; prof="$2"; shift 2
-  elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi
-  if [[ -z "$prof" || "$prof" == */* || "$prof" == *..* ]]; then echo "ERROR: invalid profile '$prof'" >&2; exit 2; fi
-  local pd="$ROOT/config/profiles/$prof"; [[ -f "$pd/profile.sh" ]] && source "$pd/profile.sh" "$prof"
-  local cmd="$name"; case "$name" in claude-code) cmd="claude";; gemini-cli) cmd="gemini";; github-copilot) cmd="gh";; amazon-q) cmd="q";; roo-code) cmd="roo";; esac
-  command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: agent '$cmd' is not installed or not on PATH" >&2; exit 127; }; exec "$cmd" "$@"
+  local name="$1"; shift
+  local prof="" source=""
+  if [[ "${1:-}" == --profile ]]; then
+    [[ $# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }
+    prof="$2"; shift 2
+    source="cli-override"
+  elif [[ "${1:-}" == --profile=* ]]; then
+    prof="${1#--profile=}"; shift
+    source="cli-override"
+  else
+    local resolved
+    resolved="$(resolve_directory_profile)"
+    prof="$(printf '%s
+' "$resolved" | sed -n '1p')"
+    source="$(printf '%s
+' "$resolved" | sed -n '2p')"
+  fi
+  if [[ -z "$prof" || "$prof" == */* || "$prof" == *..* ]]; then
+    echo "ERROR: invalid profile '$prof'" >&2; exit 2
+  fi
+  export FLOSSWARE_PROFILE="$prof"
+  export FLOSSWARE_PROFILE_SOURCE="${source:-default}"
+  local pd="$ROOT/config/profiles/$prof"
+  [[ -f "$pd/profile.sh" ]] && source "$pd/profile.sh" "$prof"
+  local cmd="$name"
+  case "$name" in
+    claude-code) cmd="claude";;
+    gemini-cli) cmd="gemini";;
+    github-copilot) cmd="gh";;
+    amazon-q) cmd="q";;
+    roo-code) cmd="roo";;
+  esac
+  command -v "$cmd" >/dev/null 2>&1 || {
+    echo "ERROR: agent '$cmd' is not installed or not on PATH" >&2
+    exit 127
+  }
+  echo "FlossWare profile: $prof (source: ${FLOSSWARE_PROFILE_SOURCE})" >&2
+  exec "$cmd" "$@"
 }
 
 case "${1:-}" in

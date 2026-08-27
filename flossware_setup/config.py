@@ -180,12 +180,23 @@ def resolve_review_project(explicit: str | Path | None = None) -> Path:
 
 
 def is_git_repository(path: str | Path) -> bool:
-    """True when *path* is inside a Git working tree (``.git`` present)."""
+    """True when *path* is inside a Git working tree (including subdirs/worktrees).
+
+    Walks parents for a ``.git`` directory or file (worktree gitfile).
+    """
     try:
         root = Path(path).expanduser().resolve()
     except (OSError, RuntimeError, ValueError):
         return False
-    return (root / ".git").exists()
+    current = root
+    while True:
+        git_entry = current / ".git"
+        if git_entry.exists():
+            return True
+        if current.parent == current:
+            break
+        current = current.parent
+    return False
 
 
 def git_status_label(path: str | Path) -> str:

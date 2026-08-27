@@ -4,6 +4,12 @@ The Setup Control Center uses a language-neutral configuration model. TOML is th
 
 ## Layers
 
+**Implemented layers (v1 local provider):** defaults, system (`state_dir/system.toml`),
+user (`state_dir/user.toml`), profile, directory (binding selects profile), project
+(`projects/<id>/config.toml` when present), environment (`FLOSSWARE_PROVIDER`,
+`FLOSSWARE_BUDGET_MONTHLY`, `FLOSSWARE_OPTIMIZATION_STRATEGY`). CLI overrides are
+applied by the CLI after merge. Policy runs after the complete merge.
+
 Layers are merged from lowest to highest priority:
 
 1. `defaults` - built-in safe defaults

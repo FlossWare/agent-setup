@@ -97,7 +97,7 @@ def test_bindings_grouped_and_unbind(tmp_path, monkeypatch):
     assert "default" in grouped
     unbind_directory(a)
     assert profile_for_directory(a)[1] is None
-    assert profile_for_directory(a)[0] == "personal"  # fallback name
+    assert profile_for_directory(a)[0] == "default"  # fallback name
 
 
 def test_git_repo_status_when_present(tmp_path):

@@ -13,14 +13,31 @@ from flossware_setup.tui.themes import THEME_NAMES as THEMES
 
 DEFAULT_ORDER = ["agents", "providers", "models", "optimization", "validation"]
 DEFAULT_CONSTRAINTS = [{"item": "optimization", "after": ["models"], "before": ["validation"]}]
-BUILTIN_PROFILES = ("default", "personal")
-ORGANIZATION_PROFILES = ("redhat", "redhat-cost-conscious")
+BUILTIN_PROFILES = ("default",)
+ORGANIZATION_PROFILES: tuple[str, ...] = ()  # org templates are examples only, not shipped builtins
 
 
-def state_dir() -> Path:
+def flossware_root() -> Path:
+    """Canonical install/state root.
+
+    Precedence: ``FLOSSWARE_AI_ROOT`` → ``FLOSSWARE_INSTALL_ROOT`` →
+    ``~/.flossware/ai``. All profiles, bindings, themes, and project state
+    resolve under this root.
+    """
+    import os
+    for key in ("FLOSSWARE_AI_ROOT", "FLOSSWARE_INSTALL_ROOT"):
+        raw = os.environ.get(key)
+        if raw:
+            path = Path(raw).expanduser().resolve()
+            path.mkdir(parents=True, exist_ok=True)
+            return path
     path = Path.home() / ".flossware" / "ai"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def state_dir() -> Path:
+    return flossware_root()
 
 
 def profiles_dir() -> Path:
@@ -40,9 +57,7 @@ def profile_path(name: str) -> Path:
     return profiles_dir() / f"{name}.toml"
 
 
-def load_profile(name: str = "personal") -> dict[str, Any]:
-    if name not in available_profiles():
-        raise ValueError(f"unknown profile: {name}")
+def load_profile(name: str = "default") -> dict[str, Any]:
     local = profile_path(name)
     if local.is_file():
         try:
@@ -53,8 +68,22 @@ def load_profile(name: str = "personal") -> dict[str, Any]:
         resource = resources.files("flossware_setup.profiles").joinpath("default.toml")
         with resource.open("rb") as stream:
             return tomllib.load(stream)
+    # Legacy permissive alias (not a shipped builtin; for tests/compat only).
     if name == "personal":
-        return {"profile": "personal", "model_policy": {"allowed_providers": ["*configured*"], "allow_local_models": True, "allow_unconfigured_providers": False, "allow_personal_accounts": True, "allow_provider_fallback": True}, "optimization": {"enabled": True, "strategy": "hybrid"}, "cost": {"monthly_limit_usd": 0.0, "hard_limit": False}}
+        return {
+            "profile": "personal",
+            "model_policy": {
+                "allowed_providers": ["*configured*"],
+                "allow_local_models": True,
+                "allow_unconfigured_providers": False,
+                "allow_personal_accounts": True,
+                "allow_provider_fallback": True,
+            },
+            "optimization": {"enabled": True, "strategy": "hybrid"},
+            "cost": {"monthly_limit_usd": 0.0, "hard_limit": False},
+        }
+    if name not in available_profiles():
+        raise ValueError(f"unknown profile: {name}")
     raise ValueError(f"unknown profile: {name}")
 
 
@@ -134,7 +163,7 @@ def profile_for_directory(directory: str | Path | None = None) -> tuple[str, str
     if matches:
         root, profile = matches[0]
         return profile, root
-    return "personal", None
+    return "default", None
 
 
 def binding_provenance(directory: str | Path | None = None) -> dict[str, object]:
@@ -188,16 +217,99 @@ def save_theme(theme: str) -> Path:
 
 
 
-def effective_config(profile_name: str = "personal") -> ConfigResolver:
-    profile = load_profile(profile_name); model_policy = profile.get("model_policy", {}); cost = profile.get("cost", {}); optimization = profile.get("optimization", {})
-    allowed = list(model_policy.get("allowed_providers") or []); provider = allowed[0] if allowed and allowed[0] != "*configured*" else "auto"
+def _load_toml_map(path: Path) -> dict:
+    if not path.is_file():
+        return {}
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+    # Flatten one level of [section] into dotted keys for known domains
+    flat: dict = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            for sub, subval in value.items():
+                if isinstance(subval, (str, int, float, bool)):
+                    flat[f"{key}.{sub}"] = subval
+        elif isinstance(value, (str, int, float, bool)):
+            flat[key] = value
+    return flat
+
+
+def _env_config_layer() -> dict:
+    import os
+    mapping = {
+        "FLOSSWARE_PROVIDER": "provider",
+        "FLOSSWARE_BUDGET_MONTHLY": "budget.monthly",
+        "FLOSSWARE_OPTIMIZATION_STRATEGY": "optimization.strategy",
+    }
+    layer: dict = {}
+    for env_key, conf_key in mapping.items():
+        raw = os.environ.get(env_key)
+        if raw is None or raw == "":
+            continue
+        if conf_key == "budget.monthly":
+            try:
+                layer[conf_key] = float(raw)
+            except ValueError:
+                continue
+        else:
+            layer[conf_key] = raw
+    return layer
+
+
+def effective_config(profile_name: str = "default") -> ConfigResolver:
+    """Resolve layers: defaults → system → user → profile → directory → project → environment.
+
+    CLI overrides are applied by callers after this merge. Policy is applied
+    separately via ``validate_effective_config`` / the configuration provider.
+    """
+    profile = load_profile(profile_name)
+    model_policy = profile.get("model_policy", {})
+    cost = profile.get("cost", {})
+    optimization = profile.get("optimization", {})
+    allowed = list(model_policy.get("allowed_providers") or [])
+    provider = allowed[0] if allowed and allowed[0] != "*configured*" else "auto"
+    defaults = {
+        "provider": "auto",
+        "budget.monthly": 0.0,
+        "optimization.population": 30,
+        "optimization.strategy": "hybrid",
+        "policy.allow_personal_accounts": True,
+        "policy.allow_unknown_providers": True,
+        "policy.allow_provider_fallback": True,
+        "policy.hard_budget": False,
+    }
+    profile_layer = {
+        "provider": provider,
+        "budget.monthly": float(cost.get("monthly_limit_usd", 0.0) or 0.0),
+        "optimization.population": int(optimization.get("genetic", {}).get("population_size", 30) or 30),
+        "optimization.strategy": str(optimization.get("strategy", "hybrid")),
+        "policy.allow_personal_accounts": bool(model_policy.get("allow_personal_accounts", profile_name == "personal")),
+        "policy.allow_unknown_providers": bool(model_policy.get("allow_unconfigured_providers", False)),
+        "policy.allow_provider_fallback": bool(model_policy.get("allow_provider_fallback", False)),
+        "policy.hard_budget": bool(cost.get("hard_limit", False)),
+    }
     resolver = ConfigResolver()
-    resolver.add_layer(ConfigLayer("defaults", 0, {"provider": provider, "budget.monthly": float(cost.get("monthly_limit_usd", 0.0)), "optimization.population": int(optimization.get("genetic", {}).get("population_size", 30)), "optimization.strategy": str(optimization.get("strategy", "hybrid"))}))
-    resolver.add_layer(ConfigLayer(f"profile:{profile_name}", 300, {"provider": provider, "budget.monthly": float(cost.get("monthly_limit_usd", 0.0)), "policy.allow_personal_accounts": bool(model_policy.get("allow_personal_accounts", profile_name == "personal")), "policy.allow_unknown_providers": bool(model_policy.get("allow_unconfigured_providers", False)), "policy.allow_provider_fallback": bool(model_policy.get("allow_provider_fallback", False)), "policy.hard_budget": bool(cost.get("hard_limit", False)), "optimization.strategy": str(optimization.get("strategy", "hybrid"))}))
+    resolver.add_layer(ConfigLayer("defaults", 0, defaults))
+    resolver.add_layer(ConfigLayer("system", 100, _load_toml_map(state_dir() / "system.toml")))
+    resolver.add_layer(ConfigLayer("user", 200, _load_toml_map(state_dir() / "user.toml")))
+    resolver.add_layer(ConfigLayer(f"profile:{profile_name}", 300, profile_layer))
+    # directory layer: binding may later carry overrides; for now records binding path only via profile selection
+    resolver.add_layer(ConfigLayer("directory", 400, {}))
+    # project layer: optional central project state config.toml
+    try:
+        from flossware_setup.config import project_state_path
+        project_cfg = project_state_path(Path.cwd()).parent / "config.toml"
+        resolver.add_layer(ConfigLayer("project", 500, _load_toml_map(project_cfg)))
+    except Exception:
+        resolver.add_layer(ConfigLayer("project", 500, {}))
+    resolver.add_layer(ConfigLayer("environment", 600, _env_config_layer()))
     return resolver
 
 
-def validate_effective_config(profile_name: str = "personal") -> dict[str, Any]:
+
+def validate_effective_config(profile_name: str = "default") -> dict[str, Any]:
     config = effective_config(profile_name).resolve(); profile = load_profile(profile_name); allowed = list(profile.get("model_policy", {}).get("allowed_providers") or [])
     if allowed and allowed != ["*configured*"]:
         Policy(allowed={"provider": allowed}).validate(config)

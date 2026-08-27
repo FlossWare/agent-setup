@@ -1,0 +1,31 @@
+{
+  "contract_id": "flossware.config.v1",
+  "schema_version": 1,
+  "description": "Conformance fixture: input maps that MUST NOT leak unsupported or secret material into values.",
+  "cases": [
+    {
+      "name": "unknown_key_dropped",
+      "input": {"provider": "anthropic", "routing.mode": "auto"},
+      "expect_present": ["provider"],
+      "expect_absent": ["routing.mode"]
+    },
+    {
+      "name": "secret_key_dropped",
+      "input": {"provider": "openai", "openai_api_key": "sk-abcdefghijklmnopqrstuvwxyz012345"},
+      "expect_present": ["provider"],
+      "expect_absent": ["openai_api_key"]
+    },
+    {
+      "name": "nested_map_dropped",
+      "input": {"provider": "anthropic", "optimization.strategy": {"name": "hybrid", "token": "x"}},
+      "expect_present": ["provider"],
+      "expect_absent": ["optimization.strategy"]
+    },
+    {
+      "name": "secret_like_string_dropped",
+      "input": {"provider": "sk-abcdefghijklmnopqrstuvwxyz012345"},
+      "expect_present": [],
+      "expect_absent": ["provider"]
+    }
+  ]
+}

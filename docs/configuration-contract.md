@@ -154,4 +154,69 @@ surface (`contract_id` = `flossware.config.v1`), not the Python class.
 
 - `values` is intentionally restricted to a fixed v1 safe key set (`SAFE_VALUE_KEYS` in the Python binding: provider, budget, optimization, policy flags). Unknown keys are dropped—not silently preserved. Expanding the set is a **versioned contract change** (bump `schema_version` / `contract_id`). No `api_key` / `token` keys are ever accepted.
 - Credential **values** never appear; only `credentials_present` booleans.
-- Nested maps are not accepted in `values` for v1.
+- Nested maps/lists are accepted only when the key's `allows_nested` flag is true **and** the nested structure is secret-free. All v1 keys set `allows_nested=false`.
+- Each key's `value_type` (`string` | `number` | `boolean`) is enforced. Python `bool` is **not** accepted as a `number`. `None` is excluded.
+
+## Expanding the values surface (process)
+
+The v1 `values` map is intentionally small. Keys are registered in
+`flossware_setup/config_contract/keys.py` (`VALUE_KEY_SPECS`). Anything not in
+that registry is **excluded** from `EffectiveConfiguration.values` (see
+`extras.excluded_keys` when the local provider drops keys).
+
+### Currently supported v1 keys
+
+| Key | Domain | Type |
+|-----|--------|------|
+| `provider` | provider | string |
+| `budget.monthly` | budget | number |
+| `optimization.population` | optimization | number |
+| `optimization.strategy` | optimization | string |
+| `policy.allow_personal_accounts` | policy | boolean |
+| `policy.allow_unknown_providers` | policy | boolean |
+| `policy.allow_provider_fallback` | policy | boolean |
+| `policy.hard_budget` | policy | boolean |
+
+### Adding a key without breaking Loom (backward-compatible v1 extension)
+
+1. Add a `ValueKeySpec` with `introduced_in=1` (or the current schema version).
+2. Update `tests/fixtures/config_contract/v1_supported_keys.json`.
+3. Ensure the key is secret-free (no nested maps unless `allows_nested` and a
+   nested secret policy is defined — **not allowed in v1**).
+4. Emit provenance for the key from the resolver layers.
+5. Document the key in this file and assign a domain owner in `DOMAIN_OWNERS`.
+6. Ship conformance fixtures so Loom can assert support without importing Python.
+
+Consumers **must ignore unknown keys** in `values` for forward compatibility.
+
+### When to bump to `flossware.config.v2`
+
+Require a new major contract id / schema version when any of the following hold:
+
+- Removing or renaming a key
+- Changing a key's value type or nested shape
+- Allowing nested structures that could carry secrets
+- Changing layer order or policy-after-merge semantics
+- Changing the meaning of `policy_ok` / `policy_violations`
+
+Additive keys alone do **not** require v2 if existing consumers ignore unknowns
+and fixtures are updated in lockstep.
+
+### Conformance fixtures
+
+Language-neutral fixtures live under `tests/fixtures/config_contract/`:
+
+- `v1_supported_keys.json` — registry of allowed keys
+- `v1_exclusion_behavior.json` — required drop behavior for secrets / unknown keys
+
+Loom and coding-agent-setup can both load these JSON files in CI.
+
+### Domain ownership (as the surface grows)
+
+| Domain | Owner |
+|--------|--------|
+| provider, budget, optimization | coding-agent-setup profiles + shared contract |
+| policy | `config_contract` (shared), enforced post-merge |
+| agent | coding-agent-setup (future) |
+| routing / context | Loom orchestration (future; never secrets) |
+| secret values | Environment / OS / agent stores only — never the wire map |

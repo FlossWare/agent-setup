@@ -20,6 +20,15 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
+from flossware_setup.config_contract.keys import (
+    DOMAIN_OWNERS,
+    KEY_SPEC_BY_NAME,
+    SAFE_VALUE_KEYS,
+    VALUE_KEY_SPECS,
+    is_supported_key,
+    keys_for_schema_version,
+)
+
 SCHEMA_VERSION = 1
 CONTRACT_ID = "flossware.config.v1"
 
@@ -33,20 +42,6 @@ LAYER_ORDER = (
     "project",
     "environment",
     "cli",
-)
-
-# Keys allowed in EffectiveConfiguration.values (whitelist).
-SAFE_VALUE_KEYS = frozenset(
-    {
-        "provider",
-        "budget.monthly",
-        "optimization.population",
-        "optimization.strategy",
-        "policy.allow_personal_accounts",
-        "policy.allow_unknown_providers",
-        "policy.allow_provider_fallback",
-        "policy.hard_budget",
-    }
 )
 
 
@@ -96,26 +91,86 @@ class ConfigurationProvider(Protocol):
         """Human-readable provenance for a single key."""
 
 
-def _sanitize_values(values: dict[str, Any]) -> dict[str, Any]:
-    """Keep only safe keys and drop secret-like material."""
+def _value_matches_type(value: Any, value_type: str) -> bool:
+    """Check wire primitive types. ``bool`` is not accepted as ``number``."""
+    if value_type == "string":
+        return isinstance(value, str)
+    if value_type == "boolean":
+        return isinstance(value, bool)
+    if value_type == "number":
+        # bool is a subclass of int — reject it for number fields.
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    return False
+
+
+def _nested_is_secret_free(value: Any) -> bool:
+    """Nested dict/list must contain no secret keys or secret-like strings."""
+    from flossware_setup.credentials import (
+        is_secret_key_name,
+        text_contains_secret_material,
+    )
+
+    if isinstance(value, str):
+        return not text_contains_secret_material(value)
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if is_secret_key_name(str(k)):
+                return False
+            if not _nested_is_secret_free(v):
+                return False
+        return True
+    if isinstance(value, list):
+        return all(_nested_is_secret_free(item) for item in value)
+    if isinstance(value, bool) or value is None:
+        return True
+    if isinstance(value, (int, float)):
+        return not isinstance(value, bool)
+    return False
+
+
+def _sanitize_values(
+    values: dict[str, Any],
+    *,
+    schema_version: int = SCHEMA_VERSION,
+) -> tuple[dict[str, Any], tuple[str, ...]]:
+    """Keep supported keys with matching types; honor ``allows_nested``.
+
+    Returns ``(cleaned_values, excluded_keys)``. Exclusion is intentional and
+    documented: unsupported keys are not preserved on the wire.
+    """
     from flossware_setup.credentials import (
         is_secret_key_name,
         text_contains_secret_material,
     )
 
     cleaned: dict[str, Any] = {}
+    excluded: list[str] = []
     for key, value in values.items():
-        if key not in SAFE_VALUE_KEYS:
+        key_s = str(key)
+        if not is_supported_key(key_s, schema_version):
+            excluded.append(key_s)
             continue
-        if is_secret_key_name(str(key)):
+        if is_secret_key_name(key_s):
+            excluded.append(key_s)
+            continue
+        spec = KEY_SPEC_BY_NAME[key_s]
+        if isinstance(value, (dict, list)):
+            if not spec.allows_nested or not _nested_is_secret_free(value):
+                excluded.append(key_s)
+                continue
+            cleaned[key_s] = value
+            continue
+        if value is None:
+            excluded.append(key_s)
+            continue
+        if not _value_matches_type(value, spec.value_type):
+            excluded.append(key_s)
             continue
         if isinstance(value, str) and text_contains_secret_material(value):
+            excluded.append(key_s)
             continue
-        if isinstance(value, dict):
-            # Nested maps are not part of the v1 wire values surface.
-            continue
-        cleaned[key] = value
-    return cleaned
+        cleaned[key_s] = value
+    return cleaned, tuple(sorted(set(excluded)))
 
 
 def _policy_violations_for(profile: str, values: dict[str, Any]) -> tuple[str, ...]:
@@ -175,12 +230,15 @@ class LocalConfigurationProvider:
         profile, source = profile_for_directory(target)
         resolver = effective_config(profile)
         raw_values = resolver.resolve()
-        values = _sanitize_values(raw_values)
+        values, excluded = _sanitize_values(raw_values, schema_version=SCHEMA_VERSION)
         provenance = {
             key: resolver.provenance(key)
             for key in values
         }
         violations = _policy_violations_for(profile, values)
+        extras: dict[str, Any] = {}
+        if excluded:
+            extras["excluded_keys"] = list(excluded)
         return EffectiveConfiguration(
             schema_version=SCHEMA_VERSION,
             contract_id=CONTRACT_ID,
@@ -192,6 +250,7 @@ class LocalConfigurationProvider:
             credentials_present=credential_status(),
             theme=load_theme(),
             policy_violations=violations,
+            extras=extras,
         )
 
     def explain(self, key: str, directory: str | Path | None = None) -> str:

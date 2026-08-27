@@ -53,7 +53,7 @@ def test_resolve_returns_secret_free_snapshot(tmp_path, monkeypatch) -> None:
 
 
 def test_sanitize_drops_secret_keys_and_values() -> None:
-    cleaned = _sanitize_values(
+    cleaned, excluded = _sanitize_values(
         {
             "provider": "anthropic",
             "openai_api_key": "sk-abcdefghijklmnopqrstuvwxyz",
@@ -65,6 +65,7 @@ def test_sanitize_drops_secret_keys_and_values() -> None:
     assert "nested_secret" not in cleaned
     assert cleaned["provider"] == "anthropic"
     assert cleaned["budget.monthly"] == 50.0
+    assert "openai_api_key" in excluded or "nested_secret" in excluded
 
 
 def test_resolve_never_raises_on_policy_failure(tmp_path, monkeypatch) -> None:

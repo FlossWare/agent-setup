@@ -1,0 +1,26 @@
+{
+  "contract_id": "flossware.config.v1",
+  "schema_version": 1,
+  "description": "Conformance fixture: keys that MUST appear in the registry and MAY appear in EffectiveConfiguration.values.",
+  "supported_keys": [
+    "provider",
+    "budget.monthly",
+    "optimization.population",
+    "optimization.strategy",
+    "policy.allow_personal_accounts",
+    "policy.allow_unknown_providers",
+    "policy.allow_provider_fallback",
+    "policy.hard_budget"
+  ],
+  "domains": {
+    "provider": ["provider"],
+    "budget": ["budget.monthly"],
+    "optimization": ["optimization.population", "optimization.strategy"],
+    "policy": [
+      "policy.allow_personal_accounts",
+      "policy.allow_unknown_providers",
+      "policy.allow_provider_fallback",
+      "policy.hard_budget"
+    ]
+  }
+}

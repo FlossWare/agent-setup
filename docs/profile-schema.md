@@ -43,7 +43,15 @@ Boolean capability-policy switches for the shared FlossWare components. Current 
 
 ## Precedence
 
-The active profile establishes the workload policy. TUI/component settings can explicitly enable or disable supported component behavior, but must remain within the active profile's policy boundary. Agent-native credentials remain owned by the agent and are not copied into profiles.
+A directory binding first selects the profile for the working directory. The selected profile then participates in the normal configuration merge. Directory selection is **not** a separate value-merge layer in configuration contract v1.
+
+The value layers are, from lowest to highest priority:
+
+```text
+defaults → system → user → profile → project → environment → CLI → policy
+```
+
+TUI/component settings can explicitly enable or disable supported component behavior, but must remain within the active profile's policy boundary. Agent-native credentials remain owned by the agent and are not copied into profiles.
 
 ## Security invariant
 
@@ -60,9 +68,9 @@ Profiles contain policy and references only. API keys, OAuth tokens, passwords, 
 
 A work profile may restrict models to an organization's approved providers. A personal profile may permit a broader set of free or local models. The public setup code does not hard-code either policy.
 
-## Project state: `.flossware-ai.json`
+## Project state
 
-Stored under the central FlossWare state root (`~/.flossware/ai/projects/<id>/state.json`), not inside the project tree. **Do not commit this file** if your organization treats local paths or agent selections as sensitive; prefer leaving it untracked.
+Project state is stored centrally under `~/.flossware/ai/projects/<id>/state.json`, not inside the project tree. The control plane does not require or create a `.flossware` configuration file in the working directory.
 
 ### Schema (version 1)
 
@@ -113,6 +121,16 @@ API keys, tokens, passwords, cookies, email addresses, legal names, employee ids
 ## Directory bindings
 
 Directory → profile mappings live in `~/.flossware/ai/profile-bindings.toml` (never in the project). Resolution uses **longest-specific-path** matching: the most specific binding that is a parent of (or equal to) the working directory wins; less-specific parent bindings are still visible in the TUI provenance view.
+
+For example:
+
+```text
+~/Development/redhat                       → redhat
+~/Development/redhat/scm/gitlab            → redhat
+~/Development/redhat/.../disseminator      → redhat-cost-conscious
+```
+
+This makes both broad directory policies and narrow exceptions possible without modifying source trees.
 
 ### Path moves
 

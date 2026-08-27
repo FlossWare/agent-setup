@@ -47,16 +47,13 @@ def flossware_root() -> Path:
 
 
 def state_dir() -> Path: return flossware_root()
-
 def profiles_dir() -> Path:
     path = state_dir() / "profiles"; path.mkdir(parents=True, exist_ok=True); return path
-
 def available_profiles() -> tuple[str, ...]:
     local = {p.stem for p in profiles_dir().glob("*.toml") if p.is_file()}
     extra = tuple(name for name in ORGANIZATION_PROFILES if name in local)
     custom = tuple(sorted(local - set(BUILTIN_PROFILES) - set(ORGANIZATION_PROFILES)))
     return BUILTIN_PROFILES + extra + custom
-
 def profile_path(name: str) -> Path: return profiles_dir() / f"{name}.toml"
 
 def load_profile(name: str = "default") -> dict[str, Any]:
@@ -81,7 +78,6 @@ def load_order() -> list[str]:
         if not isinstance(order, list) or set(order) != set(DEFAULT_ORDER) or len(order) != len(DEFAULT_ORDER): return list(DEFAULT_ORDER)
         return resolve_order([str(x) for x in order], DEFAULT_CONSTRAINTS)
     except (OSError, ValueError, TypeError, json.JSONDecodeError): return list(DEFAULT_ORDER)
-
 def save_order(order: list[str]) -> Path:
     resolved = resolve_order([str(x) for x in order], DEFAULT_CONSTRAINTS)
     path = order_path(); path.write_text(json.dumps({"version": 1, "order": resolved}, indent=2) + "\n", encoding="utf-8"); return path
@@ -170,7 +166,7 @@ def effective_config(profile_name: str = "default") -> ConfigResolver:
         from flossware_setup.config import project_state_path
         project_map = _load_toml_map(project_state_path(Path.cwd()).parent / "config.toml")
     except Exception: project_map = {}
-    if project_map: resolver.add_layer(ConfigLayer("project", 500, project_map)
+    if project_map: resolver.add_layer(ConfigLayer("project", 500, project_map))
     resolver.add_layer(ConfigLayer("environment", 600, _env_config_layer())); return resolver
 
 def validate_effective_config(profile_name: str = "default") -> dict[str, Any]:

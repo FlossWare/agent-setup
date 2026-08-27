@@ -25,7 +25,7 @@ flossware-ai tui
 
 The TUI is the operator/configuration interface. It is not Loom's optional TUI.
 
-The main control center provides access to configuration, credentials, review, and diagnostics. The current UI is organized around stable IDs rather than positional catalog indexes, so catalog ordering can change without corrupting persisted selections.
+The main control center provides access to configuration, profiles, directory bindings, credentials, themes, agents, review, and diagnostics. The current UI is organized around stable IDs rather than positional catalog indexes, so catalog ordering can change without corrupting persisted selections.
 
 ### Status line
 
@@ -56,6 +56,26 @@ flossware-ai agents setup crush
 
 Supported registry entries include Claude Code, Cursor, OpenCode, Crush, Codex, Aider, Cline, Roo Code, Gemini CLI, GitHub Copilot, Windsurf, Amazon Q Developer, and Kiro. Actual integration capability is detected per agent.
 
+### Launch an agent with the resolved profile
+
+The control plane can launch supported agents using the effective profile for the current working directory:
+
+```bash
+flossware-ai run claude
+flossware-ai run crush
+```
+
+Direct aliases are also available where installed:
+
+```bash
+flossware-ai claude
+flossware-ai crush
+```
+
+The launch path resolves the current directory's binding first, then applies the normal configuration layers. This means the same directory/profile selection is used for configuration inspection and agent execution.
+
+Git is not required. A non-Git directory is a valid AI working directory.
+
 ## 4. Configure capabilities
 
 ```bash
@@ -75,9 +95,33 @@ flossware-ai accounts --verify
 flossware-ai models --refresh
 ```
 
-The active profile determines which discovered resources are permitted.
+The resolved profile determines which discovered resources are permitted.
 
-## 6. Choose execution runtime
+## 6. Configure profiles and directory bindings
+
+Profiles are local policy boundaries. The public installation ships only the neutral `default` profile. Create additional profiles for personal, work, Red Hat, government, client, or other environments according to the policies you are permitted to use.
+
+Directory bindings are stored centrally at:
+
+```text
+~/.flossware/ai/profile-bindings.toml
+```
+
+They do not create `.flossware` files in project directories. A binding associates a directory tree with a profile. When multiple bindings match, the **longest/more-specific path wins**.
+
+For example:
+
+```text
+~/Development/redhat                    → redhat
+~/Development/redhat/scm/gitlab         → redhat
+~/Development/redhat/.../disseminator   → redhat-cost-conscious
+```
+
+This allows a broad policy for a directory tree and narrower exceptions below it.
+
+The directory binding selects the profile; it is not a separate configuration-value merge layer in `flossware.config.v1`. The selected profile then participates in the normal precedence order documented in [`configuration-contract.md`](configuration-contract.md).
+
+## 7. Choose execution runtime
 
 ```bash
 flossware-ai runtime list
@@ -87,11 +131,11 @@ flossware-ai runtime auto
 
 Podman, Docker, and native execution are supported according to platform capabilities.
 
-## 7. Review
+## 8. Review
 
 Review operates on the explicitly active project context rather than assuming the current shell directory is the configured project. Review output is intended to show policy/configuration state without exposing credentials.
 
-## 8. Mouse and keyboard
+## 9. Mouse and keyboard
 
 The TUI supports normal curses keyboard navigation plus primary mouse clicks where the terminal exposes mouse events. Mouse movement can move the current cursor and update the contextual status line. SSH clients, multiplexers, and terminal emulators may differ.
 
@@ -107,18 +151,19 @@ Common keys:
 - Escape: back/cancel
 - `q`: quit where offered
 
-## 9. Profiles
-
-The repository ships only `default`. Create local policy profiles for personal, work, Red Hat, government, client, or other environments. The public code does not assume any employer or organization.
-
-See [`profile-schema.md`](profile-schema.md).
+Themes include Turbo, dBASE IV, Classic DOS, and monochrome. Theme state is stored centrally rather than in project directories.
 
 ## 10. Validate
 
 ```bash
+flossware-ai config show
+flossware-ai config explain provider
+flossware-ai config validate
 flossware-ai doctor
 flossware-ai dogfood --strict
 ```
+
+Configuration inspection, validation, and agent launch should resolve the same profile for the same working directory.
 
 Strict dogfood requires Claude Code and Crush on `PATH`. It does not print credentials.
 
@@ -140,6 +185,7 @@ Cleanup removes only FlossWare-managed installation state. Native agent credenti
 - [Bootstrap installation](bootstrap-install.md)
 - [Artifact-first installation](artifacts.md)
 - [CLI reference](cli-reference.md)
+- [Configuration contract](configuration-contract.md)
 - [Profile schema](profile-schema.md)
 - [Provider/account/model discovery](discovery.md)
 - [Agent integrations](agent-integrations.md)

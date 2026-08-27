@@ -7,6 +7,7 @@ import sys
 
 from flossware_setup.tui.ide import run as run_ide
 from flossware_setup.tui.input import enable_mouse
+from flossware_setup.tui.ux import install_tui_fixes
 from flossware_setup.tui.widgets import palette
 
 
@@ -34,6 +35,7 @@ def run(stdscr, theme_name: str | None = None) -> None:
         pass
     enable_mouse()
     load_theme(chosen)  # optional external package
+    install_tui_fixes()
     run_ide(stdscr)
 
 
@@ -58,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     except (KeyboardInterrupt, curses.error) as exc:
         print(f"Setup cancelled: {exc}", file=sys.stderr)
         return 1
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 - top-level TUI safety
         print(f"Setup failed: {exc}", file=sys.stderr)
         return 1
     return 0

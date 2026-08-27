@@ -1,6 +1,6 @@
-# Holy Crap Demo
+# Demo
 
-The showcase command is now implemented:
+The showcase command is implemented:
 
 ```bash
 flossware-ai demo
@@ -20,6 +20,33 @@ The demo is deterministic, offline-safe, and cost-free. It demonstrates the conf
 8. Display the selected configuration and decision metrics.
 
 The implementation uses only the Python standard library. It does not require credentials, network access, model APIs, or paid services.
+
+## TUI demo
+
+The TUI's built-in default is the Turbo C++ inspired theme. The repository includes a representative current-TUI preview at [`screenshots/tui-real-terminal.svg`](../screenshots/tui-real-terminal.svg). It is documentation artwork, not a pixel-identical terminal capture.
+
+For a live demonstration, launch:
+
+```bash
+flossware-ai tui
+```
+
+Then demonstrate the default Turbo theme, keyboard selection, mouse selection when supported by the terminal, and configuration/profile navigation.
+
+## Profile demo
+
+Profiles are optional. A clean installation uses the provider-neutral `default` baseline. `personal`, `redhat`, or any other named profile can be added by a deployment, but none is required.
+
+Recommended live sequence:
+
+```bash
+flossware-ai config current
+flossware-ai config bindings
+flossware-ai config show
+flossware-ai config validate
+```
+
+Also demonstrate that an explicitly requested unknown profile fails closed rather than silently falling back.
 
 ## CLI examples
 

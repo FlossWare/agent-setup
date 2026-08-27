@@ -10,11 +10,13 @@ Layers are merged from lowest to highest priority:
 2. `system` - machine-wide configuration
 3. `user` - user configuration
 4. `profile` - selected operating profile
-5. `project` - project-local configuration
+5. `project` - project-local configuration represented in central FlossWare state
 6. `environment` - environment-derived values
 7. `cli` - explicit command-line overrides
 
 Only values present in a layer override lower layers. The resolver records provenance so an effective value can always be explained.
+
+**Directory bindings are not a merge layer in v1.** A directory binding selects the profile used for that working directory. The selected profile then participates in the normal layer merge above. This distinction is intentional and prevents directory selection semantics from being confused with value precedence.
 
 ## Contract
 
@@ -82,8 +84,10 @@ Contract id: `flossware.config.v1` (`SCHEMA_VERSION` in `flossware_setup.config_
 ### Layer precedence
 
 ```text
-defaults → system → user → profile → directory → project → environment → CLI → policy
+defaults → system → user → profile → project → environment → CLI → policy
 ```
+
+A directory binding selects the profile before this merge. It is **not** an additional value layer in v1.
 
 Policy runs **after** merge. Lower-priority layers cannot escape profile/work restrictions.
 
@@ -107,7 +111,7 @@ print(provider.explain("budget.monthly", "/path/to/workdir"))
 ### Ownership
 
 | Domain | Owner |
-|--------|--------|
+|--------|-------|
 | Profiles, bindings, themes | coding-agent-setup central state |
 | Layer merge + policy | `config_contract` (shared) |
 | Loom orchestration | Optional; may implement `ConfigurationProvider` without replacing local provider |
@@ -117,16 +121,14 @@ coding-agent-setup remains fully functional without Loom.
 
 ## Wire representation (language-neutral)
 
-`EffectiveConfiguration.to_wire()` emits a JSON object suitable for inter-process
-use. Loom and other tools should treat this shape as the versioned contract
-surface (`contract_id` = `flossware.config.v1`), not the Python class.
+`EffectiveConfiguration.to_wire()` emits a JSON object suitable for inter-process use. Loom and other tools should treat this shape as the versioned contract surface (`contract_id` = `flossware.config.v1`), not the Python class.
 
 ```json
 {
   "schema_version": 1,
   "contract_id": "flossware.config.v1",
   "directory": "/abs/path",
-  "profile": "personal",
+  "profile": "default",
   "profile_source": null,
   "values": {
     "provider": "auto",
@@ -134,7 +136,7 @@ surface (`contract_id` = `flossware.config.v1`), not the Python class.
     "optimization.strategy": "hybrid"
   },
   "provenance": {
-    "provider": [["defaults", "auto"], ["profile:personal", "auto"]]
+    "provider": [["defaults", "auto"], ["profile:default", "auto"]]
   },
   "credentials_present": { "OpenAI": true, "Anthropic": false },
   "theme": "turbo",
@@ -147,22 +149,18 @@ surface (`contract_id` = `flossware.config.v1`), not the Python class.
 
 - `resolve()` **does not raise** when policy fails.
 - `policy_violations` lists human-readable reasons; empty means `policy_ok`.
-- Work-profile restrictions are evaluated **after** layer merge so a
-  project/user layer cannot bypass them by override alone.
+- Work-profile restrictions are evaluated **after** layer merge so a project/user layer cannot bypass them by override alone.
 
 ### Secret handling
 
-- `values` is intentionally restricted to a fixed v1 safe key set (`SAFE_VALUE_KEYS` in the Python binding: provider, budget, optimization, policy flags). Unknown keys are dropped—not silently preserved. Expanding the set is a **versioned contract change** (bump `schema_version` / `contract_id`). No `api_key` / `token` keys are ever accepted.
+- `values` is intentionally restricted to a fixed v1 safe key set (`SAFE_VALUE_KEYS` in the Python binding: provider, budget, optimization, policy flags). Unknown keys are dropped and reported through `extras.excluded_keys` by the local provider. Expanding the set is a versioned contract change.
 - Credential **values** never appear; only `credentials_present` booleans.
-- Nested maps/lists are accepted only when the key's `allows_nested` flag is true **and** the nested structure is secret-free. All v1 keys set `allows_nested=false`.
+- Nested maps/lists are accepted only when the key's `allows_nested` flag is true and the nested structure is secret-free. All v1 keys set `allows_nested=false`.
 - Each key's `value_type` (`string` | `number` | `boolean`) is enforced. Python `bool` is **not** accepted as a `number`. `None` is excluded.
 
 ## Expanding the values surface (process)
 
-The v1 `values` map is intentionally small. Keys are registered in
-`flossware_setup/config_contract/keys.py` (`VALUE_KEY_SPECS`). Anything not in
-that registry is **excluded** from `EffectiveConfiguration.values` (see
-`extras.excluded_keys` when the local provider drops keys).
+The v1 `values` map is intentionally small. Keys are registered in `flossware_setup/config_contract/keys.py` (`VALUE_KEY_SPECS`). Anything not in that registry is **excluded from `EffectiveConfiguration.values`** and, for the local provider, recorded in `extras.excluded_keys`.
 
 ### Currently supported v1 keys
 
@@ -181,8 +179,7 @@ that registry is **excluded** from `EffectiveConfiguration.values` (see
 
 1. Add a `ValueKeySpec` with `introduced_in=1` (or the current schema version).
 2. Update `tests/fixtures/config_contract/v1_supported_keys.json`.
-3. Ensure the key is secret-free (no nested maps unless `allows_nested` and a
-   nested secret policy is defined — **not allowed in v1**).
+3. Ensure the key is secret-free.
 4. Emit provenance for the key from the resolver layers.
 5. Document the key in this file and assign a domain owner in `DOMAIN_OWNERS`.
 6. Ship conformance fixtures so Loom can assert support without importing Python.
@@ -199,8 +196,7 @@ Require a new major contract id / schema version when any of the following hold:
 - Changing layer order or policy-after-merge semantics
 - Changing the meaning of `policy_ok` / `policy_violations`
 
-Additive keys alone do **not** require v2 if existing consumers ignore unknowns
-and fixtures are updated in lockstep.
+Additive keys alone do **not** require v2 if existing consumers ignore unknowns and fixtures are updated in lockstep.
 
 ### Conformance fixtures
 
@@ -214,7 +210,7 @@ Loom and coding-agent-setup can both load these JSON files in CI.
 ### Domain ownership (as the surface grows)
 
 | Domain | Owner |
-|--------|--------|
+|--------|-------|
 | provider, budget, optimization | coding-agent-setup profiles + shared contract |
 | policy | `config_contract` (shared), enforced post-merge |
 | agent | coding-agent-setup (future) |

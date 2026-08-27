@@ -98,5 +98,6 @@ PATH_SHIM="$HOME/.local/bin/flossware-ai"; mkdir -p "$(dirname "$PATH_SHIM")"; c
 #!/usr/bin/env bash
 exec "$INSTALL_ROOT/bin/flossware-ai" "\$@"
 EOF
+"$SETUP_DIR/scripts/write-install-metadata.sh" "$INSTALL_ROOT" "$RELEASE_REF" "$USE_SOURCE" "$PLATFORM" "$PROFILE"
 chmod 700 "$PATH_SHIM"
 log "Installation complete: $INSTALL_ROOT"; printf '%s\n' "Profile: $PROFILE" "Platform: $PLATFORM" "Source mode: $USE_SOURCE" "Run: flossware-ai tui" "Run: flossware-ai doctor" "Run: flossware-ai dogfood --strict"

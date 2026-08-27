@@ -9,6 +9,16 @@ from flossware_setup.tui.widgets import add, palette
 
 PROFILES = ("personal", "redhat", "redhat-cost-conscious")
 MENU = ("File", "Edit", "View", "Config", "Models", "Agents", "Optimize", "Help")
+ITEMS = {
+    "File": ("Exit",),
+    "Edit": ("Reorder menus",),
+    "View": ("Profiles", "Directory Bindings", "Configuration", "Theme"),
+    "Config": ("Profiles", "Create Profile", "Directory Bindings", "Validate"),
+    "Models": ("Select Model",),
+    "Agents": ("Select Agent",),
+    "Optimize": ("Settings",),
+    "Help": ("About",),
+}
 
 
 def _profile_path() -> Path:

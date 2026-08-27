@@ -1,9 +1,11 @@
-# Neutral starting policy profile for the public coding-agent-setup project.
-# No credential values belong in this file.
-# Users and organizations should create named profiles for their own policies.
+# Neutral baseline used when no named profile is selected.
+# This profile is intentionally provider-neutral and requires no credentials.
+# Users and organizations may optionally create named profiles such as
+# personal, redhat, work, or government; no named profile is required.
 profile = "default"
 
 [model_policy]
+# Use providers that the user has explicitly configured.
 allowed_providers = ["*configured*"]
 credential_env = []
 allow_local_models = true

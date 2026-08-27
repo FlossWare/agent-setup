@@ -1,67 +1,47 @@
-"""Small UX fixes layered over the curses IDE.
-
-Keeps the core IDE intact while making user-created profiles discoverable and
-ensuring popup windows use the active palette instead of curses' default black
-background.
-"""
+"""Small UX fixes layered over the curses IDE."""
 from __future__ import annotations
-
 import curses
 
-
 def install_tui_fixes() -> None:
-    """Install profile creation, validation, and repaint-safe popup fixes."""
+    """Install profile editing, validation, and repaint-safe popup fixes."""
     from flossware_setup.tui import ide
     from flossware_setup.tui.validation import validate_popup
-
-    # Make profile creation discoverable. The implementation already exists in
-    # ide.create_profile(), it simply wasn't exposed from a menu.
+    from flossware_setup.tui.profile_editor import edit_profile_tui
     config_items = list(ide.ITEMS.get("Config", ()))
     if "Create Profile" not in config_items:
-        try:
-            insert_at = config_items.index("Profiles") + 1
-        except ValueError:
-            insert_at = 0
-        config_items.insert(insert_at, "Create Profile")
-        ide.ITEMS["Config"] = tuple(config_items)
-
-    # The Config -> Validate action calls this symbol from ide._open_menu.
-    # Install it before the IDE event loop starts, avoiding a hard dependency
-    # from the core IDE on the optional UX layer.
+        try: insert_at = config_items.index("Profiles") + 1
+        except ValueError: insert_at = 0
+        config_items.insert(insert_at, "Create Profile"); ide.ITEMS["Config"] = tuple(config_items)
     ide._validate_popup = validate_popup
-
-    if getattr(ide, "_ux_fixes_installed", False):
-        return
-
-    original_popup = ide._popup
-    original_close = ide._close
-    parents: dict[int, object] = {}
-
+    if getattr(ide, "_ux_fixes_installed", False): return
+    original_popup = ide._popup; original_close = ide._close; parents: dict[int, object] = {}
     def popup(win, top, left, height, width, title):
-        panel = original_popup(win, top, left, height, width, title)
-        parents[id(panel)] = win
+        panel = original_popup(win, top, left, height, width, title); parents[id(panel)] = win
         try:
-            panel.bkgd(" ", curses.color_pair(5))
-            panel.erase()
-            panel.noutrefresh()
-            curses.doupdate()
-            panel.border()
-            panel.addstr(0, 2, f" {title} ", curses.A_BOLD)
-        except curses.error:
-            pass
+            panel.bkgd(" ", curses.color_pair(5)); panel.erase(); panel.noutrefresh(); curses.doupdate(); panel.border(); panel.addstr(0, 2, f" {title} ", curses.A_BOLD)
+        except curses.error: pass
         return panel
-
     def close(panel):
-        parent = parents.pop(id(panel), None)
-        original_close(panel)
+        parent = parents.pop(id(panel), None); original_close(panel)
         if parent is not None:
-            try:
-                parent.touchwin()
-                parent.noutrefresh()
-                curses.doupdate()
-            except curses.error:
-                pass
-
-    ide._popup = popup
-    ide._close = close
-    ide._ux_fixes_installed = True
+            try: parent.touchwin(); parent.noutrefresh(); curses.doupdate()
+            except curses.error: pass
+    def profile_selector(win):
+        names = ide.available_profiles()
+        if not names: return None
+        current, _ = ide._active(); idx = names.index(current) if current in names else 0
+        h, w = win.getmaxyx(); height = min(len(names) + 5, max(8, h - 4)); width = min(max(44, max(map(len, names)) + 18), w - 4); top, left = max(2, (h-height)//2), max(2, (w-width)//2); panel = popup(win, top, left, height, width, "Profiles")
+        while True:
+            for i, name in enumerate(names[:height-5]): ide.add(panel, 2+i, 2, ("> " if i == idx else "  ") + name.replace("-", " ").title(), ide.palette("selected" if i == idx else "normal"))
+            panel.addnstr(height-2, 2, "Enter select | E edit | Esc close", width-4, ide.palette("muted")); panel.refresh(); key = panel.getch()
+            if key == curses.KEY_MOUSE:
+                event = ide.mouse_event()
+                if event and event[2] & getattr(curses, "BUTTON1_CLICKED", 0):
+                    row = event[1] - top - 2
+                    if 0 <= row < min(len(names), height-5): ide.save_profile(names[row]); close(panel); return names[row]
+            elif key in (curses.KEY_UP, ord("k")): idx = (idx-1) % len(names)
+            elif key in (curses.KEY_DOWN, ord("j")): idx = (idx+1) % len(names)
+            elif key in (10, 13, curses.KEY_ENTER): ide.save_profile(names[idx]); close(panel); return names[idx]
+            elif key in (ord("e"), ord("E")): close(panel); edit_profile_tui(win, names[idx], popup, close, ide.add, ide.palette); return None
+            elif key == 27: close(panel); return None
+    ide._popup = popup; ide._close = close; ide.profile_selector = profile_selector; ide._ux_fixes_installed = True

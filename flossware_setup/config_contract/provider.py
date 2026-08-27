@@ -38,11 +38,11 @@ LAYER_ORDER = (
     "system",
     "user",
     "profile",
-    "directory",
     "project",
     "environment",
     "cli",
 )
+# Directory bindings select the profile; they are not a value-merge layer in v1.
 
 
 @dataclass(frozen=True)

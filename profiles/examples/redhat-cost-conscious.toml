@@ -1,10 +1,11 @@
 # Conservative work profile template.
 # This is a user/organization policy template, not an official Red Hat policy artifact.
-# Organizations may provision this into ~/.flossware/ai/profiles/redhat-cost-conscious.toml.
+# Never put credential values or PII in this file.
 profile = "redhat-cost-conscious"
 
 [model_policy]
 allowed_providers = ["anthropic"]
+credential_env = []
 allow_local_models = true
 allow_unconfigured_providers = false
 allow_personal_accounts = false

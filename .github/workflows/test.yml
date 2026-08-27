@@ -37,6 +37,8 @@ jobs:
           python -m flossware_setup.cli config order show
           python -m flossware_setup.cli demo
       - name: Run dogfood acceptance checks
+        env:
+          FLOSSWARE_AI_ROOT: ${{ runner.temp }}/flossware-dogfood-ai
         run: python scripts/dogfood.py
       - name: Verify CLI entry points
         shell: bash

@@ -11,16 +11,13 @@ from flossware_setup.tui.input import enable_mouse, mouse_event
 from flossware_setup.tui.themes import THEME_LABELS
 from flossware_setup.tui.widgets import add, palette
 
-MENUS = ("File", "Edit", "View", "Config", "Models", "Agents", "Optimize", "Help")
+MENUS = ("File", "Edit", "View", "Config", "Help")
 ITEMS = {
-    "File": ("Save", "Exit"),
-    "Edit": ("Reorder menus", "Reset layout"),
-    "View": ("Profiles", "Directory Bindings", "Configuration", "Status", "Theme"),
-    "Config": ("Profiles", "Create Profile", "Directory Bindings", "Validate", "Explain"),
-    "Models": ("Discover models", "Refresh models"),
-    "Agents": ("Agent configuration", "Run agent with profile"),
-    "Optimize": ("Thompson Sampling", "Genetic Optimizer"),
-    "Help": ("Keyboard and mouse", "About"),
+    "File": ("Exit",),
+    "Edit": ("Reorder menus",),
+    "View": ("Profiles", "Directory Bindings", "Configuration", "Theme"),
+    "Config": ("Profiles", "Directory Bindings", "Validate"),
+    "Help": ("About",),
 }
 MNEMONICS = {x[0].lower(): i for i, x in enumerate(MENUS)}
 
@@ -38,7 +35,7 @@ def _active():
     if source: return profile, source
     try: manual = _profile_file().read_text(encoding="utf-8").strip()
     except OSError: manual = ""
-    return (manual if manual in available_profiles() else "personal"), None
+    return (manual if manual in available_profiles() else "default"), None
 
 
 def _shadow(win, top, left, height, width):
@@ -275,7 +272,20 @@ def _open_menu(win, index):
         if result == "Create Profile": return create_profile(win)
         if result == "Directory Bindings": return bindings_view(win)
         if result == "Theme": return theme_selector(win)
-        if result == "Exit": return "__EXIT__"
+        if result == "Configuration":
+            return None  # already shown on the main surface
+        if result == "Validate":
+            return _validate_popup(win)
+        if result == "Reorder menus":
+            return _about_popup(win, "Menu reorder", "Use config order CLI: flossware-ai config order show")
+        if result == "About":
+            return _about_popup(
+                win,
+                "About",
+                "FlossWare Setup Control Center — central state, directory bindings, themes.",
+            )
+        if result == "Exit":
+            return "__EXIT__"
         return None
 
 
@@ -288,7 +298,7 @@ def _draw(win, active, source, pc):
     pl = left + 2; _box(win, 2, pl, max(3, h - 5), max(pl + 2, w - 2), "Configuration"); cfg = effective_config(active).resolve()
     fields = [("Profile", active), ("Provider", cfg.get("provider", "unknown")), ("Budget", f"${float(cfg.get('budget.monthly', 0)):.2f} / month"), ("Optimizer", cfg.get("optimization.strategy", "unknown")), ("Theme", load_theme())]
     for i, (label, value) in enumerate(fields): add(win, 4 + i, pl + 3, f"{label:<22} {value}", 5)
-    add(win, h - 4, 2, f"Profile: {active.upper()} | Source: {source or 'default/personal'} | READY", 1, curses.A_BOLD)
+    add(win, h - 4, 2, f"Profile: {active.upper()} | Source: {source or 'default'} | READY", 1, curses.A_BOLD)
     add(win, h - 3, 2, "Alt+letter menus | Arrows | Enter | Mouse", 6); add(win, h - 2, 2, "←/→ switch menus | F-keys optional | Esc/Q Exit", 6); win.refresh(); return profiles
 
 

@@ -61,7 +61,7 @@ jobs:
         run: |
           set -euxo pipefail
           /tmp/flossware-ai/venv/bin/python -c 'from importlib import resources; import tomllib; p=resources.files("flossware_setup.profiles").joinpath("default.toml"); assert p.is_file(); tomllib.loads(p.read_text())'
-          /tmp/flossware-ai/venv/bin/python /tmp/flossware-ai/dogfood.py
+          FLOSSWARE_AI_ROOT=/tmp/flossware-dogfood-state /tmp/flossware-ai/venv/bin/python /tmp/flossware-ai/dogfood.py
           /tmp/flossware-ai/bin/flossware-ai doctor
           /tmp/flossware-ai/bin/flossware-ai agents
           /tmp/flossware-ai/bin/flossware-ai components

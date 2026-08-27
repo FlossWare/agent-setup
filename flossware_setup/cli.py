@@ -21,7 +21,7 @@ def _agent_env(command: list[str]) -> tuple[dict[str, str], str]:
         "FLOSSWARE_PROFILE": profile,
         "FLOSSWARE_PROFILE_SOURCE": source or "default/personal",
         "FLOSSWARE_CONFIG": json.dumps(config, separators=(",", ":")),
-        "FLOSSWARE_CONFIG_FILE": str((__import__("pathlib").Path.home() / ".flossware" / "ai" / "profiles" / f"{profile}.toml")),
+        "FLOSSWARE_CONFIG_FILE": str((__import__("flossware_setup.config_control", fromlist=["state_dir"]).state_dir() / "profiles" / f"{profile}.toml")),
     })
     policy = load_profile(profile).get("model_policy", {})
     allowed = list(policy.get("allowed_providers") or [])
@@ -37,7 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="flossware-ai", description="FlossWare configuration control plane")
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("demo", help="run deterministic offline configuration/optimization demo")
-    sub.add_parser("tui", help="open the Setup Control Center")
+    tui_p = sub.add_parser("tui", help="open the Setup Control Center")
+    tui_p.add_argument("tui_args", nargs=argparse.REMAINDER, help="arguments forwarded to the TUI (e.g. --theme dbase4)")
     run = sub.add_parser("run", help="run a coding agent using the profile resolved for the current directory")
     run.add_argument("agent", nargs=argparse.REMAINDER, help="agent command and arguments, for example: claude")
     config = sub.add_parser("config", help="inspect and validate effective configuration")
@@ -59,7 +60,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo": return run_demo()
     if args.command == "tui":
         from flossware_setup.tui import main as tui_main
-        return tui_main([])
+        rest = list(getattr(args, "tui_args", []) or [])
+        if rest and rest[0] == "--":
+            rest = rest[1:]
+        return tui_main(rest)
     if args.command == "run":
         if not args.agent: parser.error("run requires an agent command, for example: flossware-ai run claude")
         command = args.agent
@@ -72,10 +76,24 @@ def main(argv: list[str] | None = None) -> int:
         return subprocess.call(command, env=env)
     if args.command == "config":
         if args.config_command == "show":
-            for key, value in effective_config().resolve().items(): print(f"{key} = {value!r}")
+            profile, source = profile_for_directory()
+            print(f"# profile={profile} source={source or 'default'}")
+            for key, value in effective_config(profile).resolve().items():
+                print(f"{key} = {value!r}")
             return 0
-        if args.config_command == "explain": print(effective_config().explain(args.key)); return 0
-        if args.config_command == "validate": validate_effective_config(); print("Configuration: VALID"); return 0
+        if args.config_command == "explain":
+            profile, _ = profile_for_directory()
+            print(effective_config(profile).explain(args.key))
+            return 0
+        if args.config_command == "validate":
+            profile, source = profile_for_directory()
+            try:
+                validate_effective_config(profile)
+            except ValueError as exc:
+                print(f"Configuration: INVALID ({profile} / {source or 'default'}): {exc}")
+                return 2
+            print(f"Configuration: VALID (profile={profile}, source={source or 'default'})")
+            return 0
         if args.config_command == "current":
             profile, source = profile_for_directory()
             data = {"directory": str(__import__("pathlib").Path.cwd()), "profile": profile, "source": source}

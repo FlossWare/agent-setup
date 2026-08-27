@@ -4,19 +4,19 @@ The Setup Control Center uses a language-neutral configuration model. TOML is th
 
 ## Layers
 
-Layers are merged from lowest to highest priority:
+**Implemented value-merge layers (v1 local provider):**
 
-1. `defaults` - built-in safe defaults
-2. `system` - machine-wide configuration
-3. `user` - user configuration
-4. `profile` - selected operating profile
-5. `project` - project-local configuration represented in central FlossWare state
-6. `environment` - environment-derived values
-7. `cli` - explicit command-line overrides
+1. `defaults` — built-in safe defaults
+2. `system` — `state_dir/system.toml` (machine-wide)
+3. `user` — `state_dir/user.toml`
+4. `profile` — selected operating profile (see directory bindings below)
+5. `project` — project-local configuration in central FlossWare state (`projects/<id>/config.toml` when present)
+6. `environment` — `FLOSSWARE_PROVIDER`, `FLOSSWARE_BUDGET_MONTHLY`, `FLOSSWARE_OPTIMIZATION_STRATEGY`
+7. `cli` — applied by the CLI after merge (caller responsibility)
 
 Only values present in a layer override lower layers. The resolver records provenance so an effective value can always be explained.
 
-**Directory bindings are not a merge layer in v1.** A directory binding selects the profile used for that working directory. The selected profile then participates in the normal layer merge above. This distinction is intentional and prevents directory selection semantics from being confused with value precedence.
+**Directory bindings are not a merge layer in v1.** Longest-specific-path bindings select which **profile** is loaded for a working directory; they do not inject independent key/value overrides into the merge. The winning binding path is recorded as `profile_source` / `FLOSSWARE_PROFILE_SOURCE`. Policy runs after the complete merge.
 
 ## Contract
 

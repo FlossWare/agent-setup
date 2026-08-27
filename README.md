@@ -22,148 +22,56 @@ flossware-ai demo
 
 The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user-data location). Reinstallation and cleanup never require manually deleting that directory.
 
-```bash
-./scripts/install.sh --reinstall
-./scripts/install.sh --clean
-```
-
 For a local checkout, contributor build, or explicit source fallback, use the repository's `scripts/install.sh` and set `FLOSSWARE_USE_SOURCE=true` when source checkout behavior is desired.
-
-## Configuration contract
-
-Configuration is **layered and language-neutral**. TOML is the human-editable format; Python decorators or other language metadata are optional adapters, not the contract.
-
-Configuration values resolve in this order, from lowest to highest priority:
-
-```text
-built-in defaults
-      ↓
-system → user → profile → project → environment → CLI
-      ↓
-effective configuration
-      ↓
-policy validation + ordering
-      ↓
-TUI / CLI / agent execution / optimization
-```
-
-A directory binding is **not a separate value-merge layer in v1**. Instead, the current directory is matched against centrally stored directory bindings, using the most-specific matching path, to select the profile before the normal configuration layers are resolved. This keeps directory-specific policy without putting `.flossware` state into source trees.
-
-The contract provides schema validation, declarative `before`/`after` ordering with cycle detection, component registration, provenance, and post-resolution policy enforcement.
-
-See [`docs/configuration-contract.md`](docs/configuration-contract.md).
 
 ## Profiles and directory bindings
 
-Profiles are user-defined policy boundaries stored centrally under the FlossWare user-data directory. The public repository ships only a neutral `default` profile. Users can create profiles such as `personal`, `work`, `redhat`, `government`, `client-a`, or any other appropriate name.
+Profiles are stored centrally under the managed FlossWare state root. The public installation ships only the provider-neutral `default` profile; organization-specific examples are not installed as built-ins.
 
-A directory binding associates a directory tree with a profile. Bindings do not create files in the target directory. When multiple bindings match, the **longest/more-specific path wins**.
+A directory binding selects the profile used while operating in that directory. Bindings are stored centrally, not as `.flossware` files in projects. The most specific matching directory wins.
 
-For example:
-
-```text
-~/Development/redhat                       → redhat
-~/Development/redhat/scm/gitlab            → redhat
-~/Development/redhat/.../disseminator      → redhat-cost-conscious
+```bash
+flossware-ai config current
+flossware-ai config bindings
+flossware-ai config show
+flossware-ai config validate
 ```
 
-The same resolved profile is intended to drive configuration inspection and agent launch from that directory.
+Git is optional. A directory does not need to be a Git repository to use profiles or launch an agent.
 
-## Launching coding agents
+## Launching agents
 
-The control plane can launch supported coding agents using the effective profile for the current directory:
+The control plane resolves the current directory's profile before launching an agent:
 
 ```bash
 flossware-ai run claude
-flossware-ai run crush
-```
-
-Direct agent aliases are also available where installed:
-
-```bash
 flossware-ai claude
 flossware-ai crush
 ```
 
-The agent registry covers Claude Code, Crush, Cursor, OpenCode, Codex, Aider, Cline, Roo Code, Gemini CLI, GitHub Copilot, Windsurf, Amazon Q Developer, and Kiro. Actual integration capability is detected per agent/platform.
+The selected profile is exported to the launched process along with the effective configuration and provenance. Work profiles can restrict which coding-agent executables are permitted.
 
-Git is **not required** for normal use. A directory can be configured and used as an AI working directory even when it is not under source control.
+## Configuration precedence
 
-## Optimization
+In v1, directory bindings select a profile; they are not an independent value-merge layer. Effective values are resolved in this order:
 
-The setup package includes a deterministic, standard-library-only optimization engine used by the offline showcase. It demonstrates genetic search over bounded candidates and Thompson Sampling over candidate arms. The production integration path can delegate to FlossWare's `genetic-optimizer-ai` and `model-router-ai` packages when those optional capabilities are installed.
+```text
+defaults → system → user → profile → project → environment → CLI
+                                      ↓
+                                    policy
+```
+
+The configuration contract is versioned as `flossware.config.v1`. Unsupported or unsafe values are excluded rather than silently becoming effective configuration.
+
+## Themes
+
+The TUI supports selectable themes, including Turbo and dBASE-style presentation. Theme state is stored centrally under the managed FlossWare state root.
 
 ```bash
-flossware-ai demo
+flossware-ai tui --theme turbo
+flossware-ai tui --theme dbase4
 ```
-
-The demo requires no credentials, network, or paid APIs and is deterministic for reproducible testing.
-
-## Installation model
-
-The consumer path is artifact-first and repository-independent:
-
-```text
-curl bootstrap
-    |
-    +--> managed package/artifacts
-    |
-    +--> coding-agent-setup source archive
-    |
-    +--> managed install
-    |
-    +--> flossware-ai tui / config / demo / doctor / dogfood
-```
-
-No Git clone is required for a normal installation. `FLOSSWARE_USE_SOURCE=true` is an explicit contributor/developer escape hatch for source checkout and editable installation.
-
-## TUI
-
-`flossware-ai tui` is a terminal-based operator interface with keyboard and mouse support. It provides configuration, profile, directory-binding, agent, theme, and diagnostic workflows. Hovering a menu row updates the contextual status line. Clicking performs the same action as selecting and confirming that row. Status text is catalog-derived and never renders credential values.
-
-Available themes include Turbo, dBASE IV, Classic DOS, and monochrome. Theme selection is stored centrally and does not modify project directories.
-
-![FlossWare AI Setup TUI preview](screenshots/tui-preview.svg)
-
-The screenshot is a representative terminal-state rendering, not a desktop GUI mockup. Actual appearance varies with terminal size, font, and platform.
-
-## Cross-cutting behavior and ordering
-
-Cross-cutting decorators/interceptors/middleware are explicitly enabled and can be configured through the common contract. Ordering is declarative:
-
-```text
-Models → Optimization → Capabilities → Validation
-```
-
-The resolver supports `before` and `after` constraints, stable ordering, and cycle rejection. The same contract can be consumed by Python decorators or another language adapter.
-
-## Privacy and credential safety
-
-Managed configuration is **non-identifying and secret-free**. API keys, OAuth tokens, passwords, cookies, email addresses, employee/customer identifiers, phone numbers, and other PII are not persisted in profiles, generated agent files, logs, or diagnostics.
-
-Credential references identify where a secret is obtained; they are not secret values.
 
 ## Documentation
 
-- [`docs/operator-guide.md`](docs/operator-guide.md) — canonical operator workflow
-- [`docs/configuration-contract.md`](docs/configuration-contract.md) — layered contract, schema, provenance, policy, and ordering
-- [`docs/demo.md`](docs/demo.md) — deterministic optimization showcase
-- [`docs/cli-reference.md`](docs/cli-reference.md) — CLI commands
-- [`docs/setup-tui.md`](docs/setup-tui.md) — TUI behavior, themes, mouse, and status line
-- [`docs/architecture.md`](docs/architecture.md) — control-plane architecture
-- [`docs/profile-schema.md`](docs/profile-schema.md) — profile schema, bindings, and policy boundaries
-- [`docs/discovery.md`](docs/discovery.md) — provider/account/model discovery
-- [`docs/troubleshooting.md`](docs/troubleshooting.md) — recovery guidance
-- [`docs/privacy.md`](docs/privacy.md) — secret/PII handling
-- [`docs/SECURITY.md`](docs/SECURITY.md) — security policy
-
-## Related repositories
-
-- [FlossWare/loom-ai](https://github.com/FlossWare/loom-ai)
-- [FlossWare/model-router-ai](https://github.com/FlossWare/model-router-ai)
-- [FlossWare/genetic-optimizer-ai](https://github.com/FlossWare/genetic-optimizer-ai)
-- [FlossWare/coding-agent-ai](https://github.com/FlossWare/coding-agent-ai)
-
-## License
-
-MIT
+See `docs/` for the operator guide, profile schema, configuration contract, installation/reproducibility guidance, and architecture decisions.

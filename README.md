@@ -22,11 +22,6 @@ flossware-ai demo
 
 The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user-data location). Reinstallation and cleanup never require manually deleting that directory.
 
-```bash
-./scripts/install.sh --reinstall
-./scripts/install.sh --clean
-```
-
 For a local checkout, contributor build, or explicit source fallback, use the repository's `scripts/install.sh` and set `FLOSSWARE_USE_SOURCE=true` when source checkout behavior is desired.
 
 ## Profiles and directory bindings

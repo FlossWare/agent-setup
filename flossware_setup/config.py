@@ -44,7 +44,9 @@ class Config:
     budget_policy: str = "medium"
     budget_amount: float = 50.0
     repo_dir: str = "."
-    theme: str = "dark"
+    # Turbo is the provider-neutral public default. Named profiles may override
+    # policy, while the UI remains immediately useful with zero configuration.
+    theme: str = "turbo"
     profile: str = "default"
 
 
@@ -80,6 +82,7 @@ def _sanitize_path_chars(value: str) -> str | None:
             return None
         out.append(ch)
     return "".join(out)
+
 
 
 def _existing_absolute_dir(raw: str | Path) -> Path | None:
@@ -358,7 +361,7 @@ def review_lines(repo_dir: str | Path = ".") -> list[str]:
         f"Budget policy: {state.get('budget_policy', '?')} "
         f"(id={state.get('budget_policy_id', '?')})",
         f"Monthly ceiling: ${state.get('monthly_budget', '?')}",
-        f"Theme: {state.get('theme', 'dark')}",
+        f"Theme: {state.get('theme', 'turbo')}",
         "",
         *_format_agent_lines(agent_ids),
         "",

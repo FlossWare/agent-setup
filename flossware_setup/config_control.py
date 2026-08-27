@@ -48,10 +48,8 @@ def flossware_root() -> Path:
 
 def state_dir() -> Path: return flossware_root()
 
-
 def profiles_dir() -> Path:
     path = state_dir() / "profiles"; path.mkdir(parents=True, exist_ok=True); return path
-
 
 def available_profiles() -> tuple[str, ...]:
     local = {p.stem for p in profiles_dir().glob("*.toml") if p.is_file()}
@@ -59,18 +57,14 @@ def available_profiles() -> tuple[str, ...]:
     custom = tuple(sorted(local - set(BUILTIN_PROFILES) - set(ORGANIZATION_PROFILES)))
     return BUILTIN_PROFILES + extra + custom
 
-
 def profile_path(name: str) -> Path: return profiles_dir() / f"{name}.toml"
-
 
 def load_profile(name: str = "default") -> dict[str, Any]:
     """Load an explicitly selected profile."""
     local = profile_path(name)
     if local.is_file():
-        try:
-            return tomllib.loads(local.read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError) as exc:
-            raise ValueError(f"invalid profile: {name}") from exc
+        try: return tomllib.loads(local.read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError) as exc: raise ValueError(f"invalid profile: {name}") from exc
     if name == "default":
         resource = resources.files("flossware_setup.profiles").joinpath("default.toml")
         with resource.open("rb") as stream: return tomllib.load(stream)
@@ -78,9 +72,7 @@ def load_profile(name: str = "default") -> dict[str, Any]:
         return {"profile": "personal", "model_policy": {"allowed_providers": [PROVIDER_CONFIGURED], "allow_local_models": True, "allow_unconfigured_providers": False, "allow_personal_accounts": True, "allow_provider_fallback": True}, "optimization": {"enabled": True, "strategy": "hybrid"}, "cost": {"monthly_limit_usd": 0.0, "hard_limit": False}}
     raise ValueError(f"unknown profile: {name}")
 
-
 def order_path() -> Path: return state_dir() / "menu-order.json"
-
 def load_order() -> list[str]:
     path = order_path()
     if not path.is_file(): return list(DEFAULT_ORDER)
@@ -90,16 +82,12 @@ def load_order() -> list[str]:
         return resolve_order([str(x) for x in order], DEFAULT_CONSTRAINTS)
     except (OSError, ValueError, TypeError, json.JSONDecodeError): return list(DEFAULT_ORDER)
 
-
 def save_order(order: list[str]) -> Path:
     resolved = resolve_order([str(x) for x in order], DEFAULT_CONSTRAINTS)
     path = order_path(); path.write_text(json.dumps({"version": 1, "order": resolved}, indent=2) + "\n", encoding="utf-8"); return path
 
-
 def bindings_path() -> Path: return state_dir() / "profile-bindings.toml"
-
 def _norm(path: str | Path) -> str: return os.path.normcase(str(Path(path).expanduser().resolve()))
-
 def load_bindings() -> dict[str, str]:
     path = bindings_path()
     if not path.is_file(): return {}
@@ -107,21 +95,16 @@ def load_bindings() -> dict[str, str]:
         data = tomllib.loads(path.read_text(encoding="utf-8")); raw = data.get("bindings", {})
         return {_norm(k): str(v) for k, v in raw.items() if isinstance(k, str) and isinstance(v, str) and v in available_profiles()}
     except (OSError, tomllib.TOMLDecodeError): return {}
-
 def save_bindings(bindings: dict[str, str]) -> Path:
-    path = bindings_path(); path.parent.mkdir(parents=True, exist_ok=True)
-    lines = ["# FlossWare directory-to-profile bindings", "[bindings]"]
+    path = bindings_path(); path.parent.mkdir(parents=True, exist_ok=True); lines = ["# FlossWare directory-to-profile bindings", "[bindings]"]
     for directory, profile in sorted((_norm(k), v) for k, v in bindings.items()):
         if profile in available_profiles(): lines.append(f'{directory!r} = "{profile}"')
     path.write_text("\n".join(lines) + "\n", encoding="utf-8"); return path
-
 def bind_directory(directory: str | Path, profile: str) -> Path:
     if profile not in available_profiles(): raise ValueError(f"unknown profile: {profile}")
     bindings = load_bindings(); bindings[_norm(directory)] = profile; return save_bindings(bindings)
-
 def unbind_directory(directory: str | Path) -> Path:
     bindings = load_bindings(); bindings.pop(_norm(directory), None); return save_bindings(bindings)
-
 def matching_bindings(directory: str | Path | None = None) -> list[tuple[str, str]]:
     target = Path(directory or Path.cwd()).expanduser().resolve(); normalized = _norm(target); matches = []
     for root, profile in load_bindings().items():
@@ -129,15 +112,11 @@ def matching_bindings(directory: str | Path | None = None) -> list[tuple[str, st
         except ValueError: continue
         matches.append((root, profile))
     matches.sort(key=lambda item: len(item[0]), reverse=True); return matches
-
 def profile_for_directory(directory: str | Path | None = None) -> tuple[str, str | None]:
-    matches = matching_bindings(directory)
-    return (matches[0][1], matches[0][0]) if matches else ("default", None)
-
+    matches = matching_bindings(directory); return (matches[0][1], matches[0][0]) if matches else ("default", None)
 def binding_provenance(directory: str | Path | None = None) -> dict[str, object]:
     target = Path(directory or Path.cwd()).expanduser().resolve(); matches = matching_bindings(target); profile, source = profile_for_directory(target)
     return {"directory": _norm(target), "effective_profile": profile, "source": source, "source_kind": "directory-binding" if source else "default-profile", "winning_binding": matches[0] if matches else None, "parent_bindings": matches[1:] if len(matches) > 1 else [], "all_matches": matches}
-
 def bindings_grouped_by_profile() -> dict[str, list[str]]:
     grouped: dict[str, list[str]] = {}
     for directory, profile in load_bindings().items(): grouped.setdefault(profile, []).append(directory)
@@ -146,12 +125,10 @@ def bindings_grouped_by_profile() -> dict[str, list[str]]:
 
 def theme_path() -> Path: return state_dir() / "theme"
 _THEME_ALIASES = {"dbase": "dbase4", "dbase-iv": "dbase4", "modern": "monochrome", "default": "monochrome"}
-
 def load_theme() -> str:
     try: value = theme_path().read_text(encoding="utf-8").strip().lower()
     except OSError: value = "turbo"
     value = _THEME_ALIASES.get(value, value); return value if value in THEMES else "turbo"
-
 def save_theme(theme: str) -> Path:
     theme = _THEME_ALIASES.get(theme.strip().lower(), theme.strip().lower())
     if theme not in THEMES: raise ValueError(f"unknown theme: {theme}")
@@ -184,11 +161,6 @@ def _value_layer(*, provider: str, budget: float, population: int, strategy: str
     return {KEY_PROVIDER: provider, KEY_BUDGET_MONTHLY: budget, KEY_OPT_POPULATION: population, KEY_OPT_STRATEGY: strategy, KEY_POLICY_PERSONAL: allow_personal, KEY_POLICY_UNKNOWN: allow_unknown, KEY_POLICY_FALLBACK: allow_fallback, KEY_POLICY_HARD_BUDGET: hard_budget}
 
 def effective_config(profile_name: str = "default") -> ConfigResolver:
-    """Resolve defaults → system → user → profile → project → environment.
-
-    Directory bindings select the profile; they are not a value-merge layer in v1.
-    CLI overrides are applied by callers. Policy is applied separately.
-    """
     profile = load_profile(profile_name); model_policy = profile.get("model_policy", {}); cost = profile.get("cost", {}); optimization = profile.get("optimization", {}); allowed = list(model_policy.get("allowed_providers") or [])
     provider = allowed[0] if allowed and allowed[0] != PROVIDER_CONFIGURED else "auto"
     defaults = _value_layer(provider="auto", budget=0.0, population=30, strategy="hybrid", allow_personal=True, allow_unknown=True, allow_fallback=True, hard_budget=False)
@@ -198,7 +170,7 @@ def effective_config(profile_name: str = "default") -> ConfigResolver:
         from flossware_setup.config import project_state_path
         project_map = _load_toml_map(project_state_path(Path.cwd()).parent / "config.toml")
     except Exception: project_map = {}
-    if project_map: resolver.add_layer(ConfigLayer("project", 500, project_map))
+    if project_map: resolver.add_layer(ConfigLayer("project", 500, project_map)
     resolver.add_layer(ConfigLayer("environment", 600, _env_config_layer())); return resolver
 
 def validate_effective_config(profile_name: str = "default") -> dict[str, Any]:

@@ -10,8 +10,9 @@ import curses
 
 
 def install_tui_fixes() -> None:
-    """Install the profile-creation menu entry and repaint-safe popups."""
+    """Install profile creation, validation, and repaint-safe popup fixes."""
     from flossware_setup.tui import ide
+    from flossware_setup.tui.validation import validate_popup
 
     # Make profile creation discoverable. The implementation already exists in
     # ide.create_profile(), it simply wasn't exposed from a menu.
@@ -24,6 +25,11 @@ def install_tui_fixes() -> None:
         config_items.insert(insert_at, "Create Profile")
         ide.ITEMS["Config"] = tuple(config_items)
 
+    # The Config -> Validate action calls this symbol from ide._open_menu.
+    # Install it before the IDE event loop starts, avoiding a hard dependency
+    # from the core IDE on the optional UX layer.
+    ide._validate_popup = validate_popup
+
     if getattr(ide, "_ux_fixes_installed", False):
         return
 
@@ -34,8 +40,6 @@ def install_tui_fixes() -> None:
     def popup(win, top, left, height, width, title):
         panel = original_popup(win, top, left, height, width, title)
         parents[id(panel)] = win
-        # The original helper used pair 0, which is commonly a black terminal
-        # background. Pair 5 is the application's normal background palette.
         try:
             panel.bkgd(" ", curses.color_pair(5))
             panel.erase()

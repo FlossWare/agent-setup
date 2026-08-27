@@ -50,7 +50,8 @@ def test_git_detection_walks_parents(tmp_path) -> None:
     (repo / ".git").mkdir(parents=True)
     sub = repo / "a" / "b"
     sub.mkdir(parents=True)
-    assert is_git_repository(sub) and is_git_repository(repo)
+    assert is_git_repository(sub)
+    assert is_git_repository(repo)
     plain = tmp_path / "plain" / "x"
     plain.mkdir(parents=True)
     assert not is_git_repository(plain)
@@ -62,7 +63,8 @@ def test_bindings_authoritative(ai_root, tmp_path) -> None:
     child.mkdir(parents=True)
     bind_directory(parent, "default")
     profile, source = profile_for_directory(child)
-    assert profile == "default" and source is not None
+    assert profile == "default"
+    assert source is not None
     assert os.path.normcase(str(parent.resolve())) in os.path.normcase(source)
 
 
@@ -86,7 +88,8 @@ def test_cli_tui_forwards_theme_args() -> None:
     import inspect
     from flossware_setup import cli as cli_mod
     src = inspect.getsource(cli_mod.main)
-    assert "tui_args" in src and "REMAINDER" in src
+    assert "tui_args" in src
+    assert "REMAINDER" in src
 
 
 def test_cli_config_show_uses_directory(ai_root, tmp_path, monkeypatch, capsys) -> None:
@@ -118,7 +121,8 @@ def test_config_cli_and_run_share_directory_profile(ai_root, tmp_path, monkeypat
     bind_directory(parent, "default")
     monkeypatch.chdir(child)
     profile, source = profile_for_directory()
-    assert profile == "default" and source is not None
+    assert profile == "default"
+    assert source is not None
     assert cli_main(["config", "show"]) == 0
     assert "profile=default" in capsys.readouterr().out
     assert cli_main(["config", "validate"]) == 0

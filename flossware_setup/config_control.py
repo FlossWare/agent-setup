@@ -267,6 +267,29 @@ def _env_config_layer() -> dict:
     return layer
 
 
+
+def _value_layer(
+    *,
+    provider: str,
+    budget: float,
+    population: int,
+    strategy: str,
+    allow_personal: bool,
+    allow_unknown: bool,
+    allow_fallback: bool,
+    hard_budget: bool,
+) -> dict[str, Any]:
+    return {
+        KEY_PROVIDER: provider,
+        KEY_BUDGET_MONTHLY: budget,
+        KEY_OPT_POPULATION: population,
+        KEY_OPT_STRATEGY: strategy,
+        KEY_POLICY_PERSONAL: allow_personal,
+        KEY_POLICY_UNKNOWN: allow_unknown,
+        KEY_POLICY_FALLBACK: allow_fallback,
+        KEY_POLICY_HARD_BUDGET: hard_budget,
+    }
+
 def effective_config(profile_name: str = "default") -> ConfigResolver:
     """Resolve layers: defaults → system → user → profile → project → environment.
 
@@ -281,26 +304,20 @@ def effective_config(profile_name: str = "default") -> ConfigResolver:
     optimization = profile.get("optimization", {})
     allowed = list(model_policy.get("allowed_providers") or [])
     provider = allowed[0] if allowed and allowed[0] != PROVIDER_CONFIGURED else "auto"
-    defaults = {
-        KEY_PROVIDER: "auto",
-        KEY_BUDGET_MONTHLY: 0.0,
-        KEY_OPT_POPULATION: 30,
-        KEY_OPT_STRATEGY: "hybrid",
-        KEY_POLICY_PERSONAL: True,
-        KEY_POLICY_UNKNOWN: True,
-        KEY_POLICY_FALLBACK: True,
-        KEY_POLICY_HARD_BUDGET: False,
-    }
-    profile_layer = {
-        KEY_PROVIDER: provider,
-        KEY_BUDGET_MONTHLY: float(cost.get("monthly_limit_usd", 0.0) or 0.0),
-        KEY_OPT_POPULATION: int(optimization.get("genetic", {}).get("population_size", 30) or 30),
-        KEY_OPT_STRATEGY: str(optimization.get("strategy", "hybrid")),
-        KEY_POLICY_PERSONAL: bool(model_policy.get("allow_personal_accounts", profile_name == "personal")),
-        KEY_POLICY_UNKNOWN: bool(model_policy.get("allow_unconfigured_providers", False)),
-        KEY_POLICY_FALLBACK: bool(model_policy.get("allow_provider_fallback", False)),
-        KEY_POLICY_HARD_BUDGET: bool(cost.get("hard_limit", False)),
-    }
+    defaults = _value_layer(
+        provider="auto", budget=0.0, population=30, strategy="hybrid",
+        allow_personal=True, allow_unknown=True, allow_fallback=True, hard_budget=False,
+    )
+    profile_layer = _value_layer(
+        provider=provider,
+        budget=float(cost.get("monthly_limit_usd", 0.0) or 0.0),
+        population=int(optimization.get("genetic", {}).get("population_size", 30) or 30),
+        strategy=str(optimization.get("strategy", "hybrid")),
+        allow_personal=bool(model_policy.get("allow_personal_accounts", profile_name == "personal")),
+        allow_unknown=bool(model_policy.get("allow_unconfigured_providers", False)),
+        allow_fallback=bool(model_policy.get("allow_provider_fallback", False)),
+        hard_budget=bool(cost.get("hard_limit", False)),
+    )
     resolver = ConfigResolver()
     resolver.add_layer(ConfigLayer("defaults", 0, defaults))
     resolver.add_layer(ConfigLayer("system", 100, _load_toml_map(state_dir() / "system.toml")))

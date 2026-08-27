@@ -4,6 +4,8 @@ Profiles are local policy boundaries. The public repository ships only the neutr
 
 ## Shipped default
 
+The default profile is a useful zero-configuration baseline. It is provider-neutral, allows explicitly configured providers and local models, refuses unconfigured providers, and uses the Turbo C++ TUI theme. No `personal` or `redhat` profile is required.
+
 ```toml
 profile = "default"
 
@@ -22,7 +24,7 @@ observability = true
 security = true
 ```
 
-The default policy allows configured providers, permits local models, and refuses unconfigured providers. No secret value belongs in a profile.
+The default policy allows configured providers, permits local models, and refuses unconfigured providers. No secret value belongs in a profile. UI defaults, including the Turbo C++ theme, are supplied by the setup configuration when no named profile overrides them.
 
 ## Policy fields
 
@@ -43,7 +45,7 @@ Boolean capability-policy switches for the shared FlossWare components. Current 
 
 ## Precedence
 
-A directory binding first selects the profile for the working directory. The selected profile then participates in the normal configuration merge. Directory selection is **not** a separate value-merge layer in configuration contract v1.
+A directory binding first selects the profile for the working directory. If no named profile is configured, the neutral `default` baseline applies. The selected profile then participates in the normal configuration merge. Directory selection is **not** a separate value-merge layer in configuration contract v1.
 
 The value layers are, from lowest to highest priority:
 
@@ -62,11 +64,11 @@ Profiles contain policy and references only. API keys, OAuth tokens, passwords, 
 ```text
 ~/.flossware/ai/profiles/
 ├── default.toml
-├── personal.toml
-└── work.toml
+├── personal.toml       # optional
+└── work.toml           # optional
 ```
 
-A work profile may restrict models to an organization's approved providers. A personal profile may permit a broader set of free or local models. The public setup code does not hard-code either policy.
+A work profile may restrict models to an organization's approved providers. A personal profile may permit a broader set of free or local models. The public setup code does not hard-code either policy. Users may also use the default profile without creating any named profile.
 
 ## Project state
 
@@ -87,7 +89,7 @@ Project state is stored centrally under `~/.flossware/ai/projects/<id>/state.jso
 | `providers` | object | Map of provider display name → **boolean presence only** |
 | `provider_env_vars` | object | Map of provider display name → **environment variable name** (never values) |
 | `credential_values_written` | boolean | Always `false`; credentials are never written by this tool |
-| `theme` | string | TUI theme id |
+| `theme` | string | TUI theme id; defaults to `turbo` |
 | `repo_dir` | string | Absolute path of the configured project |
 
 ### Safe to persist
@@ -113,7 +115,7 @@ API keys, tokens, passwords, cookies, email addresses, legal names, employee ids
   "providers": {"OpenAI": true, "Anthropic": false},
   "provider_env_vars": {"OpenAI": "OPENAI_API_KEY", "Anthropic": "ANTHROPIC_API_KEY"},
   "credential_values_written": false,
-  "theme": "dark",
+  "theme": "turbo",
   "repo_dir": "/home/you/projects/example"
 }
 ```

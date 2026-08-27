@@ -1,24 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000" viewBox="0 0 1400 1000">
-<rect width="1400" height="1000" fill="#090b0f"/>
-<rect x="45" y="40" width="1310" height="920" rx="16" fill="#11151c" stroke="#303642" stroke-width="2"/>
-<text x="80" y="95" font-family="ui-monospace,monospace" font-size="22" fill="#9ca3af">flossware-ai • terminal • representative current UI</text>
-<text x="85" y="155" font-family="ui-sans-serif,sans-serif" font-size="34" font-weight="700" fill="#f3f4f6">Setup Control Center</text>
-<text x="85" y="195" font-family="ui-sans-serif,sans-serif" font-size="20" fill="#9ca3af">Provider-neutral coding-agent setup. Keyboard and mouse are supported when available.</text>
-<rect x="85" y="245" width="1230" height="500" rx="12" fill="#0b1220" stroke="#303845"/>
-<g font-family="ui-monospace,monospace" font-size="22" fill="#e5e7eb">
-<text x="120" y="295" fill="#f9fafb" font-weight="700">SETUP CONTROL CENTER</text>
+<rect width="1400" height="1000" fill="#0000aa"/>
+<rect x="45" y="40" width="1310" height="920" fill="#0000aa" stroke="#55ffff" stroke-width="4"/>
+<text x="80" y="95" font-family="ui-monospace,monospace" font-size="22" fill="#55ffff">FLOSSWARE-AI • TURBO C++ INSPIRED • REPRESENTATIVE UI</text>
+<text x="85" y="155" font-family="ui-monospace,monospace" font-size="36" font-weight="700" fill="#ffffff">SETUP CONTROL CENTER</text>
+<text x="85" y="195" font-family="ui-monospace,monospace" font-size="20" fill="#55ffff">Provider-neutral coding-agent setup • keyboard + mouse</text>
+<rect x="85" y="245" width="1230" height="500" fill="#000080" stroke="#ffffff" stroke-width="2"/>
+<g font-family="ui-monospace,monospace" font-size="22" fill="#ffffff">
+<text x="120" y="295" fill="#ffff55" font-weight="700">SETUP CONTROL CENTER</text>
 <text x="120" y="345">&gt; Review Current Configuration</text>
-<text x="120" y="380" fill="#9ca3af">  Inspect persisted project configuration</text>
+<text x="120" y="380" fill="#55ffff">  Inspect persisted project configuration</text>
 <text x="120" y="435">  Configure / Change Setup</text>
-<text x="120" y="470" fill="#9ca3af">  Select agents, capabilities and budget</text>
+<text x="120" y="470" fill="#55ffff">  Select agents, capabilities and budget</text>
 <text x="120" y="525">  Provider Credentials</text>
-<text x="120" y="560" fill="#9ca3af">  View detected credential sources (names only)</text>
+<text x="120" y="560" fill="#55ffff">  View detected credential sources (names only)</text>
 <text x="120" y="615">  Exit</text>
-<text x="120" y="690" fill="#60a5fa">Enter / click</text><text x="300" y="690" fill="#9ca3af">select</text>
-<text x="120" y="725" fill="#fbbf24">q</text><text x="150" y="725" fill="#9ca3af">quit</text>
+<text x="120" y="690" fill="#ffff55">Enter / click</text><text x="300" y="690" fill="#ffffff"> select</text>
+<text x="120" y="725" fill="#ffff55">q</text><text x="150" y="725" fill="#ffffff"> quit</text>
 </g>
-<text x="85" y="805" font-family="ui-monospace,monospace" font-size="19" fill="#34d399">● Mouse reporting enabled when supported by the terminal</text>
-<text x="85" y="840" font-family="ui-monospace,monospace" font-size="19" fill="#34d399">● Active project is persisted for Review</text>
-<text x="85" y="875" font-family="ui-monospace,monospace" font-size="19" fill="#34d399">● Stable IDs and secret-free managed state</text>
-<text x="85" y="930" font-family="ui-sans-serif,sans-serif" font-size="16" fill="#9ca3af">Documentation rendering, not a pixel-identical terminal capture.</text>
+<text x="85" y="805" font-family="ui-monospace,monospace" font-size="19" fill="#55ffff">● Turbo C++ is the built-in default theme</text>
+<text x="85" y="840" font-family="ui-monospace,monospace" font-size="19" fill="#55ffff">● Mouse reporting enabled when supported by the terminal</text>
+<text x="85" y="875" font-family="ui-monospace,monospace" font-size="19" fill="#55ffff">● Stable IDs and secret-free managed state</text>
+<text x="85" y="930" font-family="ui-monospace,monospace" font-size="16" fill="#55ffff">Documentation rendering, not a pixel-identical terminal capture.</text>
 </svg>

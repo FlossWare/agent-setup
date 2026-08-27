@@ -58,6 +58,7 @@ def profile_path(name: str) -> Path:
 
 
 def load_profile(name: str = "default") -> dict[str, Any]:
+    """Load a profile by name from local state, package resources, or legacy aliases."""
     local = profile_path(name)
     if local.is_file():
         try:
@@ -68,7 +69,7 @@ def load_profile(name: str = "default") -> dict[str, Any]:
         resource = resources.files("flossware_setup.profiles").joinpath("default.toml")
         with resource.open("rb") as stream:
             return tomllib.load(stream)
-    # Legacy permissive alias (not a shipped builtin; for tests/compat only).
+    # Legacy permissive alias (not a shipped builtin).
     if name == "personal":
         return {
             "profile": "personal",
@@ -82,9 +83,8 @@ def load_profile(name: str = "default") -> dict[str, Any]:
             "optimization": {"enabled": True, "strategy": "hybrid"},
             "cost": {"monthly_limit_usd": 0.0, "hard_limit": False},
         }
-    if name not in available_profiles():
-        raise ValueError(f"unknown profile: {name}")
     raise ValueError(f"unknown profile: {name}")
+
 
 
 def order_path() -> Path:
@@ -259,7 +259,9 @@ def _env_config_layer() -> dict:
 
 
 def effective_config(profile_name: str = "default") -> ConfigResolver:
-    """Resolve layers: defaults → system → user → profile → directory → project → environment.
+    """Resolve layers: defaults → system → user → profile → project → environment.
+
+    Directory bindings select the profile; they are not a value-merge layer in v1.
 
     CLI overrides are applied by callers after this merge. Policy is applied
     separately via ``validate_effective_config`` / the configuration provider.
@@ -295,15 +297,16 @@ def effective_config(profile_name: str = "default") -> ConfigResolver:
     resolver.add_layer(ConfigLayer("system", 100, _load_toml_map(state_dir() / "system.toml")))
     resolver.add_layer(ConfigLayer("user", 200, _load_toml_map(state_dir() / "user.toml")))
     resolver.add_layer(ConfigLayer(f"profile:{profile_name}", 300, profile_layer))
-    # directory layer: binding may later carry overrides; for now records binding path only via profile selection
-    resolver.add_layer(ConfigLayer("directory", 400, {}))
-    # project layer: optional central project state config.toml
+    # Directory bindings select which profile is loaded above; they are not a
+    # separate value-merge layer in v1 (see docs/configuration-contract.md).
     try:
         from flossware_setup.config import project_state_path
         project_cfg = project_state_path(Path.cwd()).parent / "config.toml"
-        resolver.add_layer(ConfigLayer("project", 500, _load_toml_map(project_cfg)))
+        project_map = _load_toml_map(project_cfg)
     except Exception:
-        resolver.add_layer(ConfigLayer("project", 500, {}))
+        project_map = {}
+    if project_map:
+        resolver.add_layer(ConfigLayer("project", 500, project_map))
     resolver.add_layer(ConfigLayer("environment", 600, _env_config_layer()))
     return resolver
 

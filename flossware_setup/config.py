@@ -51,18 +51,12 @@ class Config:
 def managed_root() -> Path:
     """Managed install/runtime root (non-project state lives here).
 
-    The directory need not exist yet; installers and set_active_project create it.
-    Relative or null-byte env values are ignored.
+    Delegates to ``config_control.flossware_root`` so install and state roots stay unified.
     """
-    raw = os.environ.get("FLOSSWARE_AI_ROOT")
-    if raw and isinstance(raw, str):
-        text = raw.strip()
-        if text and "\0" not in text and os.path.isabs(text):
-            try:
-                return Path(os.path.normpath(text)).resolve()  # NOSONAR
-            except (OSError, RuntimeError, ValueError):
-                pass
-    return (Path.home() / ".flossware" / "ai").resolve()
+    from flossware_setup.config_control import flossware_root
+
+    return flossware_root().resolve()
+
 
 
 def active_project_path() -> Path:

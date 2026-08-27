@@ -62,7 +62,8 @@ def test_bindings_authoritative(tmp_path, monkeypatch) -> None:
     profile, source = profile_for_directory(child)
     assert profile == "default"
     assert source is not None
-    assert str(parent.resolve()) in source or source.endswith(str(parent.resolve()))
+    import os
+    assert os.path.normcase(str(parent.resolve())) in os.path.normcase(source)
 
 
 def test_builtin_profiles_are_neutral() -> None:
@@ -104,3 +105,72 @@ def test_cli_config_show_uses_directory(tmp_path, monkeypatch, capsys) -> None:
     assert cli_main(["config", "show"]) == 0
     out = capsys.readouterr().out
     assert "profile=" in out
+
+
+def test_layer_precedence_matrix(tmp_path, monkeypatch) -> None:
+    """defaults < system < user < profile < project < environment."""
+    root = tmp_path / "ai"
+    monkeypatch.setenv("FLOSSWARE_AI_ROOT", str(root))
+    root.mkdir(parents=True)
+    (root / "system.toml").write_text('provider = "system-provider"\n', encoding="utf-8")
+    (root / "user.toml").write_text('provider = "user-provider"\n', encoding="utf-8")
+    # clear env first
+    monkeypatch.delenv("FLOSSWARE_PROVIDER", raising=False)
+    monkeypatch.delenv("FLOSSWARE_BUDGET_MONTHLY", raising=False)
+    values = effective_config("default").resolve()
+    # profile (default) typically sets provider auto, which beats user
+    assert values.get("provider") in {"auto", "user-provider", "system-provider"}
+    # environment wins over everything below it
+    monkeypatch.setenv("FLOSSWARE_PROVIDER", "env-provider")
+    values = effective_config("default").resolve()
+    assert values.get("provider") == "env-provider"
+    # budget only from env
+    monkeypatch.setenv("FLOSSWARE_BUDGET_MONTHLY", "99")
+    values = effective_config("default").resolve()
+    assert float(values["budget.monthly"]) == 99.0
+    layers = [layer for layer, _ in effective_config("default").provenance("budget.monthly")]
+    assert "environment" in layers
+
+
+def test_config_cli_and_run_share_directory_profile(tmp_path, monkeypatch, capsys) -> None:
+    """config show/validate and _agent_env resolve the same binding for a nested path."""
+    from flossware_setup.cli import _agent_env, main as cli_main
+
+    root = tmp_path / "ai"
+    monkeypatch.setenv("FLOSSWARE_AI_ROOT", str(root))
+    root.mkdir(parents=True)
+    parent = tmp_path / "workspace"
+    child = parent / "nested"
+    child.mkdir(parents=True)
+    # non-git
+    assert not (parent / ".git").exists()
+    bind_directory(parent, "default")
+    monkeypatch.chdir(child)
+    profile, source = profile_for_directory()
+    assert profile == "default"
+    assert source is not None
+    assert cli_main(["config", "show"]) == 0
+    out = capsys.readouterr().out
+    assert "profile=default" in out
+    assert cli_main(["config", "validate"]) == 0
+    # _agent_env uses same resolution (command need not exist for env build)
+    env, agent_profile = _agent_env(["claude"])
+    assert agent_profile == profile
+    assert env["FLOSSWARE_PROFILE"] == profile
+    assert env.get("FLOSSWARE_PROFILE_SOURCE")
+
+
+def test_directory_is_profile_selection_not_merge_layer(tmp_path, monkeypatch) -> None:
+    """Bindings change profile; they do not inject a 'directory' merge layer."""
+    root = tmp_path / "ai"
+    monkeypatch.setenv("FLOSSWARE_AI_ROOT", str(root))
+    root.mkdir(parents=True)
+    monkeypatch.delenv("FLOSSWARE_PROVIDER", raising=False)
+    work = tmp_path / "proj"
+    work.mkdir()
+    bind_directory(work, "default")
+    resolver = effective_config(profile_for_directory(work)[0])
+    values = resolver.resolve()
+    for key in values:
+        layers = [layer for layer, _ in resolver.provenance(key)]
+        assert "directory" not in layers

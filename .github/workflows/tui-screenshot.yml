@@ -1,0 +1,36 @@
+name: Live TUI Screenshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'flossware_setup/tui/**'
+      - 'flossware_setup/config_control.py'
+      - 'pyproject.toml'
+      - '.github/workflows/tui-screenshot.yml'
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install '.[core]' pexpect pyte
+      - name: Capture live Turbo C++ TUI
+        env:
+          TERM: xterm-256color
+          FLOSSWARE_SETUP_STATE_DIR: ${{ runner.temp }}/flossware-state
+        run: python scripts/capture_tui_screenshot.py
+      - name: Upload live screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-turbo-c-tui
+          path: artifacts/live-tui.svg
+          if-no-files-found: error

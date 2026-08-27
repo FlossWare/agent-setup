@@ -8,7 +8,10 @@ import shutil
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+_DOGFOOD_FILE = Path(__file__).resolve()
+# scripts/dogfood.py in a checkout → repo root; installed copy next to setup.py → install root
+ROOT = _DOGFOOD_FILE.parents[1] if _DOGFOOD_FILE.parent.name == "scripts" else _DOGFOOD_FILE.parent
+_FLOSSWARE_MARKER = ".flossware"
 EXECUTABLE_AGENTS = {
     "claude-code": ("claude", "CLAUDE.md"),
     "crush": ("crush", "AGENTS.md"),
@@ -89,7 +92,7 @@ def validate_generated_artifacts(failures: int) -> int:
             )
             failures += not check(
                 "Project tree clean of FlossWare metadata",
-                not (repo / ".flossware-ai.json").exists() and not (repo / ".flossware").exists(),
+                not (repo / ".flossware-ai.json").exists() and not (repo / _FLOSSWARE_MARKER).exists(),
                 "no .flossware-ai.json / .flossware in project",
             )
             if central_state.is_file():
@@ -116,8 +119,11 @@ def validate_generated_artifacts(failures: int) -> int:
 
 
 
-def _assert_isolated_root() -> None:
-    """Refuse to use the developer's real home state dir without an opt-in."""
+def _assert_isolated_root() -> Path:
+    """Refuse to use the developer's real home state dir without an opt-in.
+
+    Returns the resolved isolated root (created if needed).
+    """
     import os
     from pathlib import Path
     root = os.environ.get("FLOSSWARE_AI_ROOT") or os.environ.get("FLOSSWARE_INSTALL_ROOT")
@@ -126,12 +132,14 @@ def _assert_isolated_root() -> None:
             "dogfood requires FLOSSWARE_AI_ROOT (or FLOSSWARE_INSTALL_ROOT) "
             "to isolate state from the real home directory"
         )
-    home_ai = (Path.home() / ".flossware" / "ai").resolve()
+    home_ai = (Path.home() / _FLOSSWARE_MARKER / "ai").resolve()
     resolved = Path(root).expanduser().resolve()
     if resolved == home_ai and os.environ.get("FLOSSWARE_DOGFOOD_ALLOW_HOME") != "1":
         raise SystemExit(
             f"dogfood refused to use home state dir {home_ai}; set FLOSSWARE_AI_ROOT to a temp path"
         )
+    resolved.mkdir(parents=True, exist_ok=True)
+    return resolved
 
 
 def main() -> int:
@@ -140,9 +148,11 @@ def main() -> int:
     parser.add_argument("--strict", action="store_true", help="Require Claude Code and Crush on PATH")
     args = parser.parse_args()
     failures = 0
-    source_tree = (ROOT / ".git").exists() or (ROOT / "scripts" / "setup.py").is_file()
+    source_tree = (ROOT / ".git").exists() and (ROOT / "scripts" / "setup.py").is_file()
     configured_root = os.environ.get("FLOSSWARE_AI_ROOT") or os.environ.get("FLOSSWARE_INSTALL_ROOT")
-    target = ROOT if source_tree else Path(configured_root or (Path.home() / ".flossware" / "ai"))
+    target = Path(configured_root).expanduser().resolve() if configured_root else (
+        ROOT if source_tree else (Path.home() / _FLOSSWARE_MARKER / "ai")
+    )
 
     if source_tree:
         failures += not check("Repository", True, str(ROOT))

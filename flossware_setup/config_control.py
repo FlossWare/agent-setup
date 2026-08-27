@@ -9,6 +9,16 @@ from pathlib import Path
 from typing import Any
 
 from flossware_setup.config_contract import ConfigLayer, ConfigResolver, Policy, resolve_order
+
+KEY_PROVIDER = "provider"
+KEY_BUDGET_MONTHLY = "budget.monthly"
+KEY_OPT_STRATEGY = "optimization.strategy"
+KEY_OPT_POPULATION = "optimization.population"
+KEY_POLICY_PERSONAL = "policy.allow_personal_accounts"
+KEY_POLICY_UNKNOWN = "policy.allow_unknown_providers"
+KEY_POLICY_FALLBACK = "policy.allow_provider_fallback"
+KEY_POLICY_HARD_BUDGET = "policy.hard_budget"
+PROVIDER_CONFIGURED = "*configured*"
 from flossware_setup.tui.themes import THEME_NAMES as THEMES
 
 DEFAULT_ORDER = ["agents", "providers", "models", "optimization", "validation"]
@@ -74,7 +84,7 @@ def load_profile(name: str = "default") -> dict[str, Any]:
         return {
             "profile": "personal",
             "model_policy": {
-                "allowed_providers": ["*configured*"],
+                "allowed_providers": [PROVIDER_CONFIGURED],
                 "allow_local_models": True,
                 "allow_unconfigured_providers": False,
                 "allow_personal_accounts": True,
@@ -239,16 +249,16 @@ def _load_toml_map(path: Path) -> dict:
 def _env_config_layer() -> dict:
     import os
     mapping = {
-        "FLOSSWARE_PROVIDER": "provider",
-        "FLOSSWARE_BUDGET_MONTHLY": "budget.monthly",
-        "FLOSSWARE_OPTIMIZATION_STRATEGY": "optimization.strategy",
+        "FLOSSWARE_PROVIDER": KEY_PROVIDER,
+        "FLOSSWARE_BUDGET_MONTHLY": KEY_BUDGET_MONTHLY,
+        "FLOSSWARE_OPTIMIZATION_STRATEGY": KEY_OPT_STRATEGY,
     }
     layer: dict = {}
     for env_key, conf_key in mapping.items():
         raw = os.environ.get(env_key)
         if raw is None or raw == "":
             continue
-        if conf_key == "budget.monthly":
+        if conf_key == KEY_BUDGET_MONTHLY:
             try:
                 layer[conf_key] = float(raw)
             except ValueError:
@@ -271,26 +281,26 @@ def effective_config(profile_name: str = "default") -> ConfigResolver:
     cost = profile.get("cost", {})
     optimization = profile.get("optimization", {})
     allowed = list(model_policy.get("allowed_providers") or [])
-    provider = allowed[0] if allowed and allowed[0] != "*configured*" else "auto"
+    provider = allowed[0] if allowed and allowed[0] != PROVIDER_CONFIGURED else "auto"
     defaults = {
-        "provider": "auto",
-        "budget.monthly": 0.0,
-        "optimization.population": 30,
-        "optimization.strategy": "hybrid",
-        "policy.allow_personal_accounts": True,
-        "policy.allow_unknown_providers": True,
-        "policy.allow_provider_fallback": True,
-        "policy.hard_budget": False,
+        KEY_PROVIDER: "auto",
+        KEY_BUDGET_MONTHLY: 0.0,
+        KEY_OPT_POPULATION: 30,
+        KEY_OPT_STRATEGY: "hybrid",
+        KEY_POLICY_PERSONAL: True,
+        KEY_POLICY_UNKNOWN: True,
+        KEY_POLICY_FALLBACK: True,
+        KEY_POLICY_HARD_BUDGET: False,
     }
     profile_layer = {
-        "provider": provider,
-        "budget.monthly": float(cost.get("monthly_limit_usd", 0.0) or 0.0),
-        "optimization.population": int(optimization.get("genetic", {}).get("population_size", 30) or 30),
-        "optimization.strategy": str(optimization.get("strategy", "hybrid")),
-        "policy.allow_personal_accounts": bool(model_policy.get("allow_personal_accounts", profile_name == "personal")),
-        "policy.allow_unknown_providers": bool(model_policy.get("allow_unconfigured_providers", False)),
-        "policy.allow_provider_fallback": bool(model_policy.get("allow_provider_fallback", False)),
-        "policy.hard_budget": bool(cost.get("hard_limit", False)),
+        KEY_PROVIDER: provider,
+        KEY_BUDGET_MONTHLY: float(cost.get("monthly_limit_usd", 0.0) or 0.0),
+        KEY_OPT_POPULATION: int(optimization.get("genetic", {}).get("population_size", 30) or 30),
+        KEY_OPT_STRATEGY: str(optimization.get("strategy", "hybrid")),
+        KEY_POLICY_PERSONAL: bool(model_policy.get("allow_personal_accounts", profile_name == "personal")),
+        KEY_POLICY_UNKNOWN: bool(model_policy.get("allow_unconfigured_providers", False)),
+        KEY_POLICY_FALLBACK: bool(model_policy.get("allow_provider_fallback", False)),
+        KEY_POLICY_HARD_BUDGET: bool(cost.get("hard_limit", False)),
     }
     resolver = ConfigResolver()
     resolver.add_layer(ConfigLayer("defaults", 0, defaults))
@@ -314,10 +324,10 @@ def effective_config(profile_name: str = "default") -> ConfigResolver:
 
 def validate_effective_config(profile_name: str = "default") -> dict[str, Any]:
     config = effective_config(profile_name).resolve(); profile = load_profile(profile_name); allowed = list(profile.get("model_policy", {}).get("allowed_providers") or [])
-    if allowed and allowed != ["*configured*"]:
-        Policy(allowed={"provider": allowed}).validate(config)
-        if float(config.get("budget.monthly", 0)) > 300.0: raise ValueError("budget.monthly exceeds the configured $300 ceiling")
-        if config.get("policy.allow_personal_accounts"): raise ValueError("personal accounts are forbidden by the selected work profile")
-        if config.get("policy.allow_unknown_providers"): raise ValueError("unknown providers are forbidden by the selected work profile")
-        if config.get("policy.allow_provider_fallback"): raise ValueError("provider fallback is forbidden by the selected work profile")
+    if allowed and allowed != [PROVIDER_CONFIGURED]:
+        Policy(allowed={KEY_PROVIDER: allowed}).validate(config)
+        if float(config.get(KEY_BUDGET_MONTHLY, 0)) > 300.0: raise ValueError("budget.monthly exceeds the configured $300 ceiling")
+        if config.get(KEY_POLICY_PERSONAL): raise ValueError("personal accounts are forbidden by the selected work profile")
+        if config.get(KEY_POLICY_UNKNOWN): raise ValueError("unknown providers are forbidden by the selected work profile")
+        if config.get(KEY_POLICY_FALLBACK): raise ValueError("provider fallback is forbidden by the selected work profile")
     return config

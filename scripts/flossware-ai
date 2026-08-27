@@ -10,6 +10,22 @@ active_profile() {
   if [[ -f "$f" ]]; then tr -d '[:space:]' < "$f"; else printf 'default\n'; fi
 }
 
+profile_file() {
+  local name="$1"
+  if [[ -f "$ROOT/config/profiles/$name/profile.toml" ]]; then
+    printf '%s\n' "$ROOT/config/profiles/$name/profile.toml"
+  elif [[ "$name" == default && -f "$ROOT/profiles/default.toml" ]]; then
+    printf '%s\n' "$ROOT/profiles/default.toml"
+  fi
+}
+
+require_profile() {
+  local name="$1" file
+  [[ -n "$name" && "$name" != */* && "$name" != *..* ]] || { echo "ERROR: invalid profile '$name'" >&2; exit 2; }
+  file="$(profile_file "$name")"
+  [[ -n "$file" ]] || { echo "ERROR: profile '$name' is not defined" >&2; exit 2; }
+}
+
 usage() {
   cat <<'USAGE'
 Usage: flossware-ai <command> [options]
@@ -37,18 +53,12 @@ USAGE
 profile() {
   if [[ $# -eq 0 ]]; then echo "active: $(active_profile)"; return 0; fi
   local name="$1"
-  if [[ -z "$name" || "$name" == */* || "$name" == *..* ]]; then echo "ERROR: invalid profile name '$name'" >&2; exit 2; fi
-  local pd="$ROOT/config/profiles/$name"; mkdir -p "$pd"
+  require_profile "$name"
+  local pd="$ROOT/config/profiles/$name"
+  mkdir -p "$pd"
   if [[ ! -f "$pd/profile.sh" ]]; then
     if [[ -f "$ROOT/coding-agent-setup/scripts/profile.sh" ]]; then cp "$ROOT/coding-agent-setup/scripts/profile.sh" "$pd/profile.sh"
     elif [[ -f "$ROOT/../scripts/profile.sh" ]]; then cp "$ROOT/../scripts/profile.sh" "$pd/profile.sh"; fi
-  fi
-  if [[ ! -f "$pd/profile.toml" ]]; then
-    local src=""
-    for candidate in "$ROOT/coding-agent-setup/profiles/$name.toml" "$ROOT/coding-agent-setup/profiles/default.toml" "$ROOT/config/profiles/default/profile.toml"; do
-      if [[ -f "$candidate" ]]; then src="$candidate"; break; fi
-    done
-    [[ -n "$src" ]] && cp "$src" "$pd/profile.toml"
   fi
   printf '%s\n' "$name" > "$ROOT/state/active-profile"; chmod 600 "$ROOT/state/active-profile" 2>/dev/null || true
   echo "active profile set to $name"
@@ -82,14 +92,11 @@ resolve_directory_profile() {
 p, s = profile_for_directory()
 print(p)
 print(s or "")' 2>/dev/null)"; then
-    printf '%s
-' "$out"
+    printf '%s\n' "$out"
     return 0
   fi
-  printf '%s
-' "$(active_profile)"
-  printf '
-'
+  printf '%s\n' "$(active_profile)"
+  printf '\n'
 }
 
 launch_agent() {
@@ -105,14 +112,10 @@ launch_agent() {
   else
     local resolved
     resolved="$(resolve_directory_profile)"
-    prof="$(printf '%s
-' "$resolved" | sed -n '1p')"
-    source="$(printf '%s
-' "$resolved" | sed -n '2p')"
+    prof="$(printf '%s\n' "$resolved" | sed -n '1p')"
+    source="$(printf '%s\n' "$resolved" | sed -n '2p')"
   fi
-  if [[ -z "$prof" || "$prof" == */* || "$prof" == *..* ]]; then
-    echo "ERROR: invalid profile '$prof'" >&2; exit 2
-  fi
+  require_profile "$prof"
   export FLOSSWARE_PROFILE="$prof"
   export FLOSSWARE_PROFILE_SOURCE="${source:-default}"
   local pd="$ROOT/config/profiles/$prof"
@@ -157,7 +160,8 @@ case "${1:-}" in
   dogfood) shift; exec "$(py)" "$ROOT/dogfood.py" "$@";;
   router)
     shift; prof="$(active_profile)"
-    if [[ "${1:-}" == --profile ]]; then prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi
+    if [[ "${1:-}" == --profile ]]; then [[ $# -ge 2 ]] || { echo "ERROR: --profile requires a value" >&2; exit 2; }; prof="$2"; shift 2; elif [[ "${1:-}" == --profile=* ]]; then prof="${1#--profile=}"; shift; fi
+    require_profile "$prof"
     [[ ! -f "$ROOT/config/profiles/$prof/profile.sh" ]] || source "$ROOT/config/profiles/$prof/profile.sh" "$prof"
     exec "$(py)" "$ROOT/router_mcp.py" "$@";;
   *) launch_agent "$1" "${@:2}";;

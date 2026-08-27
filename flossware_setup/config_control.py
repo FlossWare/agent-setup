@@ -120,7 +120,7 @@ def bindings_grouped_by_profile() -> dict[str, list[str]]:
     return grouped
 
 def theme_path() -> Path: return state_dir() / "theme"
-_THEME_ALIASES = {"dbase": "dbase4", "dbase-iv": "dbase4", "modern": "monochrome", "default": "monochrome"}
+_THEME_ALIASES = {"dbase": "dbase4", "dbase-iv": "dbase4", "modern": "monochrome", "default": "turbo"}
 def load_theme() -> str:
     try: value = theme_path().read_text(encoding="utf-8").strip().lower()
     except OSError: value = "turbo"

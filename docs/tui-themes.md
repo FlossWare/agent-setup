@@ -6,12 +6,14 @@ Selectable visual themes for the FlossWare setup IDE. Theme choice is stored und
 
 | Id | Label |
 |----|--------|
-| `turbo` | Turbo C++ inspired (blue/cyan) |
+| `turbo` | Turbo C++ inspired (blue/cyan), **default** |
 | `dbase4` | dBASE IV inspired (green phosphor) |
 | `classic` | Classic DOS (white on black) |
 | `monochrome` | Modern / default terminal colors |
 
-Aliases: `modern` / `default` → `monochrome`; `dbase` / `dbase-iv` → `dbase4`.
+The built-in default is **Turbo C++ inspired**. A missing theme file and the `default` alias both resolve to `turbo`.
+
+Aliases: `modern` → `monochrome`; `default` → `turbo`; `dbase` / `dbase-iv` → `dbase4`.
 
 ## Selection
 

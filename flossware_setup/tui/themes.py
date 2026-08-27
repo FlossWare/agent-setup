@@ -66,10 +66,10 @@ _THEME_PAIRS: dict[str, list[tuple[int, int, int]]] = {
 
 THEME_NAMES: tuple[str, ...] = tuple(_THEME_PAIRS.keys())
 THEME_LABELS: dict[str, str] = {
-    "turbo": "Turbo C++ inspired",
+    "turbo": "Turbo C++ inspired (default)",
     "dbase4": "dBASE IV inspired",
     "classic": "Classic DOS",
-    "monochrome": "Modern / monochrome default",
+    "monochrome": "Modern / monochrome",
 }
 
 
@@ -77,8 +77,10 @@ def normalize_theme(name: str | None) -> str:
     key = (name or "turbo").strip().lower()
     if key in ("dbase", "dbase-iv"):
         return "dbase4"
-    if key in ("modern", "default"):
+    if key in ("modern",):
         return "monochrome"
+    if key == "default":
+        return "turbo"
     return key if key in _THEME_PAIRS else "turbo"
 
 

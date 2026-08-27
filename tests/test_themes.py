@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from flossware_setup.config import Config
 from flossware_setup.config_control import THEMES, load_theme, save_theme
 from flossware_setup.tui.themes import THEME_LABELS, normalize_theme, theme_definitions
 
@@ -22,6 +23,14 @@ def test_normalize_aliases() -> None:
     assert normalize_theme("dbase") == "dbase4"
     assert normalize_theme("unknown-xyz") == "turbo"
     assert normalize_theme("TURBO") == "turbo"
+
+
+def test_config_uses_turbo_as_zero_configuration_default() -> None:
+    config = Config()
+    assert config.profile == "default"
+    assert config.theme == "turbo"
+    assert config.agents == []
+    assert config.capabilities == []
 
 
 def test_theme_persists_under_state_dir(tmp_path, monkeypatch) -> None:

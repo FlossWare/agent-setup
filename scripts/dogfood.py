@@ -115,7 +115,27 @@ def validate_generated_artifacts(failures: int) -> int:
     return failures
 
 
+
+def _assert_isolated_root() -> None:
+    """Refuse to use the developer's real home state dir without an opt-in."""
+    import os
+    from pathlib import Path
+    root = os.environ.get("FLOSSWARE_AI_ROOT") or os.environ.get("FLOSSWARE_INSTALL_ROOT")
+    if not root:
+        raise SystemExit(
+            "dogfood requires FLOSSWARE_AI_ROOT (or FLOSSWARE_INSTALL_ROOT) "
+            "to isolate state from the real home directory"
+        )
+    home_ai = (Path.home() / ".flossware" / "ai").resolve()
+    resolved = Path(root).expanduser().resolve()
+    if resolved == home_ai and os.environ.get("FLOSSWARE_DOGFOOD_ALLOW_HOME") != "1":
+        raise SystemExit(
+            f"dogfood refused to use home state dir {home_ai}; set FLOSSWARE_AI_ROOT to a temp path"
+        )
+
+
 def main() -> int:
+    _assert_isolated_root()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--strict", action="store_true", help="Require Claude Code and Crush on PATH")
     args = parser.parse_args()

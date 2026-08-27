@@ -150,9 +150,12 @@ def main() -> int:
     failures = 0
     source_tree = (ROOT / ".git").exists() and (ROOT / "scripts" / "setup.py").is_file()
     configured_root = os.environ.get("FLOSSWARE_AI_ROOT") or os.environ.get("FLOSSWARE_INSTALL_ROOT")
-    target = Path(configured_root).expanduser().resolve() if configured_root else (
-        ROOT if source_tree else (Path.home() / _FLOSSWARE_MARKER / "ai")
-    )
+    if configured_root:
+        target = Path(configured_root).expanduser().resolve()
+    elif source_tree:
+        target = ROOT
+    else:
+        target = Path.home() / _FLOSSWARE_MARKER / "ai"
 
     if source_tree:
         failures += not check("Repository", True, str(ROOT))
@@ -175,7 +178,9 @@ def main() -> int:
         if args.strict and agent in {"claude-code", "crush"}:
             failures += not check(agent, found, f"{command} is installed")
         else:
-            print(f"- {agent}: {'installed' if found else 'not installed'}; instruction file {'present' if instruction_exists else 'not generated'}")
+            status = "installed" if found else "not installed"
+            instruction_status = "present" if instruction_exists else "not generated"
+            print(f"- {agent}: {status}; instruction file {instruction_status}")
 
     try:
         import sys

@@ -204,21 +204,20 @@ def bindings_grouped_by_profile() -> dict[str, list[str]]:
 
 def theme_path() -> Path: return state_dir() / "theme"
 
+_THEME_ALIASES = {"dbase": "dbase4", "dbase-iv": "dbase4", "modern": "monochrome", "default": "monochrome"}
 
 def load_theme() -> str:
     try:
         value = theme_path().read_text(encoding="utf-8").strip().lower()
     except OSError:
         value = "turbo"
-    aliases = {"dbase": "dbase4", "dbase-iv": "dbase4", "modern": "monochrome", "default": "monochrome"}
-    value = aliases.get(value, value)
+    value = _THEME_ALIASES.get(value, value)
     return value if value in THEMES else "turbo"
 
 
 def save_theme(theme: str) -> Path:
     theme = theme.strip().lower()
-    aliases = {"dbase": "dbase4", "dbase-iv": "dbase4", "modern": "monochrome", "default": "monochrome"}
-    theme = aliases.get(theme, theme)
+    theme = _THEME_ALIASES.get(theme, theme)
     if theme not in THEMES:
         raise ValueError(f"unknown theme: {theme}")
     path = theme_path()

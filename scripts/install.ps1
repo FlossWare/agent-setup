@@ -2,8 +2,8 @@
 [CmdletBinding()]
 param([string]$Profile='default',[switch]$Reinstall,[switch]$Clean,[switch]$ForceSource)
 $ErrorActionPreference='Stop';$InstallRoot=if($env:FLOSSWARE_INSTALL_ROOT){$env:FLOSSWARE_INSTALL_ROOT}else{Join-Path $HOME '.flossware\ai'};$Venv=Join-Path $InstallRoot 'venv';$SetupDir=Join-Path $InstallRoot 'coding-agent-setup';$Ref=if($env:FLOSSWARE_RELEASE_REF){$env:FLOSSWARE_RELEASE_REF}else{'main'};$Repo='https://github.com/FlossWare/coding-agent-ai.git';$SetupRepo='https://github.com/FlossWare/coding-agent-setup.git'
-function Log($s){Write-Host "`n[FlossWare] $s"}
-if($Clean){if(Test-Path $InstallRoot){Remove-Item -Recurse -Force $InstallRoot};$shim=Join-Path $HOME '.local\bin\flossware-ai.cmd';if(Test-Path $shim){Remove-Item -Force $shim};Log 'Clean complete. Native agent/provider credentials were not touched.';exit 0}
+function Show-Log($s){Write-Output "`n[FlossWare] $s"}
+if($Clean){if(Test-Path $InstallRoot){Remove-Item -Recurse -Force $InstallRoot};$shim=Join-Path $HOME '.local\bin\flossware-ai.cmd';if(Test-Path $shim){Remove-Item -Force $shim};Show-Log 'Clean complete. Native agent/provider credentials were not touched.';exit 0}
 # Git is optional: when absent, setup is fetched via codeload archive (same as Unix install.sh).
 function Get-SetupTree {
   param([string]$Dest,[string]$Ref)
@@ -45,12 +45,12 @@ if /I "%~1"=="accounts" ("%PY%" "%ROOT%\discovery.py" accounts %2 %3 %4 & exit /
 if /I "%~1"=="models" ("%PY%" "%ROOT%\discovery.py" models %2 %3 %4 & exit /b %ERRORLEVEL%)
 "%ROOT%\bin\flossware-ai" %*
 "@ | Set-Content $Launcher
-Log 'Installation complete';Write-Host "AI root: $InstallRoot";Write-Host "Profile: $Profile";Write-Host "Run: flossware-ai tui";Write-Host "Run: flossware-ai doctor";Write-Host "Reinstall: .\scripts\install.ps1 -Reinstall";Write-Host "Clean: .\scripts\install.ps1 -Clean"Get-SetupTree -Dest $SetupDir -Ref $Refre AI native Windows installer.
+Show-Log 'Installation complete';Write-Host "AI root: $InstallRoot";Write-Host "Profile: $Profile";Write-Host "Run: flossware-ai tui";Write-Host "Run: flossware-ai doctor";Write-Host "Reinstall: .\scripts\install.ps1 -Reinstall";Write-Host "Clean: .\scripts\install.ps1 -Clean"Get-SetupTree -Dest $SetupDir -Ref $Refre AI native Windows installer.
 [CmdletBinding()]
 param([string]$Profile='default',[switch]$Reinstall,[switch]$Clean,[switch]$ForceSource)
 $ErrorActionPreference='Stop';$InstallRoot=if($env:FLOSSWARE_INSTALL_ROOT){$env:FLOSSWARE_INSTALL_ROOT}else{Join-Path $HOME '.flossware\ai'};$Venv=Join-Path $InstallRoot 'venv';$SetupDir=Join-Path $InstallRoot 'coding-agent-setup';$Ref=if($env:FLOSSWARE_RELEASE_REF){$env:FLOSSWARE_RELEASE_REF}else{'main'};$Repo='https://github.com/FlossWare/coding-agent-ai.git';$SetupRepo='https://github.com/FlossWare/coding-agent-setup.git'
-function Log($s){Write-Host "`n[FlossWare] $s"}
-if($Clean){if(Test-Path $InstallRoot){Remove-Item -Recurse -Force $InstallRoot};$shim=Join-Path $HOME '.local\bin\flossware-ai.cmd';if(Test-Path $shim){Remove-Item -Force $shim};Log 'Clean complete. Native agent/provider credentials were not touched.';exit 0}
+function Show-Log($s){Write-Output "`n[FlossWare] $s"}
+if($Clean){if(Test-Path $InstallRoot){Remove-Item -Recurse -Force $InstallRoot};$shim=Join-Path $HOME '.local\bin\flossware-ai.cmd';if(Test-Path $shim){Remove-Item -Force $shim};Show-Log 'Clean complete. Native agent/provider credentials were not touched.';exit 0}
 # Git is optional: when absent, setup is fetched via codeload archive (same as Unix install.sh).
 function Get-SetupTree {
   param([string]$Dest,[string]$Ref)
@@ -92,4 +92,4 @@ if /I "%~1"=="accounts" ("%PY%" "%ROOT%\discovery.py" accounts %2 %3 %4 & exit /
 if /I "%~1"=="models" ("%PY%" "%ROOT%\discovery.py" models %2 %3 %4 & exit /b %ERRORLEVEL%)
 "%ROOT%\bin\flossware-ai" %*
 "@ | Set-Content $Launcher
-Log 'Installation complete';Write-Host "AI root: $InstallRoot";Write-Host "Profile: $Profile";Write-Host "Run: flossware-ai tui";Write-Host "Run: flossware-ai doctor";Write-Host "Reinstall: .\scripts\install.ps1 -Reinstall";Write-Host "Clean: .\scripts\install.ps1 -Clean"
+Show-Log 'Installation complete';Write-Host "AI root: $InstallRoot";Write-Host "Profile: $Profile";Write-Host "Run: flossware-ai tui";Write-Host "Run: flossware-ai doctor";Write-Host "Reinstall: .\scripts\install.ps1 -Reinstall";Write-Host "Clean: .\scripts\install.ps1 -Clean"

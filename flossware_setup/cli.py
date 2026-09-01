@@ -41,6 +41,10 @@ def main(argv: list[str] | None = None) -> int:
     tui_p.add_argument("tui_args", nargs=argparse.REMAINDER, help="arguments forwarded to the TUI (e.g. --theme dbase4)")
     run = sub.add_parser("run", help="run a coding agent using the profile resolved for the current directory")
     run.add_argument("agent", nargs=argparse.REMAINDER, help="agent command and arguments, for example: claude")
+    setup = sub.add_parser("setup", help="provision supported coding-agent integrations")
+    setup_sub = setup.add_subparsers(dest="setup_command")
+    crush = setup_sub.add_parser("crush", help="configure Crush with the FlossWare free/local gateway")
+    crush.add_argument("--free-only", action="store_true", default=True, help="use only the free/local FlossWare gateway")
     config = sub.add_parser("config", help="inspect and validate effective configuration")
     config_sub = config.add_subparsers(dest="config_command")
     config_sub.add_parser("show")
@@ -64,6 +68,14 @@ def main(argv: list[str] | None = None) -> int:
         if rest and rest[0] == "--":
             rest = rest[1:]
         return tui_main(rest)
+    if args.command == "setup":
+        if args.setup_command == "crush":
+            from flossware_setup.crush_setup import setup_crush
+            try:
+                return setup_crush(free_only=args.free_only)
+            except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+                print(f"Crush setup failed: {exc}")
+                return 2
     if args.command == "run":
         if not args.agent: parser.error("run requires an agent command, for example: flossware-ai run claude")
         command = args.agent

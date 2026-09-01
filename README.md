@@ -51,6 +51,16 @@ flossware-ai crush
 
 The selected profile is exported to the launched process along with the effective configuration and provenance. Work profiles can restrict which coding-agent executables are permitted.
 
+## Crush setup
+
+The same control plane can provision the FlossWare Crush integration used by the Crush demo. This keeps environment setup in one place rather than duplicating installer logic in `crush-demo`:
+
+```bash
+flossware-ai setup crush --free-only
+```
+
+The command installs or updates `coding-agent-ai` in the managed environment, installs Crush when needed, provisions the FlossWare local OpenAI-compatible gateway and user service, configures Crush for the `flossware` model, and creates the `flossware-crush` and `flossware-models` convenience commands. The current Crush integration is intentionally free/local-only.
+
 ## Configuration precedence
 
 In v1, directory bindings select a profile; they are not an independent value-merge layer. Effective values are resolved in this order:

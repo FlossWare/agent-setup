@@ -131,14 +131,22 @@ exec env -u OPENAI_API_KEY -u ANTHROPIC_API_KEY -u HYPER_API_KEY "{crush}" "$@"
 ''', 0o755)
     _write(BIN_DIR / "flossware-models", '''#!/usr/bin/env bash
 set -euo pipefail
-curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null || {{ echo 'FlossWare gateway is not running' >&2; exit 1; }}
+curl -fsS --max-time 5 http://127.0.0.1:8765/health >/dev/null || { echo 'FlossWare gateway is not running' >&2; exit 1; }
 curl -fsS --max-time 5 http://127.0.0.1:8765/v1/models
 ''', 0o755)
+
+    # The setup command owns gateway lifecycle. Enable and start the user service
+    # so a fresh setup is immediately usable and subsequent logins restart it.
+    systemctl = shutil.which("systemctl")
+    if systemctl:
+        _run([systemctl, "--user", "daemon-reload"])
+        _run([systemctl, "--user", "enable", "--now", service.name])
+
     print("Crush setup complete")
     print(f"  Crush: {crush}")
     print(f"  Gateway: {gateway}")
     print(f"  Config: {CONFIG_DIR / 'crushrc'}")
     print("  Policy: free/local-only")
-    print("  Start gateway: systemctl --user enable --now flossware-crush-gateway.service")
+    print("  Gateway service: enabled and started")
     print("  Launch: flossware-crush")
     return 0

@@ -3,20 +3,25 @@
 from __future__ import annotations
 
 import os
+import shutil
 import stat
 import subprocess
-import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP = ROOT / "install.sh"
 INSTALLER = ROOT / "scripts" / "install.sh"
 
 
-def test_root_install_sh_is_executable() -> None:
+def test_root_install_sh_is_present() -> None:
     assert BOOTSTRAP.is_file()
-    mode = BOOTSTRAP.stat().st_mode
-    assert mode & stat.S_IXUSR, "install.sh must be executable"
+    # Git on Windows does not reliably preserve Unix +x; POSIX installers
+    # still require the executable bit where the platform supports it.
+    if os.name != "nt":
+        mode = BOOTSTRAP.stat().st_mode
+        assert mode & stat.S_IXUSR, "install.sh must be executable on POSIX"
 
 
 def test_root_install_sh_is_not_recovery_wrapper() -> None:
@@ -25,6 +30,9 @@ def test_root_install_sh_is_not_recovery_wrapper() -> None:
     assert "e9a4b2692d66cc7c4f9285516ef5eaa1a174cc67" not in text
     assert "scripts/install.sh" in text
     assert "FlossWare/agent-setup" in text
+    # Local checkout path must exec the in-tree installer.
+    assert "scripts/install.sh" in text
+    assert "exec bash" in text
 
 
 def test_scripts_install_uses_canonical_repo_urls() -> None:
@@ -32,20 +40,25 @@ def test_scripts_install_uses_canonical_repo_urls() -> None:
     assert "github.com/FlossWare/agent-setup" in text
     assert "codeload.github.com/FlossWare/agent-setup" in text
     # Historical install path name remains for managed layout compatibility.
-    assert 'SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"' in text or "coding-agent-setup" in text
+    assert "coding-agent-setup" in text
 
 
 def test_local_bootstrap_delegates_to_scripts_install_help() -> None:
     """From a checkout, ./install.sh must exec scripts/install.sh (help path)."""
+    bash = shutil.which("bash")
+    if not bash or os.name == "nt":
+        # Windows CI often has a Store/WSL bash stub that cannot run this script.
+        # Static contract is still enforced above; runtime delegation is POSIX.
+        pytest.skip("POSIX bash required to exercise install.sh process delegation")
     proc = subprocess.run(
-        ["bash", str(BOOTSTRAP), "--help"],
+        [bash, str(BOOTSTRAP), "--help"],
         capture_output=True,
         text=True,
         timeout=30,
         check=False,
         cwd=str(ROOT),
     )
-    assert proc.returncode == 0, proc.stderr
+    assert proc.returncode == 0, proc.stderr or proc.stdout
     out = (proc.stdout or "") + (proc.stderr or "")
     assert "Usage:" in out or "install.sh" in out
     assert "Profile" in out or "--profile" in out or "profile" in out.lower()

@@ -3,8 +3,8 @@
 set -euo pipefail
 AGENT="all"; PROFILE="default"; REPO_DIR=""; REINSTALL=false; CLEAN=false
 INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware/ai}"; VENV="$INSTALL_ROOT/venv"; SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
-AI_REPO="https://github.com/FlossWare/coding-agent-ai.git"; SETUP_REPO="https://github.com/FlossWare/coding-agent-setup.git"; RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"; AI_REF="${FLOSSWARE_AI_REF:-main}"; USE_SOURCE="${FLOSSWARE_USE_SOURCE:-false}"
-if [[ "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]]; then SETUP_ARCHIVE="https://codeload.github.com/FlossWare/coding-agent-setup/tar.gz/$RELEASE_REF"; else SETUP_ARCHIVE="https://codeload.github.com/FlossWare/coding-agent-setup/tar.gz/refs/heads/$RELEASE_REF"; fi
+AI_REPO="https://github.com/FlossWare/coding-agent-ai.git"; SETUP_REPO="https://github.com/FlossWare/agent-setup.git"; RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"; AI_REF="${FLOSSWARE_AI_REF:-main}"; USE_SOURCE="${FLOSSWARE_USE_SOURCE:-false}"
+if [[ "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]]; then SETUP_ARCHIVE="https://codeload.github.com/FlossWare/agent-setup/tar.gz/$RELEASE_REF"; else SETUP_ARCHIVE="https://codeload.github.com/FlossWare/agent-setup/tar.gz/refs/heads/$RELEASE_REF"; fi
 usage(){ cat <<'EOF'
 Usage: ./scripts/install.sh [options]
   --agent, -a AGENT   Agent integration to configure. Default: all
@@ -57,12 +57,12 @@ if [[ "$USE_SOURCE" == true ]]; then python -m pip install --upgrade "coding-age
 if [[ "$USE_SOURCE" == true ]]; then
   if [[ -d "$SETUP_DIR/.git" ]]; then git -C "$SETUP_DIR" fetch --force --depth 1 origin "$RELEASE_REF"; git -C "$SETUP_DIR" checkout --force FETCH_HEAD; else rm -rf "$SETUP_DIR"; git clone --filter=blob:none "$SETUP_REPO" "$SETUP_DIR"; git -C "$SETUP_DIR" fetch --force --depth 1 origin "$RELEASE_REF"; git -C "$SETUP_DIR" checkout --force FETCH_HEAD; fi
 else
-  TMP_SETUP="$(mktemp -d)"; trap 'rm -rf "$TMP_SETUP"' EXIT; rm -rf "$SETUP_DIR"; curl -fsSL "$SETUP_ARCHIVE" -o "$TMP_SETUP/setup.tar.gz"; tar -xzf "$TMP_SETUP/setup.tar.gz" -C "$TMP_SETUP"; EXTRACTED="$(find "$TMP_SETUP" -mindepth 1 -maxdepth 1 -type d \( -name 'coding-agent-setup-*' -o -name 'agent-setup-*' \) -print -quit)"; [[ -n "$EXTRACTED" ]] || fail "failed to unpack coding-agent-setup artifact"; mv "$EXTRACTED" "$SETUP_DIR"
+  TMP_SETUP="$(mktemp -d)"; trap 'rm -rf "$TMP_SETUP"' EXIT; rm -rf "$SETUP_DIR"; curl -fsSL "$SETUP_ARCHIVE" -o "$TMP_SETUP/setup.tar.gz"; tar -xzf "$TMP_SETUP/setup.tar.gz" -C "$TMP_SETUP"; EXTRACTED="$(find "$TMP_SETUP" -mindepth 1 -maxdepth 1 -type d \( -name 'coding-agent-setup-*' -o -name 'agent-setup-*' \) -print -quit)"; [[ -n "$EXTRACTED" ]] || fail "failed to unpack agent-setup artifact"; mv "$EXTRACTED" "$SETUP_DIR"
 fi
 for required in scripts/setup.py scripts/profile.sh scripts/write-install-metadata.sh flossware_setup/tui/app.py scripts/flossware-ai scripts/router_mcp.py scripts/discovery.py scripts/mcp.py scripts/tui.py scripts/agent_setup.py scripts/runtime.py scripts/dogfood.py; do [[ -f "$SETUP_DIR/$required" ]] || fail "missing $required"; done
 [[ "$PROFILE" == "default" || -f "$SETUP_DIR/profiles/$PROFILE.toml" ]] || fail "profile '$PROFILE' is not defined; refusing to substitute the neutral default profile"
 python -m compileall -q "$SETUP_DIR/scripts/setup.py" "$SETUP_DIR/scripts/tui.py" "$SETUP_DIR/scripts/agent_setup.py" "$SETUP_DIR/scripts/router_mcp.py" "$SETUP_DIR/scripts/discovery.py" "$SETUP_DIR/scripts/mcp.py" "$SETUP_DIR/scripts/runtime.py" "$SETUP_DIR/scripts/dogfood.py"
-"$VENV/bin/python" -m pip install -e "$SETUP_DIR" --quiet || fail "failed to install coding-agent-setup package into managed venv"
+"$VENV/bin/python" -m pip install -e "$SETUP_DIR" --quiet || fail "failed to install agent-setup package into managed venv"
 PROFILE_DIR="$INSTALL_ROOT/config/profiles/$PROFILE"; mkdir -p "$PROFILE_DIR" "$INSTALL_ROOT/bin" "$INSTALL_ROOT/state" "$INSTALL_ROOT/cache" "$INSTALL_ROOT/mcp"
 cp "$SETUP_DIR/scripts/profile.sh" "$PROFILE_DIR/profile.sh"; cp "$SETUP_DIR/profiles/$PROFILE.toml" "$PROFILE_DIR/profile.toml"
 cp "$SETUP_DIR/scripts/flossware-ai" "$INSTALL_ROOT/bin/flossware-ai"; cp "$SETUP_DIR/scripts/tui.py" "$INSTALL_ROOT/tui.py"; cp "$SETUP_DIR/scripts/agent_setup.py" "$INSTALL_ROOT/agent_setup.py"; cp "$SETUP_DIR/scripts/setup.py" "$INSTALL_ROOT/setup.py"; cp "$SETUP_DIR/scripts/router_mcp.py" "$INSTALL_ROOT/router_mcp.py"; cp "$SETUP_DIR/scripts/discovery.py" "$INSTALL_ROOT/discovery.py"; cp "$SETUP_DIR/scripts/mcp.py" "$INSTALL_ROOT/mcp.py"; cp "$SETUP_DIR/scripts/runtime.py" "$INSTALL_ROOT/runtime.py"; cp "$SETUP_DIR/scripts/dogfood.py" "$INSTALL_ROOT/dogfood.py"

@@ -7,7 +7,7 @@
 Linux, Fedora/RHEL, Debian-family systems, FreeBSD, and Termux use the public bootstrap path:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/FlossWare/agent-setup/main/install.sh | bash
 flossware-ai tui
 ```
 
@@ -37,7 +37,7 @@ The bootstrap defaults to `main` until a formal stable release channel is establ
 
 ```bash
 FLOSSWARE_RELEASE_REF=<tag-or-branch> \
-  curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/FlossWare/agent-setup/main/install.sh | bash
 ```
 
 Use a release/tag rather than a moving branch when reproducibility is required.

@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -74,9 +75,10 @@ def discovery_doctor_ok() -> tuple[bool, str]:
         return False, "discovery.py not found"
     env = os.environ.copy()
     env.setdefault("FLOSSWARE_AI_ROOT", str(Path(tempfile.mkdtemp(prefix="dogfood-doctor-"))))
+    python = os.environ.get("PYTHON") or sys.executable
     try:
         proc = subprocess.run(
-            [os.environ.get("PYTHON", "python3"), str(discovery), "doctor"],
+            [python, str(discovery), "doctor"],
             capture_output=True,
             text=True,
             timeout=30,

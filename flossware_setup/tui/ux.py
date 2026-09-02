@@ -35,7 +35,8 @@ def install_tui_fixes() -> None:
             for i, name in enumerate(names[:height-5]): ide.add(panel, 2+i, 2, ("> " if i == idx else "  ") + name.replace("-", " ").title(), ide.palette("selected" if i == idx else "normal"))
             panel.addnstr(height-2, 2, "Enter select | E edit | Esc close", width-4, ide.palette("muted")); panel.refresh(); key = panel.getch()
             if key == curses.KEY_MOUSE:
-                event = ide.mouse_event()
+                from flossware_setup.tui.input import mouse_event, resolve_list_mouse
+                event = mouse_event()
                 if event and event[2] & getattr(curses, "BUTTON1_CLICKED", 0):
                     row = event[1] - top - 2
                     if 0 <= row < min(len(names), height-5): ide.save_profile(names[row]); close(panel); return names[row]

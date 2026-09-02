@@ -12,6 +12,7 @@ from flossware_setup.config_control import (
     save_active_profile,
     state_dir,
 )
+from flossware_setup.tui.input import is_mouse, mouse_event, resolve_list_mouse
 from flossware_setup.tui.widgets import add, palette
 
 MENU = ("File", "Edit", "View", "Config", "Models", "Agents", "Optimize", "Help")
@@ -35,15 +36,43 @@ def _draw_box(win: object, top: int, left: int, bottom: int, right: int, title: 
     except curses.error: pass
 
 def profile_selector(win: object) -> str | None:
-    current=load_active_profile(); cursor=list(available_profiles()).index(current) if current in available_profiles() else 0
+    profiles = list(available_profiles())
+    current = load_active_profile()
+    cursor = profiles.index(current) if current in profiles else 0
+    origin_y = 5
     while True:
-        win.erase(); h,w=win.getmaxyx(); add(win,1,2,"FlossWare AI  |  Select Profile",1,curses.A_BOLD); _draw_box(win,3,4,min(h-4,9),min(w-5,52),"Profiles")
-        for i,profile in enumerate(available_profiles()): add(win,5+i,7,(">" if i==cursor else " ")+" "+profile.replace("-"," ").title(),2 if i==cursor else 5,curses.A_BOLD if i==cursor else 0)
-        add(win,h-2,2,"Enter Select   Esc Cancel   Up/Down Navigate",6); win.refresh(); key=win.getch()
-        if key in (curses.KEY_UP,ord("k")): cursor=max(0,cursor-1)
-        elif key in (curses.KEY_DOWN,ord("j")): cursor=min(len(available_profiles())-1,cursor+1)
-        elif key in (10,13,curses.KEY_ENTER): save_active_profile(list(available_profiles())[cursor]); return list(available_profiles())[cursor]
-        elif key==27: return None
+        profiles = list(available_profiles())
+        if not profiles:
+            return None
+        cursor = min(cursor, len(profiles) - 1)
+        win.erase()
+        h, w = win.getmaxyx()
+        add(win, 1, 2, "FlossWare AI  |  Select Profile", 1, curses.A_BOLD)
+        _draw_box(win, 3, 4, min(h - 4, 9), min(w - 5, 52), "Profiles")
+        for i, profile in enumerate(profiles):
+            add(win, origin_y + i, 7, (">" if i == cursor else " ") + " " + profile.replace("-", " ").title(), 2 if i == cursor else 5, curses.A_BOLD if i == cursor else 0)
+        add(win, h - 2, 2, "Enter/click Select   Esc Cancel   Up/Down Navigate", 6)
+        win.refresh()
+        key = win.getch()
+        if is_mouse(key):
+            action = resolve_list_mouse(mouse_event(), origin_y=origin_y, count=len(profiles))
+            if action is None:
+                continue
+            kind, index = action
+            cursor = index
+            if kind == "activate":
+                save_active_profile(profiles[cursor])
+                return profiles[cursor]
+            continue
+        if key in (curses.KEY_UP, ord("k")):
+            cursor = max(0, cursor - 1)
+        elif key in (curses.KEY_DOWN, ord("j")):
+            cursor = min(len(profiles) - 1, cursor + 1)
+        elif key in (10, 13, curses.KEY_ENTER):
+            save_active_profile(profiles[cursor])
+            return profiles[cursor]
+        elif key == 27:
+            return None
 
 def _effective_profile_config(profile: str) -> dict[str,object]:
     try: return effective_config(profile).resolve()
@@ -58,6 +87,16 @@ def run(win: object) -> None:
         fields=[("Provider",config.get("provider","unknown")),("Budget",f"${float(config.get('budget.monthly',0)):.2f} / month"),("Optimizer",config.get("optimization.strategy","unknown")),("Personal accounts","allowed" if config.get("policy.allow_personal_accounts") else "blocked"),("Provider fallback","allowed" if config.get("policy.allow_provider_fallback") else "blocked")]
         for i,(name,value) in enumerate(fields): add(win,4+i,panel_left+3,f"{name:<22} {value}",5)
         add(win,h-4,2,f"Profile: {active.upper()}   |   Provider: {config.get('provider','unknown')}   |   READY",1,curses.A_BOLD); add(win,h-3,2,"F7 Profiles   F6 Models   F8 Optimize   F2 Save   F10 Menu",6); add(win,h-2,2,"Mouse/Arrows Navigate   Enter Select   Esc Exit",6); win.refresh(); key=win.getch()
+        if is_mouse(key):
+            names = list(available_profiles())
+            action = resolve_list_mouse(mouse_event(), origin_y=4, count=len(names))
+            if action is not None:
+                kind, index = action
+                if 0 <= index < len(names):
+                    active = names[index]
+                    if kind == "activate":
+                        save_active_profile(active)
+            continue
         if key in (curses.KEY_F7,ord("p"),ord("P")):
             chosen=profile_selector(win)
             if chosen: active=chosen

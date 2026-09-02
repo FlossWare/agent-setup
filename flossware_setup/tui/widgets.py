@@ -1,7 +1,7 @@
 """Reusable curses rendering helpers."""
 from __future__ import annotations
 import curses
-from flossware_setup.tui.input import is_cancel, is_confirm, is_down, is_up, mouse_event
+from flossware_setup.tui.input import is_cancel, is_confirm, is_down, is_up, is_mouse, mouse_event, resolve_list_mouse
 from flossware_setup.tui.status import item_status
 
 
@@ -70,7 +70,7 @@ def menu(win,title: str,items:list[tuple[str,str]],selected:list[int]|None=None,
     selected_set=set(selected or []); cursor=0
     while True:
         content_y,visible=_render_menu_frame(win,title,items,multi,selected_set,cursor); key=win.getch()
-        if key==curses.KEY_MOUSE:
+        if is_mouse(key):
             event=mouse_event()
             if event is None: continue
             _x,mouse_y,bstate=event; cursor=_hover_cursor(mouse_y,content_y,visible,cursor); clicked=getattr(curses,"BUTTON1_CLICKED",0)|getattr(curses,"BUTTON1_PRESSED",0)

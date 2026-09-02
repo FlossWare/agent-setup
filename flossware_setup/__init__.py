@@ -1,4 +1,8 @@
-"""FlossWare coding-agent setup application.
+"""FlossWare AI setup application.
+
+Persistent user state is rooted at ``~/.FlossWare/ai`` by default. Set
+``FLOSSWARE_AI_HOME`` to redirect it for tests, CI, containers, or unusual
+installations. Credential values remain outside FlossWare state.
 
 Public package layout:
 
@@ -9,6 +13,14 @@ Public package layout:
 - installer: capability package installation
 - tui: curses control-center UI (keyboard + mouse)
 """
+
+import os
+from pathlib import Path
+
+# Keep older callers that consult FLOSSWARE_AI_ROOT working while establishing
+# the new canonical default. Explicit overrides always win.
+if not os.environ.get("FLOSSWARE_AI_HOME") and not os.environ.get("FLOSSWARE_AI_ROOT") and not os.environ.get("FLOSSWARE_INSTALL_ROOT"):
+    os.environ["FLOSSWARE_AI_ROOT"] = str((Path.home() / ".FlossWare" / "ai").resolve())
 
 from flossware_setup.tui import main
 

@@ -2,7 +2,7 @@
 # Cross-platform FlossWare AI installer. Artifact-first; Git is only used for explicit source fallback.
 set -euo pipefail
 AGENT="all"; PROFILE="default"; REPO_DIR=""; REINSTALL=false; CLEAN=false
-INSTALL_ROOT="${FLOSSWARE_AI_HOME:-${FLOSSWARE_AI_ROOT:-${FLOSSWARE_INSTALL_ROOT:-$HOME/.FlossWare/ai}}}"; VENV="$INSTALL_ROOT/venv"; SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
+INSTALL_ROOT="${FLOSSWARE_AI_HOME:-${FLOSSWARE_AI_ROOT:-${FLOSSWARE_INSTALL_ROOT:-$HOME/.FlossWare/ai}}}"; VENV="$INSTALL_ROOT/venv"; SETUP_DIR="$INSTALL_ROOT/agent-setup"; LEGACY_SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
 AI_REPO="https://github.com/FlossWare/agent-ai.git"; SETUP_REPO="https://github.com/FlossWare/agent-setup.git"; RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"; AI_REF="${FLOSSWARE_AI_REF:-main}"; USE_SOURCE="${FLOSSWARE_USE_SOURCE:-false}"
 if [[ "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]]; then SETUP_ARCHIVE="https://codeload.github.com/FlossWare/agent-setup/tar.gz/$RELEASE_REF"; else SETUP_ARCHIVE="https://codeload.github.com/FlossWare/agent-setup/tar.gz/refs/heads/$RELEASE_REF"; fi
 usage(){ cat <<'EOF'
@@ -45,7 +45,9 @@ install_prereqs(){
   esac
 }
 mkdir -p "$INSTALL_ROOT"
-if [[ "$REINSTALL" == true ]]; then rm -rf -- "$VENV" "$SETUP_DIR" "$INSTALL_ROOT/bin"; fi
+if [[ "$REINSTALL" == true ]]; then rm -rf -- "$VENV" "$SETUP_DIR" "$LEGACY_SETUP_DIR" "$INSTALL_ROOT/bin"; fi
+# Prefer the canonical checkout name; migrate a legacy checkout in place.
+if [[ ! -e "$SETUP_DIR" && -d "$LEGACY_SETUP_DIR" ]]; then mv "$LEGACY_SETUP_DIR" "$SETUP_DIR"; fi
 install_prereqs
 python3 - <<'PY'
 import sys

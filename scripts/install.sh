@@ -2,7 +2,7 @@
 # Cross-platform FlossWare AI installer. Artifact-first; Git is only used for explicit source fallback.
 set -euo pipefail
 AGENT="all"; PROFILE="default"; REPO_DIR=""; REINSTALL=false; CLEAN=false
-INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware/ai}"; VENV="$INSTALL_ROOT/venv"; SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
+INSTALL_ROOT="${FLOSSWARE_AI_HOME:-${FLOSSWARE_AI_ROOT:-${FLOSSWARE_INSTALL_ROOT:-$HOME/.FlossWare/ai}}}"; VENV="$INSTALL_ROOT/venv"; SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
 AI_REPO="https://github.com/FlossWare/agent-ai.git"; SETUP_REPO="https://github.com/FlossWare/agent-setup.git"; RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"; AI_REF="${FLOSSWARE_AI_REF:-main}"; USE_SOURCE="${FLOSSWARE_USE_SOURCE:-false}"
 if [[ "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]]; then SETUP_ARCHIVE="https://codeload.github.com/FlossWare/agent-setup/tar.gz/$RELEASE_REF"; else SETUP_ARCHIVE="https://codeload.github.com/FlossWare/agent-setup/tar.gz/refs/heads/$RELEASE_REF"; fi
 usage(){ cat <<'EOF'
@@ -17,6 +17,7 @@ Usage: ./scripts/install.sh [options]
 Supported platforms: Fedora/RHEL derivatives, Debian/Ubuntu, FreeBSD, Termux/Android.
 The normal path downloads published/package artifacts and a GitHub source archive; it does not clone repositories.
 Set FLOSSWARE_USE_SOURCE=true to explicitly use Git/source installation for development.
+Persistent FlossWare AI state defaults to ~/.FlossWare/ai. Set FLOSSWARE_AI_HOME to override it.
 Credentials are never copied or persisted by this installer.
 EOF
 }
@@ -63,6 +64,9 @@ for required in scripts/setup.py scripts/profile.sh scripts/write-install-metada
 [[ "$PROFILE" == "default" || -f "$SETUP_DIR/profiles/$PROFILE.toml" ]] || fail "profile '$PROFILE' is not defined; refusing to substitute the neutral default profile"
 python -m compileall -q "$SETUP_DIR/scripts/setup.py" "$SETUP_DIR/scripts/tui.py" "$SETUP_DIR/scripts/agent_setup.py" "$SETUP_DIR/scripts/router_mcp.py" "$SETUP_DIR/scripts/discovery.py" "$SETUP_DIR/scripts/mcp.py" "$SETUP_DIR/scripts/runtime.py" "$SETUP_DIR/scripts/dogfood.py"
 "$VENV/bin/python" -m pip install -e "$SETUP_DIR" --quiet || fail "failed to install agent-setup package into managed venv"
+# Migrate supported user state after the new package is available. This never
+# removes legacy state and deliberately excludes credential stores.
+"$VENV/bin/python" -c 'from flossware_setup.config_control import migrate_legacy_install; migrated=migrate_legacy_install(); print("[FlossWare] migrated legacy state: " + (", ".join(migrated) if migrated else "none"))'
 PROFILE_DIR="$INSTALL_ROOT/config/profiles/$PROFILE"; mkdir -p "$PROFILE_DIR" "$INSTALL_ROOT/bin" "$INSTALL_ROOT/state" "$INSTALL_ROOT/cache" "$INSTALL_ROOT/mcp"
 cp "$SETUP_DIR/scripts/profile.sh" "$PROFILE_DIR/profile.sh"; cp "$SETUP_DIR/profiles/$PROFILE.toml" "$PROFILE_DIR/profile.toml"
 cp "$SETUP_DIR/scripts/flossware-ai" "$INSTALL_ROOT/bin/flossware-ai"; cp "$SETUP_DIR/scripts/tui.py" "$INSTALL_ROOT/tui.py"; cp "$SETUP_DIR/scripts/agent_setup.py" "$INSTALL_ROOT/agent_setup.py"; cp "$SETUP_DIR/scripts/setup.py" "$INSTALL_ROOT/setup.py"; cp "$SETUP_DIR/scripts/router_mcp.py" "$INSTALL_ROOT/router_mcp.py"; cp "$SETUP_DIR/scripts/discovery.py" "$INSTALL_ROOT/discovery.py"; cp "$SETUP_DIR/scripts/mcp.py" "$INSTALL_ROOT/mcp.py"; cp "$SETUP_DIR/scripts/runtime.py" "$INSTALL_ROOT/runtime.py"; cp "$SETUP_DIR/scripts/dogfood.py" "$INSTALL_ROOT/dogfood.py"
@@ -74,4 +78,4 @@ exec "$INSTALL_ROOT/bin/flossware-ai" "\$@"
 EOF
 bash "$SETUP_DIR/scripts/write-install-metadata.sh" "$INSTALL_ROOT" "$RELEASE_REF" "$USE_SOURCE" "$PLATFORM" "$PROFILE"
 chmod 700 "$PATH_SHIM"
-log "Installation complete: $INSTALL_ROOT"; printf '%s\n' "Profile: $PROFILE" "Platform: $PLATFORM" "Source mode: $USE_SOURCE" "Run: flossware-ai tui" "Run: flossware-ai doctor" "Run: flossware-ai dogfood --strict"
+log "Installation complete: $INSTALL_ROOT"; printf '%s\n' "Profile: $PROFILE" "Platform: $PLATFORM" "Source mode: $USE_SOURCE" "Persistent state: $INSTALL_ROOT" "Run: flossware-ai tui" "Run: flossware-ai doctor" "Run: flossware-ai dogfood --strict"

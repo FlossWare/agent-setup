@@ -228,7 +228,7 @@ def validate_profile_name(name: str) -> str:
     return text
 
 
-def _toml_value(value: Any) -> str:
+def _toml_scalar(value: Any) -> str | None:
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, str):
@@ -237,6 +237,13 @@ def _toml_value(value: Any) -> str:
         return str(value)
     if isinstance(value, float):
         return str(value)
+    return None
+
+
+def _toml_value(value: Any) -> str:
+    scalar = _toml_scalar(value)
+    if scalar is not None:
+        return scalar
     if isinstance(value, list):
         return "[" + ", ".join(_toml_value(v) for v in value) + "]"
     raise TypeError(f"unsupported TOML value: {type(value).__name__}")

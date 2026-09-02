@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sys
+import types
+
 import pytest
 
 from flossware_setup import config_control
@@ -90,9 +93,17 @@ def test_active_profile_syncs_legacy_marker(ai_root):
     assert path.read_text(encoding="utf-8").strip() == "synced"
     legacy = config_control.state_dir() / "profile"
     assert legacy.read_text(encoding="utf-8").strip() == "synced"
-    # load prefers canonical marker but accepts legacy when present alone
     path.unlink()
     assert config_control.load_active_profile() == "synced"
+
+
+def test_load_active_prefers_canonical_marker(ai_root):
+    config_control.create_profile("alpha", template="default")
+    config_control.create_profile("beta", template="default")
+    legacy = config_control.state_dir() / "profile"
+    legacy.write_text("alpha\n", encoding="utf-8")
+    config_control.active_profile_path().write_text("beta\n", encoding="utf-8")
+    assert config_control.load_active_profile() == "beta"
 
 
 def test_parse_providers_field_supports_text_editing():
@@ -103,44 +114,82 @@ def test_parse_providers_field_supports_text_editing():
     assert parse_providers_field("*configured*") == ["*configured*"]
 
 
-def test_edit_text_field_updates_provider_value(monkeypatch):
-    from flossware_setup.tui import profile_editor
+def test_tui_provider_edit_persists_via_shared_api(ai_root, monkeypatch):
+    """Text-field edit path produces values that update_profile persists."""
+    from flossware_setup.tui import profile_editor as pe
 
-    class _Panel:
-        def __init__(self):
-            self.calls = []
-
-        def addnstr(self, *args, **kwargs):
-            self.calls.append(("addnstr", args, kwargs))
-
-        def refresh(self):
-            self.calls.append(("refresh", (), {}))
-
-        def getstr(self, row, col, width):
-            return b"openai, local"
-
-    class _Curses:
-        def echo(self):
-            return None
-
-        def noecho(self):
-            return None
-
-    monkeypatch.setattr(profile_editor, "edit_text_field", profile_editor.edit_text_field)
-    # Exercise through module function with stub curses injected inside
-    import builtins
-    import types
     fake = types.ModuleType("curses")
     fake.echo = lambda: None
     fake.noecho = lambda: None
-    monkeypatch.setitem(__import__("sys").modules, "curses", fake)
+    monkeypatch.setitem(sys.modules, "curses", fake)
 
-    panel = _Panel()
-    value = profile_editor.edit_text_field(panel, 12, 2, 58, "old")
-    assert value == "openai, local"
-    assert profile_editor.parse_providers_field(value) == ["openai", "local"]
+    config_control.create_profile("tuiwork", template="default")
+    fields = pe.fields_from_profile(config_control.load_profile("tuiwork"))
+    assert fields[0][2] == "text"
+
+    class _Panel:
+        def addnstr(self, *args, **kwargs):
+            return None
+
+        def refresh(self):
+            return None
+
+        def getstr(self, *args, **kwargs):
+            return b"openai, anthropic"
+
+    fields[0][1] = pe.edit_text_field(_Panel(), 12, 58, str(fields[0][1]))
+    assert fields[0][1] == "openai, anthropic"
+    values = pe.proposed_values_from_fields(fields)
+    assert values["allowed_providers"] == ["openai", "anthropic"]
+    config_control.update_profile("tuiwork", values)
+    loaded = config_control.load_profile("tuiwork")
+    assert loaded["model_policy"]["allowed_providers"] == ["openai", "anthropic"]
+
+
+def test_tui_cancel_does_not_persist(ai_root):
+    from flossware_setup.tui import profile_editor as pe
+
+    config_control.create_profile("cancelme", template="default")
+    original = config_control.profile_path("cancelme").read_text(encoding="utf-8")
+    fields = pe.fields_from_profile(config_control.load_profile("cancelme"))
+    fields[0][1] = "openai"
+    after = config_control.profile_path("cancelme").read_text(encoding="utf-8")
+    assert after == original
+
+
+def test_tui_invalid_provider_does_not_corrupt(ai_root):
+    from flossware_setup.tui import profile_editor as pe
+
+    config_control.create_profile("badprov", template="default")
+    original = config_control.profile_path("badprov").read_text(encoding="utf-8")
+    fields = pe.fields_from_profile(config_control.load_profile("badprov"))
+    fields[0][1] = "not a valid!!!"
+    values = pe.proposed_values_from_fields(fields)
+    with pytest.raises(ValueError):
+        config_control.update_profile("badprov", values)
+    assert config_control.profile_path("badprov").read_text(encoding="utf-8") == original
+
+
+def test_apply_field_key_edits_text_slot():
+    from flossware_setup.tui.profile_editor import apply_field_key
+
+    fields = [["Allowed providers", "*configured*", "text"]]
+    idx = apply_field_key(
+        fields,
+        0,
+        10,
+        key_up=259,
+        key_down=258,
+        key_enter=343,
+        edit_text=lambda current: "openai",
+    )
+    assert idx == 0
+    assert fields[0][1] == "openai"
 
 
 def test_write_profile_rejects_path_escape(ai_root):
     with pytest.raises(ValueError, match="invalid profile name"):
-        config_control.write_profile("../escape", {"profile": "x", "model_policy": {"allowed_providers": ["*configured*"]}})
+        config_control.write_profile(
+            "../escape",
+            {"profile": "x", "model_policy": {"allowed_providers": ["*configured*"]}},
+        )

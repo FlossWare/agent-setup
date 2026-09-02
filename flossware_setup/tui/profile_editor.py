@@ -41,7 +41,7 @@ def edit_text_field(panel, row: int, col: int, width: int, current: str) -> str:
     return text if text else current
 
 
-def edit_profile_tui(win, name: str, popup, close, add=None, palette=None) -> None:
+def edit_profile_tui(win, name: str, popup, close, _add=None, _palette=None) -> None:
     """Interactive editor for policy, provider, optimizer, and budget settings."""
     import curses
 

@@ -8,7 +8,7 @@ from flossware_setup import config_control
 from flossware_setup.cli import main as cli_main
 
 
-@pytest.fixture()
+@pytest.fixture
 def ai_root(tmp_path, monkeypatch):
     root = tmp_path / "ai"
     root.mkdir()

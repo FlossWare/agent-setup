@@ -39,6 +39,8 @@ def test_scripts_install_uses_canonical_repo_urls() -> None:
     text = INSTALLER.read_text(encoding="utf-8")
     assert "github.com/FlossWare/agent-setup" in text
     assert "codeload.github.com/FlossWare/agent-setup" in text
+    assert 'AI_REPO="https://github.com/FlossWare/agent-ai.git"' in text
+    assert "coding-agent-ai.git" not in text
     # Historical install path name remains for managed layout compatibility.
     assert "coding-agent-setup" in text
 

@@ -3,7 +3,7 @@
 set -euo pipefail
 AGENT="all"; PROFILE="default"; REPO_DIR=""; REINSTALL=false; CLEAN=false
 INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware/ai}"; VENV="$INSTALL_ROOT/venv"; SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
-AI_REPO="https://github.com/FlossWare/coding-agent-ai.git"; SETUP_REPO="https://github.com/FlossWare/agent-setup.git"; RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"; AI_REF="${FLOSSWARE_AI_REF:-main}"; USE_SOURCE="${FLOSSWARE_USE_SOURCE:-false}"
+AI_REPO="https://github.com/FlossWare/agent-ai.git"; SETUP_REPO="https://github.com/FlossWare/agent-setup.git"; RELEASE_REF="${FLOSSWARE_RELEASE_REF:-main}"; AI_REF="${FLOSSWARE_AI_REF:-main}"; USE_SOURCE="${FLOSSWARE_USE_SOURCE:-false}"
 if [[ "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]]; then SETUP_ARCHIVE="https://codeload.github.com/FlossWare/agent-setup/tar.gz/$RELEASE_REF"; else SETUP_ARCHIVE="https://codeload.github.com/FlossWare/agent-setup/tar.gz/refs/heads/$RELEASE_REF"; fi
 usage(){ cat <<'EOF'
 Usage: ./scripts/install.sh [options]

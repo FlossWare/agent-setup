@@ -7,7 +7,9 @@ import subprocess
 import urllib.request
 from pathlib import Path
 
-ROOT = Path(os.environ.get("FLOSSWARE_AI_HOME", Path.home() / ".flossware" / "ai"))
+from flossware_setup.state_root import canonical_root
+
+ROOT = canonical_root()
 CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "crush"
 BIN_DIR = Path.home() / ".local" / "bin"
 GATEWAY_URL = "https://raw.githubusercontent.com/FlossWare/crush-demo/main/gateway.py"

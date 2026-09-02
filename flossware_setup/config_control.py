@@ -27,13 +27,21 @@ ORGANIZATION_PROFILES: tuple[str, ...] = ()
 
 
 def flossware_root() -> Path:
-    """Return the canonical install/state root."""
-    for key in ("FLOSSWARE_AI_ROOT", "FLOSSWARE_INSTALL_ROOT"):
+    """Return the canonical install/state root.
+
+    Precedence:
+    1. ``FLOSSWARE_AI_HOME`` (canonical override)
+    2. ``FLOSSWARE_AI_ROOT`` / ``FLOSSWARE_INSTALL_ROOT`` (legacy isolation)
+    3. ``~/.FlossWare/ai``
+    """
+    from flossware_setup.state_root import ENV_VAR, DEFAULT_ROOT_NAME
+
+    for key in (ENV_VAR, "FLOSSWARE_AI_ROOT", "FLOSSWARE_INSTALL_ROOT"):
         raw = os.environ.get(key)
         if not raw:
             continue
         text = raw.strip()
-        if not text or "\0" in text or not os.path.isabs(text):
+        if not text or chr(0) in text or not os.path.isabs(text):
             continue
         try:
             path = Path(text).expanduser().resolve()
@@ -41,9 +49,16 @@ def flossware_root() -> Path:
             return path
         except (OSError, RuntimeError, ValueError):
             continue
-    path = (Path.home() / ".flossware" / "ai").resolve()
+    path = (Path.home() / DEFAULT_ROOT_NAME).resolve()
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def migrate_legacy_install() -> list[str]:
+    """Migrate supported legacy state into the canonical root (installer entrypoint)."""
+    from flossware_setup.state_root import migrate_legacy_state
+
+    return migrate_legacy_state()
 
 
 def state_dir() -> Path: return flossware_root()

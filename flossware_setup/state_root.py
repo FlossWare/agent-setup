@@ -59,8 +59,14 @@ def migrate_legacy_state(*, source: Path | None = None, destination: Path | None
     """
     src = (source or legacy_root()).expanduser().resolve()
     dest = (destination or canonical_root()).expanduser().resolve()
-    if src == dest or not src.is_dir():
+    if not src.is_dir():
         return []
+    try:
+        if src == dest or src.samefile(dest):
+            return []
+    except OSError:
+        if src == dest:
+            return []
 
     dest.mkdir(parents=True, exist_ok=True)
     migrated: list[str] = []

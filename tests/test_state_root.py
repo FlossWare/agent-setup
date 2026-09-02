@@ -25,8 +25,9 @@ def test_environment_override_is_used(monkeypatch, tmp_path):
 
 
 def test_legacy_migration_is_non_destructive_and_idempotent(tmp_path):
-    legacy = tmp_path / ".flossware" / "ai"
-    current = tmp_path / ".FlossWare" / "ai"
+    # Distinct names so case-insensitive filesystems do not collapse paths.
+    legacy = tmp_path / "legacy-state" / "ai"
+    current = tmp_path / "canonical-state" / "ai"
     (legacy / "profiles").mkdir(parents=True)
     (legacy / "profiles" / "personal.toml").write_text('profile = "personal"\n', encoding="utf-8")
     (legacy / "active-profile").write_text("personal\n", encoding="utf-8")
@@ -43,3 +44,16 @@ def test_legacy_migration_is_non_destructive_and_idempotent(tmp_path):
     (current / "active-profile").write_text("default\n", encoding="utf-8")
     assert migrate_legacy_state(source=legacy, destination=current) == []
     assert (current / "active-profile").read_text(encoding="utf-8") == "default\n"
+
+
+def test_migration_skips_when_source_is_destination(tmp_path):
+    root = tmp_path / "same" / "ai"
+    (root / "profiles").mkdir(parents=True)
+    (root / "profiles" / "x.toml").write_text('profile = "x"\n', encoding="utf-8")
+    assert migrate_legacy_state(source=root, destination=root) == []
+
+
+def test_migrate_legacy_install_entrypoint():
+    from flossware_setup.config_control import migrate_legacy_install
+
+    assert callable(migrate_legacy_install)

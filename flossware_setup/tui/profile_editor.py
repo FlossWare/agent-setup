@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from flossware_setup.tui.input import is_mouse, mouse_event, resolve_list_mouse
 from flossware_setup.config_control import (
     edit_profile,
     load_profile,
@@ -141,6 +142,15 @@ def edit_profile_tui(win, name: str, popup, close, _add=None, _palette=None) -> 
             panel.addnstr(len(fields) + 3, 2, "Enter/Space edit  s save  Esc cancel", 58)
             panel.refresh()
             key = panel.getch()
+            if is_mouse(key):
+                # Field rows start at panel row 2.
+                action = resolve_list_mouse(mouse_event(), origin_y=2, count=len(fields))
+                if action is not None:
+                    kind, index = action
+                    idx = index
+                    if kind == "activate" and fields[idx][2] == "text":
+                        fields[idx][1] = edit_text_field(panel, len(fields) + 4, 58, str(fields[idx][1]))
+                continue
             if key in (27, ord("q"), ord("Q")):
                 return
             if key in (ord("s"), ord("S")):

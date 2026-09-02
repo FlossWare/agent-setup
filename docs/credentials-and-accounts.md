@@ -29,7 +29,21 @@ Credential values must never be written to:
 - MCP definitions;
 - source-controlled files.
 
-`~/.flossware/ai` is managed application state, not a secret vault. A credential reference may be stored there when necessary, but the secret itself remains in its authoritative credential store.
+`~/.FlossWare/ai` is managed application state, not a secret vault. A credential reference or presence metadata may be stored there when necessary, but the secret itself remains in its authoritative credential store.
+
+## Persistent state ownership
+
+The canonical FlossWare AI state root is:
+
+```text
+~/.FlossWare/ai/
+```
+
+Set `FLOSSWARE_AI_HOME=/absolute/path` to redirect the complete state root for tests, CI, containers, or unusual installations. Git repositories are not state stores and should not be used as an alternative location for provider, account, model, or profile configuration.
+
+The state root may contain profiles, bindings, provider/account/model metadata, setup-managed Crush state, configuration, and runtime state. Disposable cache data belongs under `cache/` and can be regenerated.
+
+Existing installations using the historical `~/.flossware/ai` root are migrated non-destructively during installation. Only supported configuration/state paths are copied, existing destination files are never overwritten, and credential stores are deliberately excluded. The legacy directory is left intact until the operator explicitly removes it.
 
 ## Multiple accounts
 

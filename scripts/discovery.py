@@ -8,13 +8,19 @@ import time
 from pathlib import Path
 from model_router_ai import discover_accounts, discover_all_models, provider_definitions
 
+# Identity discovery is owned by model_router_ai.discovery. Always bind from
+# the submodule (stable since the discovery module was introduced), then
+# prefer a package-root re-export when the installed model-router-ai exposes
+# one. This avoids ImportError on older package roots that never listed
+# discover_identities in model_router_ai.__all__.
+from model_router_ai.discovery import discover_identities as discover_identities
+
 try:
-    from model_router_ai import discover_identities
-except ImportError:
-    # Older/packaged model-router-ai releases expose this from the discovery
-    # module but not from the package root. Keep the setup runtime compatible
-    # with both layouts.
-    from model_router_ai.discovery import discover_identities
+    from model_router_ai import discover_identities as _root_discover_identities
+except ImportError:  # pragma: no cover - older package roots
+    pass
+else:
+    discover_identities = _root_discover_identities
 
 ROOT = Path(os.environ.get("FLOSSWARE_AI_ROOT", Path.home() / ".flossware" / "ai"))
 CACHE = ROOT / "cache" / "models.json"

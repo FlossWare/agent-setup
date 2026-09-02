@@ -310,11 +310,21 @@ def validate_profile_data(data: dict[str, Any], *, name: str | None = None) -> d
     return data
 
 
+
+def _resolved_profile_file(name: str) -> Path:
+    """Build a profile file path confined to the profiles directory."""
+    safe = validate_profile_name(name)
+    base = profiles_dir().resolve()
+    path = (base / f"{safe}.toml").resolve()
+    if path.parent != base:
+        raise ValueError(f"invalid profile path for {name!r}")
+    return path
+
 def write_profile(name: str, data: dict[str, Any]) -> Path:
     """Validate and atomically persist a profile document."""
     name = validate_profile_name(name)
     validated = validate_profile_data(data, name=name)
-    path = profile_path(name)
+    path = _resolved_profile_file(name)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(dump_profile_toml(validated), encoding="utf-8")

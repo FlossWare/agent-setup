@@ -10,10 +10,38 @@ from flossware_setup.config_control import (
 )
 
 # Re-export for callers that imported edit_profile from this module.
-__all__ = ["edit_profile", "edit_profile_tui", "update_profile"]
+__all__ = ["edit_profile", "edit_profile_tui", "update_profile", "parse_providers_field"]
 
 
-def edit_profile_tui(win, name: str, popup, close, add, palette) -> None:
+def parse_providers_field(raw: str) -> list[str]:
+    """Parse the Allowed providers text field into provider references."""
+    parts = [part.strip() for part in str(raw).split(",") if part.strip()]
+    return parts or ["*configured*"]
+
+
+def edit_text_field(panel, row: int, col: int, width: int, current: str) -> str:
+    """Prompt for a single-line text value using curses (testable via panel stub)."""
+    import curses
+
+    prompt_col = col
+    panel.addnstr(row, 2, " " * max(0, width), width)
+    panel.addnstr(row, 2, "New value: ", width)
+    panel.refresh()
+    curses.echo()
+    try:
+        raw = panel.getstr(row, 13, max(8, min(40, width - 14)))
+    finally:
+        curses.noecho()
+    if raw is None:
+        return current
+    if isinstance(raw, bytes):
+        text = raw.decode("utf-8", errors="replace").strip()
+    else:
+        text = str(raw).strip()
+    return text if text else current
+
+
+def edit_profile_tui(win, name: str, popup, close, add=None, palette=None) -> None:
     """Interactive editor for policy, provider, optimizer, and budget settings."""
     import curses
 
@@ -39,7 +67,7 @@ def edit_profile_tui(win, name: str, popup, close, add, palette) -> None:
         ["Hard budget limit", bool(cost.get("hard_limit", False)), "bool"],
     ]
     idx = 0
-    panel = popup(win, 2, 4, min(18, max(12, len(fields) + 6)), 64, f"Edit profile: {name}")
+    panel = popup(win, 2, 4, min(20, max(14, len(fields) + 8)), 64, f"Edit profile: {name}")
     try:
         while True:
             panel.erase()
@@ -70,9 +98,14 @@ def edit_profile_tui(win, name: str, popup, close, add, palette) -> None:
                     choices = fields[idx][3]
                     cur = fields[idx][1]
                     fields[idx][1] = choices[(choices.index(cur) + 1) % len(choices)] if cur in choices else choices[0]
+                elif kind == "text":
+                    current = str(fields[idx][1])
+                    fields[idx][1] = edit_text_field(
+                        panel, len(fields) + 4, 2, 58, current
+                    )
             elif key in (ord("s"), ord("S")):
                 proposed = {
-                    "allowed_providers": [p.strip() for p in str(fields[0][1]).split(",") if p.strip()],
+                    "allowed_providers": parse_providers_field(str(fields[0][1])),
                     "allow_local_models": fields[1][1],
                     "allow_personal_accounts": fields[2][1],
                     "allow_provider_fallback": fields[3][1],
@@ -83,8 +116,6 @@ def edit_profile_tui(win, name: str, popup, close, add, palette) -> None:
                     "monthly_limit_usd": fields[8][1],
                     "hard_limit": fields[9][1],
                 }
-                if not proposed["allowed_providers"]:
-                    proposed["allowed_providers"] = ["*configured*"]
                 update_profile(name, proposed)
                 return
     finally:

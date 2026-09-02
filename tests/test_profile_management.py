@@ -82,3 +82,65 @@ def test_cli_profile_commands(ai_root, capsys):
 def test_unknown_select_fails_clearly(ai_root):
     with pytest.raises(ValueError, match="unknown profile"):
         config_control.save_active_profile("does-not-exist")
+
+
+def test_active_profile_syncs_legacy_marker(ai_root):
+    config_control.create_profile("synced", template="default")
+    path = config_control.save_active_profile("synced")
+    assert path.read_text(encoding="utf-8").strip() == "synced"
+    legacy = config_control.state_dir() / "profile"
+    assert legacy.read_text(encoding="utf-8").strip() == "synced"
+    # load prefers canonical marker but accepts legacy when present alone
+    path.unlink()
+    assert config_control.load_active_profile() == "synced"
+
+
+def test_parse_providers_field_supports_text_editing():
+    from flossware_setup.tui.profile_editor import parse_providers_field
+
+    assert parse_providers_field("openai, anthropic") == ["openai", "anthropic"]
+    assert parse_providers_field("  ") == ["*configured*"]
+    assert parse_providers_field("*configured*") == ["*configured*"]
+
+
+def test_edit_text_field_updates_provider_value(monkeypatch):
+    from flossware_setup.tui import profile_editor
+
+    class _Panel:
+        def __init__(self):
+            self.calls = []
+
+        def addnstr(self, *args, **kwargs):
+            self.calls.append(("addnstr", args, kwargs))
+
+        def refresh(self):
+            self.calls.append(("refresh", (), {}))
+
+        def getstr(self, row, col, width):
+            return b"openai, local"
+
+    class _Curses:
+        def echo(self):
+            return None
+
+        def noecho(self):
+            return None
+
+    monkeypatch.setattr(profile_editor, "edit_text_field", profile_editor.edit_text_field)
+    # Exercise through module function with stub curses injected inside
+    import builtins
+    import types
+    fake = types.ModuleType("curses")
+    fake.echo = lambda: None
+    fake.noecho = lambda: None
+    monkeypatch.setitem(__import__("sys").modules, "curses", fake)
+
+    panel = _Panel()
+    value = profile_editor.edit_text_field(panel, 12, 2, 58, "old")
+    assert value == "openai, local"
+    assert profile_editor.parse_providers_field(value) == ["openai", "local"]
+
+
+def test_write_profile_rejects_path_escape(ai_root):
+    with pytest.raises(ValueError, match="invalid profile name"):
+        config_control.write_profile("../escape", {"profile": "x", "model_policy": {"allowed_providers": ["*configured*"]}})

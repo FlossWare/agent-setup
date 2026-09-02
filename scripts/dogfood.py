@@ -5,6 +5,8 @@ import argparse
 import os
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -24,6 +26,76 @@ SECRET_PATTERNS = (
     re.compile(r"\bxox[baprs]-[A-Za-z0-9\-]{10,}\b"),
     re.compile(r"(?i)(?:api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{12,}['\"]"),
 )
+
+
+def agent_on_path(command: str) -> str | None:
+    """Return absolute path to command if present on PATH."""
+    return shutil.which(command)
+
+
+def agent_executable_usable(command: str) -> tuple[bool, str]:
+    """Validate that a coding-agent CLI is present and invokable.
+
+    Strict dogfood requires more than a bare filename on PATH: the binary must
+    exist, be executable, and respond to a lightweight invocation without
+    hanging. We accept exit codes 0-2 (help/usage/version patterns).
+    """
+    resolved = agent_on_path(command)
+    if not resolved:
+        return False, f"{command} is not on PATH"
+    path = Path(resolved)
+    if not path.is_file():
+        return False, f"{command} resolves to non-file {resolved}"
+    if not os.access(path, os.X_OK):
+        return False, f"{command} at {resolved} is not executable"
+    try:
+        proc = subprocess.run(
+            [resolved, "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return False, f"{command} timed out on --help"
+    except OSError as exc:
+        return False, f"{command} could not be executed: {exc}"
+    if proc.returncode > 2:
+        return False, f"{command} --help exited {proc.returncode}"
+    return True, f"{command} is installed and invokable ({resolved})"
+
+
+def discovery_doctor_ok() -> tuple[bool, str]:
+    """Run the discovery doctor entrypoint offline and require success."""
+    discovery = ROOT / "scripts" / "discovery.py"
+    if not discovery.is_file():
+        # Installed layout places discovery.py next to dogfood.py
+        discovery = ROOT / "discovery.py"
+    if not discovery.is_file():
+        return False, "discovery.py not found"
+    env = os.environ.copy()
+    env.setdefault("FLOSSWARE_AI_ROOT", str(Path(tempfile.mkdtemp(prefix="dogfood-doctor-"))))
+    python = os.environ.get("PYTHON") or sys.executable
+    try:
+        proc = subprocess.run(
+            [python, str(discovery), "doctor"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+            env=env,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return False, f"discovery doctor failed to run: {exc}"
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+        tail = detail[-1] if detail else f"exit {proc.returncode}"
+        return False, f"discovery doctor exit {proc.returncode}: {tail}"
+    if "FlossWare AI | Doctor" not in (proc.stdout or ""):
+        return False, "discovery doctor output missing Doctor header"
+    if "Credential values:" not in (proc.stdout or ""):
+        return False, "discovery doctor output missing credential safety line"
+    return True, "discovery doctor completed without credentials"
 
 
 def check(label: str, ok: bool, detail: str) -> bool:
@@ -159,7 +231,8 @@ def main() -> int:
 
     if source_tree:
         failures += not check("Repository", True, str(ROOT))
-        failures += not check("Installer", (ROOT / "scripts" / "install.sh").is_file(), "POSIX installer present")
+        installer = ROOT / "scripts" / "install.sh"
+        failures += not check("Installer", installer.is_file() and os.access(installer, os.X_OK), "POSIX installer present and executable")
         failures += not check("TUI", (ROOT / "scripts" / "setup.py").is_file(), "setup implementation present")
         failures += not check("Discovery", (ROOT / "scripts" / "discovery.py").is_file(), "provider/model discovery present")
         failures += not check("Packaging", (ROOT / "pyproject.toml").is_file(), "PEP 517 setuptools backend")
@@ -173,14 +246,19 @@ def main() -> int:
         failures = validate_generated_artifacts(failures)
 
     for agent, (command, instruction) in EXECUTABLE_AGENTS.items():
-        found = shutil.which(command) is not None
+        found = agent_on_path(command) is not None
         instruction_exists = (target / instruction).exists() if source_tree else False
         if args.strict and agent in {"claude-code", "crush"}:
-            failures += not check(agent, found, f"{command} is installed")
+            ok, detail = agent_executable_usable(command)
+            failures += not check(agent, ok, detail)
         else:
             status = "installed" if found else "not installed"
             instruction_status = "present" if instruction_exists else "not generated"
             print(f"- {agent}: {status}; instruction file {instruction_status}")
+
+    if args.strict:
+        ok, detail = discovery_doctor_ok()
+        failures += not check("Discovery doctor", ok, detail)
 
     try:
         import sys

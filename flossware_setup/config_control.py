@@ -109,10 +109,14 @@ def matching_bindings(directory: str | Path | None = None) -> list[tuple[str, st
         matches.append((root, profile))
     matches.sort(key=lambda item: len(item[0]), reverse=True); return matches
 def profile_for_directory(directory: str | Path | None = None) -> tuple[str, str | None]:
-    matches = matching_bindings(directory); return (matches[0][1], matches[0][0]) if matches else ("default", None)
+    matches = matching_bindings(directory)
+    if matches:
+        return matches[0][1], matches[0][0]
+    active = load_active_profile()
+    return active, None
 def binding_provenance(directory: str | Path | None = None) -> dict[str, object]:
     target = Path(directory or Path.cwd()).expanduser().resolve(); matches = matching_bindings(target); profile, source = profile_for_directory(target)
-    return {"directory": _norm(target), "effective_profile": profile, "source": source, "source_kind": "directory-binding" if source else "default-profile", "winning_binding": matches[0] if matches else None, "parent_bindings": matches[1:] if len(matches) > 1 else [], "all_matches": matches}
+    return {"directory": _norm(target), "effective_profile": profile, "source": source, "source_kind": "directory-binding" if source else "active-profile", "winning_binding": matches[0] if matches else None, "parent_bindings": matches[1:] if len(matches) > 1 else [], "all_matches": matches}
 def bindings_grouped_by_profile() -> dict[str, list[str]]:
     grouped: dict[str, list[str]] = {}
     for directory, profile in load_bindings().items(): grouped.setdefault(profile, []).append(directory)
@@ -168,6 +172,253 @@ def effective_config(profile_name: str = "default") -> ConfigResolver:
     except Exception: project_map = {}
     if project_map: resolver.add_layer(ConfigLayer("project", 500, project_map))
     resolver.add_layer(ConfigLayer("environment", 600, _env_config_layer())); return resolver
+
+
+
+_PROFILE_NAME_RE = __import__("re").compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
+_SECRET_HINT = __import__("re").compile(
+    r"(?i)(api[_-]?key|secret|token|password)\s*[:=]|\bsk-[A-Za-z0-9_-]{8,}\b|\bghp_[A-Za-z0-9]{20,}\b"
+)
+
+
+def active_profile_path() -> Path:
+    """Canonical active-profile marker (installer writes the same file)."""
+    return state_dir() / "active-profile"
+
+
+def load_active_profile() -> str:
+    """Return the selected active profile, falling back to default."""
+    for candidate in (active_profile_path(), state_dir() / "profile"):
+        try:
+            value = candidate.read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if value and value in available_profiles():
+            return value
+    return "default"
+
+
+def save_active_profile(name: str) -> Path:
+    """Persist the active profile selection without rewriting profile documents."""
+    safe = validate_profile_name(name)
+    if safe not in available_profiles():
+        raise ValueError(f"unknown profile: {safe}")
+    path = active_profile_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = f"{safe}\n"
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    tmp.replace(path)
+    # Keep legacy marker in sync for older TUI paths.
+    legacy = state_dir() / "profile"
+    try:
+        legacy.write_text(payload, encoding="utf-8")
+    except OSError:
+        pass
+    return path
+
+
+def validate_profile_name(name: str) -> str:
+    text = (name or "").strip()
+    if not _PROFILE_NAME_RE.match(text):
+        raise ValueError(
+            f"invalid profile name {name!r}; use letters, digits, underscore, hyphen "
+            "(must start with a letter)"
+        )
+    return text
+
+
+def _toml_scalar(value: Any) -> str | None:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    if isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+    if isinstance(value, float):
+        return str(value)
+    return None
+
+
+def _toml_value(value: Any) -> str:
+    scalar = _toml_scalar(value)
+    if scalar is not None:
+        return scalar
+    if isinstance(value, list):
+        return "[" + ", ".join(_toml_value(v) for v in value) + "]"
+    raise TypeError(f"unsupported TOML value: {type(value).__name__}")
+
+
+def dump_profile_toml(data: dict[str, Any]) -> str:
+    """Serialize a profile document, preserving nested tables."""
+    out: list[str] = []
+
+    def emit_table(name: str, values: dict[str, Any]) -> None:
+        if out:
+            out.append("")
+        out.append(f"[{name}]")
+        nested: list[tuple[str, dict[str, Any]]] = []
+        for key, value in values.items():
+            if isinstance(value, dict):
+                nested.append((key, value))
+            else:
+                out.append(f"{key} = {_toml_value(value)}")
+        for key, value in nested:
+            emit_table(f"{name}.{key}", value)
+
+    for key, value in data.items():
+        if not isinstance(value, dict):
+            out.append(f"{key} = {_toml_value(value)}")
+    for key, value in data.items():
+        if isinstance(value, dict):
+            emit_table(key, value)
+    return "\n".join(out) + "\n"
+
+
+def _require_table(value: Any, label: str) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be a table")
+    return value
+
+
+def _validate_allowed_providers(allowed: Any) -> list[str]:
+    if not isinstance(allowed, list) or not allowed:
+        raise ValueError("model_policy.allowed_providers must be a non-empty list")
+    cleaned: list[str] = []
+    for item in allowed:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError("model_policy.allowed_providers entries must be non-empty strings")
+        token = item.strip()
+        if token != PROVIDER_CONFIGURED and not token.replace("-", "").replace("_", "").isalnum():
+            raise ValueError(f"invalid provider reference: {item!r}")
+        cleaned.append(token)
+    return cleaned
+
+
+def _validate_model_policy_flags(model: dict[str, Any]) -> None:
+    for flag in (
+        "allow_local_models",
+        "allow_unconfigured_providers",
+        "allow_personal_accounts",
+        "allow_provider_fallback",
+    ):
+        if flag in model and not isinstance(model[flag], bool):
+            raise ValueError(f"model_policy.{flag} must be a boolean")
+
+
+def _validate_cost(cost: dict[str, Any]) -> None:
+    if "monthly_limit_usd" not in cost:
+        return
+    try:
+        limit = float(cost["monthly_limit_usd"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("cost.monthly_limit_usd must be a number") from exc
+    if limit < 0:
+        raise ValueError("cost.monthly_limit_usd must be >= 0")
+
+
+def validate_profile_data(data: dict[str, Any], *, name: str | None = None) -> dict[str, Any]:
+    """Validate profile structure and policy references (no secret values)."""
+    if not isinstance(data, dict):
+        raise ValueError("profile document must be a table")
+    rendered = dump_profile_toml(data)
+    if _SECRET_HINT.search(rendered):
+        raise ValueError("profile must not contain credential or secret values")
+    model = _require_table(data.get("model_policy", {}), "model_policy")
+    model["allowed_providers"] = _validate_allowed_providers(
+        model.get("allowed_providers", [PROVIDER_CONFIGURED])
+    )
+    _validate_model_policy_flags(model)
+    cost = _require_table(data.get("cost", {}), "cost")
+    _validate_cost(cost)
+    if name is not None:
+        data = dict(data)
+        data["profile"] = name
+        data["model_policy"] = model
+        if cost:
+            data["cost"] = cost
+    return data
+
+
+def _resolved_profile_file(name: str) -> Path:
+    """Build a profile file path confined to the profiles directory."""
+    safe = validate_profile_name(name)
+    base = profiles_dir().resolve()
+    path = (base / f"{safe}.toml").resolve()
+    if path.parent != base:
+        raise ValueError(f"invalid profile path for {name!r}")
+    return path
+
+def write_profile(name: str, data: dict[str, Any]) -> Path:
+    """Validate and atomically persist a profile document."""
+    name = validate_profile_name(name)
+    validated = validate_profile_data(data, name=name)
+    path = _resolved_profile_file(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(dump_profile_toml(validated), encoding="utf-8")
+    tmp.replace(path)
+    return path
+
+
+def create_profile(name: str, *, template: str = "default") -> Path:
+    """Create a new profile from a template without overwriting existing files."""
+    name = validate_profile_name(name)
+    if profile_path(name).is_file():
+        raise ValueError(f"profile already exists: {name}")
+    data = load_profile(template)
+    data = dict(data)
+    data["profile"] = name
+    return write_profile(name, data)
+
+
+def _apply_profile_edits(data: dict[str, Any], values: dict[str, object]) -> dict[str, Any]:
+    model = data.setdefault("model_policy", {})
+    optimization = data.setdefault("optimization", {})
+    cost = data.setdefault("cost", {})
+    bool_keys = (
+        "allow_local_models",
+        "allow_personal_accounts",
+        "allow_provider_fallback",
+        "allow_unconfigured_providers",
+    )
+    for key in bool_keys:
+        if key in values:
+            model[key] = bool(values[key])
+    if "allowed_providers" in values:
+        model["allowed_providers"] = list(values["allowed_providers"])  # type: ignore[arg-type]
+    if "optimization_enabled" in values:
+        optimization["enabled"] = bool(values["optimization_enabled"])
+    if "optimization_strategy" in values:
+        optimization["strategy"] = str(values["optimization_strategy"])
+    if "optimization_population" in values:
+        genetic = optimization.setdefault("genetic", {})
+        genetic["population_size"] = int(values["optimization_population"])  # type: ignore[index]
+    if "monthly_limit_usd" in values:
+        cost["monthly_limit_usd"] = float(values["monthly_limit_usd"])
+    if "hard_limit" in values:
+        cost["hard_limit"] = bool(values["hard_limit"])
+    return data
+
+
+def update_profile(name: str, values: dict[str, object] | None = None) -> Path:
+    """Update editable policy fields while preserving unknown settings."""
+    safe = validate_profile_name(name)
+    if safe not in available_profiles():
+        raise ValueError(f"unknown profile: {safe}")
+    path = profile_path(safe)
+    data = load_profile(safe)
+    if values is None:
+        if not path.is_file():
+            return write_profile(safe, data)
+        return path
+    return write_profile(safe, _apply_profile_edits(data, values))
+
+
+# Backwards-compatible alias used by the TUI editor.
+edit_profile = update_profile
 
 def validate_effective_config(profile_name: str = "default") -> dict[str, Any]:
     config = effective_config(profile_name).resolve(); profile = load_profile(profile_name); allowed = list(profile.get("model_policy", {}).get("allowed_providers") or [])

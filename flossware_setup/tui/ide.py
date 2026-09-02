@@ -4,21 +4,18 @@ from __future__ import annotations
 import curses
 from pathlib import Path
 
-from flossware_setup.config_control import effective_config, state_dir
+from flossware_setup.config_control import (
+    available_profiles,
+    create_profile,
+    effective_config,
+    load_active_profile,
+    save_active_profile,
+    state_dir,
+)
 from flossware_setup.tui.widgets import add, palette
 
-PROFILES = ("personal", "redhat", "redhat-cost-conscious")
 MENU = ("File", "Edit", "View", "Config", "Models", "Agents", "Optimize", "Help")
 ITEMS = {"File": ("Exit",), "Edit": ("Reorder menus",), "View": ("Profiles", "Directory Bindings", "Configuration", "Theme"), "Config": ("Profiles", "Create Profile", "Directory Bindings", "Validate"), "Models": ("Select Model",), "Agents": ("Select Agent",), "Optimize": ("Settings",), "Help": ("About",)}
-
-def _profile_path() -> Path: return state_dir() / "profile"
-def load_active_profile() -> str:
-    try:
-        value = _profile_path().read_text(encoding="utf-8").strip(); return value if value in PROFILES else "personal"
-    except OSError: return "personal"
-def save_active_profile(name: str) -> None:
-    if name not in PROFILES: raise ValueError(f"unknown profile: {name}")
-    state_dir().mkdir(parents=True, exist_ok=True); _profile_path().write_text(name + "\n", encoding="utf-8")
 
 def _popup(win: object, top: int, left: int, height: int, width: int, title: str):
     h, w = win.getmaxyx(); height=max(3,min(int(height),max(3,h-2))); width=max(10,min(int(width),max(10,w-2))); top=max(0,min(int(top),max(0,h-height))); left=max(0,min(int(left),max(0,w-width)))
@@ -38,14 +35,14 @@ def _draw_box(win: object, top: int, left: int, bottom: int, right: int, title: 
     except curses.error: pass
 
 def profile_selector(win: object) -> str | None:
-    current=load_active_profile(); cursor=PROFILES.index(current)
+    current=load_active_profile(); cursor=list(available_profiles()).index(current) if current in available_profiles() else 0
     while True:
         win.erase(); h,w=win.getmaxyx(); add(win,1,2,"FlossWare AI  |  Select Profile",1,curses.A_BOLD); _draw_box(win,3,4,min(h-4,9),min(w-5,52),"Profiles")
-        for i,profile in enumerate(PROFILES): add(win,5+i,7,(">" if i==cursor else " ")+" "+profile.replace("-"," ").title(),2 if i==cursor else 5,curses.A_BOLD if i==cursor else 0)
+        for i,profile in enumerate(available_profiles()): add(win,5+i,7,(">" if i==cursor else " ")+" "+profile.replace("-"," ").title(),2 if i==cursor else 5,curses.A_BOLD if i==cursor else 0)
         add(win,h-2,2,"Enter Select   Esc Cancel   Up/Down Navigate",6); win.refresh(); key=win.getch()
         if key in (curses.KEY_UP,ord("k")): cursor=max(0,cursor-1)
-        elif key in (curses.KEY_DOWN,ord("j")): cursor=min(len(PROFILES)-1,cursor+1)
-        elif key in (10,13,curses.KEY_ENTER): save_active_profile(PROFILES[cursor]); return PROFILES[cursor]
+        elif key in (curses.KEY_DOWN,ord("j")): cursor=min(len(available_profiles())-1,cursor+1)
+        elif key in (10,13,curses.KEY_ENTER): save_active_profile(list(available_profiles())[cursor]); return list(available_profiles())[cursor]
         elif key==27: return None
 
 def _effective_profile_config(profile: str) -> dict[str,object]:
@@ -56,7 +53,7 @@ def run(win: object) -> None:
     palette(); win.keypad(True); active=load_active_profile()
     while True:
         win.erase(); h,w=win.getmaxyx(); config=_effective_profile_config(active); add(win,0,0," File   Edit   View   Config   Models   Agents   Optimize   Help ",1,curses.A_BOLD); add(win,1,0,"-"*max(1,w-1),1); left=max(18,min(27,w//4)); _draw_box(win,2,1,max(3,h-5),left,"Profiles")
-        for i,profile in enumerate(PROFILES): add(win,4+i,3,f"{'> ' if profile==active else '  '}{profile.replace('-', ' ').title()}",2 if profile==active else 5,curses.A_BOLD if profile==active else 0)
+        for i,profile in enumerate(available_profiles()): add(win,4+i,3,f"{'> ' if profile==active else '  '}{profile.replace('-', ' ').title()}",2 if profile==active else 5,curses.A_BOLD if profile==active else 0)
         panel_left=left+2; _draw_box(win,2,panel_left,max(3,h-5),max(panel_left+2,w-2),"Configuration")
         fields=[("Provider",config.get("provider","unknown")),("Budget",f"${float(config.get('budget.monthly',0)):.2f} / month"),("Optimizer",config.get("optimization.strategy","unknown")),("Personal accounts","allowed" if config.get("policy.allow_personal_accounts") else "blocked"),("Provider fallback","allowed" if config.get("policy.allow_provider_fallback") else "blocked")]
         for i,(name,value) in enumerate(fields): add(win,4+i,panel_left+3,f"{name:<22} {value}",5)

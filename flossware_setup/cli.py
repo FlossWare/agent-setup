@@ -6,8 +6,21 @@ import json
 import os
 import subprocess
 
-from flossware_setup.config_control import (DEFAULT_CONSTRAINTS, effective_config, load_order, save_order,
-    profile_for_directory, load_profile, validate_effective_config)
+from flossware_setup.config_control import (
+    DEFAULT_CONSTRAINTS,
+    available_profiles,
+    create_profile,
+    effective_config,
+    load_active_profile,
+    load_order,
+    load_profile,
+    profile_for_directory,
+    save_active_profile,
+    save_order,
+    update_profile,
+    validate_effective_config,
+    validate_profile_data,
+)
 from flossware_setup.config_contract import OrderingError, reorder
 from flossware_setup.demo import run_demo
 
@@ -59,7 +72,32 @@ def main(argv: list[str] | None = None) -> int:
     order.add_argument("action", choices=("show", "move"))
     order.add_argument("item", nargs="?")
     order.add_argument("direction", nargs="?", choices=("up", "down"))
+
+    profile_p = sub.add_parser("profile", help="create, select, inspect, and edit configuration profiles")
+    profile_sub = profile_p.add_subparsers(dest="profile_command")
+    profile_sub.add_parser("list", help="list available profiles")
+    p_show = profile_sub.add_parser("show", help="show a profile document")
+    p_show.add_argument("name", nargs="?", default=None, help="profile name (default: active)")
+    p_show.add_argument("--json", action="store_true")
+    p_create = profile_sub.add_parser("create", help="create a profile from a template")
+    p_create.add_argument("name")
+    p_create.add_argument("--from", dest="template", default="default", help="template profile (default: default)")
+    p_select = profile_sub.add_parser("select", help="set the active profile")
+    p_select.add_argument("name")
+    p_edit = profile_sub.add_parser("edit", help="update editable profile policy fields")
+    p_edit.add_argument("name")
+    p_edit.add_argument("--allow-local-models", dest="allow_local_models", choices=("true", "false"))
+    p_edit.add_argument("--allow-personal-accounts", dest="allow_personal_accounts", choices=("true", "false"))
+    p_edit.add_argument("--allow-provider-fallback", dest="allow_provider_fallback", choices=("true", "false"))
+    p_edit.add_argument("--allow-unconfigured-providers", dest="allow_unconfigured_providers", choices=("true", "false"))
+    p_edit.add_argument("--providers", help="comma-separated allowed provider refs or *configured*")
+    p_edit.add_argument("--monthly-limit", type=float, help="monthly budget USD")
+    p_edit.add_argument("--hard-limit", choices=("true", "false"))
+    p_val = profile_sub.add_parser("validate", help="validate a profile document")
+    p_val.add_argument("name", nargs="?", default=None)
+
     args = parser.parse_args(argv)
+
 
     if args.command == "demo": return run_demo()
     if args.command == "tui":
@@ -125,6 +163,83 @@ def main(argv: list[str] | None = None) -> int:
             try: updated = reorder(current_order, args.item, 1 if args.direction == "down" else -1, DEFAULT_CONSTRAINTS); save_order(updated)
             except OrderingError as exc: print(f"Ordering rejected: {exc}"); return 2
             print(" -> ".join(updated)); return 0
+
+    if getattr(args, "command", None) == "profile":
+        def _bool_arg(raw):
+            return None if raw is None else raw == "true"
+        if args.profile_command == "list":
+            active = load_active_profile()
+            for name in available_profiles():
+                mark = "*" if name == active else " "
+                print(f"{mark} {name}")
+            return 0
+        if args.profile_command == "show":
+            name = args.name or load_active_profile()
+            try:
+                data = load_profile(name)
+            except ValueError as exc:
+                print(f"Profile error: {exc}")
+                return 2
+            if args.json:
+                print(json.dumps(data, indent=2))
+            else:
+                print(f"profile = {name}")
+                for key, value in data.items():
+                    print(f"{key} = {value!r}")
+            return 0
+        if args.profile_command == "create":
+            try:
+                path = create_profile(args.name, template=args.template)
+            except ValueError as exc:
+                print(f"Profile create failed: {exc}")
+                return 2
+            print(f"Created profile {args.name} at {path}")
+            return 0
+        if args.profile_command == "select":
+            try:
+                path = save_active_profile(args.name)
+            except ValueError as exc:
+                print(f"Profile select failed: {exc}")
+                return 2
+            print(f"Active profile: {args.name} ({path})")
+            return 0
+        if args.profile_command == "edit":
+            values = {}
+            mapping = {
+                "allow_local_models": _bool_arg(getattr(args, "allow_local_models", None)),
+                "allow_personal_accounts": _bool_arg(getattr(args, "allow_personal_accounts", None)),
+                "allow_provider_fallback": _bool_arg(getattr(args, "allow_provider_fallback", None)),
+                "allow_unconfigured_providers": _bool_arg(getattr(args, "allow_unconfigured_providers", None)),
+                "hard_limit": _bool_arg(getattr(args, "hard_limit", None)),
+            }
+            for key, value in mapping.items():
+                if value is not None:
+                    values[key] = value
+            if getattr(args, "providers", None):
+                values["allowed_providers"] = [part.strip() for part in args.providers.split(",") if part.strip()]
+            if getattr(args, "monthly_limit", None) is not None:
+                values["monthly_limit_usd"] = args.monthly_limit
+            try:
+                path = update_profile(args.name, values or None)
+            except ValueError as exc:
+                print(f"Profile edit failed: {exc}")
+                return 2
+            print(f"Updated profile {args.name} at {path}")
+            return 0
+        if args.profile_command == "validate":
+            name = args.name or load_active_profile()
+            try:
+                data = load_profile(name)
+                validate_profile_data(data, name=name)
+                validate_effective_config(name)
+            except ValueError as exc:
+                print(f"Profile INVALID ({name}): {exc}")
+                return 2
+            print(f"Profile VALID ({name})")
+            return 0
+        profile_p.print_help()
+        return 0
+
     parser.print_help(); return 0
 
 

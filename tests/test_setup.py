@@ -1,4 +1,4 @@
-"""Offline smoke tests for coding-agent-setup.
+"""Offline smoke tests for agent-setup.
 
 No provider credentials or network access are required.
 """

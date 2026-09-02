@@ -1,6 +1,6 @@
 # Platform support
 
-FlossWare coding-agent-setup targets a common user-facing workflow across Fedora/RHEL derivatives, Debian-family Linux, FreeBSD, Windows, and Termux.
+FlossWare agent-setup targets a common user-facing workflow across Fedora/RHEL derivatives, Debian-family Linux, FreeBSD, Windows, and Termux.
 
 ## Supported platforms
 
@@ -64,8 +64,8 @@ All platforms share these invariants:
 |----------|------|
 | `FLOSSWARE_INSTALL_ROOT` | Managed install root used by `scripts/install.sh` (default `~/.flossware/ai`) |
 | `FLOSSWARE_AI_ROOT` | Runtime/state root read by the Python package (active project, themes) |
-| `FLOSSWARE_RELEASE_REF` | Git branch, tag, or commit for the **coding-agent-setup** archive |
-| `FLOSSWARE_AI_REF` | Git ref for **coding-agent-ai** (defaults to `main`; independent of setup ref) |
+| `FLOSSWARE_RELEASE_REF` | Git branch, tag, or commit for the **agent-setup** archive |
+| `FLOSSWARE_AI_REF` | Git ref for **agent-ai** (defaults to `main`; independent of setup ref) |
 | `FLOSSWARE_USE_SOURCE` | When `true`, clone setup with git instead of the source archive |
 | `FLOSSWARE_INSTALL_URL` | Override base URL for bootstrap download of `scripts/install.sh` |
 
@@ -73,7 +73,7 @@ All platforms share these invariants:
 
 ```bash
 # Stable release (default main)
-curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/FlossWare/agent-setup/main/install.sh | bash
 
 # Specific branch or tag
 FLOSSWARE_RELEASE_REF=v0.1.0 bash install.sh

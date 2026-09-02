@@ -10,7 +10,7 @@ fail(){ printf '[FlossWare] ERROR: %s\n' "$*" >&2; exit 1; }
 log(){ printf '\n[FlossWare] %s\n' "$*"; }
 
 command -v podman >/dev/null 2>&1 || fail "Podman is required. Install it with: sudo dnf install -y podman"
-[[ -f Containerfile ]] || fail "Run this script from the coding-agent-setup repository root."
+[[ -f Containerfile ]] || fail "Run this script from the agent-setup repository root."
 [[ -d "$PROJECT/.git" ]] || fail "FLOSSWARE_PROJECT_DIR must point to a Git repository: $PROJECT"
 
 PROJECT="$(cd "$PROJECT" && pwd)"
@@ -24,7 +24,7 @@ podman build \
 
 log "Running offline image smoke test"
 podman run --rm --entrypoint /opt/flossware/venv/bin/python "$IMAGE" \
-  -m compileall -q /opt/flossware/coding-agent-setup/scripts/setup.py
+  -m compileall -q /opt/flossware/agent-setup/scripts/setup.py
 podman run --rm --entrypoint /opt/flossware/venv/bin/pa "$IMAGE" --help >/dev/null
 
 log "Running credential-boundary smoke test"

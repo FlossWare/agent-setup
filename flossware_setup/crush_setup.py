@@ -13,7 +13,7 @@ ROOT = canonical_root()
 CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "crush"
 BIN_DIR = Path.home() / ".local" / "bin"
 GATEWAY_URL = "https://raw.githubusercontent.com/FlossWare/crush-demo/main/gateway.py"
-CODING_AGENT_REPO = "https://github.com/FlossWare/coding-agent-ai.git"
+CODING_AGENT_REPO = "https://github.com/FlossWare/agent-ai.git"
 
 
 def _run(command: list[str]) -> None:

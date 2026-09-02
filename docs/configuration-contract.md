@@ -77,7 +77,7 @@ A user reorder that would violate a constraint is rejected; the UI keeps the las
 
 **Policy is evaluated after configuration resolution.** Layers merge first (higher priority wins). Then `Policy.validate` (or `ConfigResolver.resolve_with_policy`) enforces allowlists, numeric ceilings, and required flags. A project-layer override cannot escape a higher-level policy maximum or forbidden provider list—the effective map is still rejected when it violates policy.
 
-## Shared provider interface (coding-agent-setup and Loom)
+## Shared provider interface (agent-setup and Loom)
 
 Contract id: `flossware.config.v1` (`SCHEMA_VERSION` in `flossware_setup.config_contract.provider`).
 
@@ -112,12 +112,12 @@ print(provider.explain("budget.monthly", "/path/to/workdir"))
 
 | Domain | Owner |
 |--------|-------|
-| Profiles, bindings, themes | coding-agent-setup central state |
+| Profiles, bindings, themes | agent-setup central state |
 | Layer merge + policy | `config_contract` (shared) |
 | Loom orchestration | Optional; may implement `ConfigurationProvider` without replacing local provider |
 | Secret values | Environment / OS / agent stores only |
 
-coding-agent-setup remains fully functional without Loom.
+agent-setup remains fully functional without Loom.
 
 ## Wire representation (language-neutral)
 
@@ -205,14 +205,14 @@ Language-neutral fixtures live under `tests/fixtures/config_contract/`:
 - `v1_supported_keys.json` — registry of allowed keys
 - `v1_exclusion_behavior.json` — required drop behavior for secrets / unknown keys
 
-Loom and coding-agent-setup can both load these JSON files in CI.
+Loom and agent-setup can both load these JSON files in CI.
 
 ### Domain ownership (as the surface grows)
 
 | Domain | Owner |
 |--------|-------|
-| provider, budget, optimization | coding-agent-setup profiles + shared contract |
+| provider, budget, optimization | agent-setup profiles + shared contract |
 | policy | `config_contract` (shared), enforced post-merge |
-| agent | coding-agent-setup (future) |
+| agent | agent-setup (future) |
 | routing / context | Loom orchestration (future; never secrets) |
 | secret values | Environment / OS / agent stores only — never the wire map |

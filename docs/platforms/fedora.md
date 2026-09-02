@@ -13,8 +13,8 @@ sudo dnf install -y podman git
 Clone the setup repository:
 
 ```bash
-git clone https://github.com/FlossWare/coding-agent-setup.git
-cd coding-agent-setup
+git clone https://github.com/FlossWare/agent-setup.git
+cd agent-setup
 ```
 
 Run the complete containerized acceptance path:
@@ -28,8 +28,8 @@ The runner:
 1. Verifies Podman and the Git project.
 2. Builds a Fedora container image from `Containerfile`.
 3. Installs Python and native build dependencies inside the image.
-4. Installs `coding-agent-ai[all,tui]` and its dependency graph.
-5. Copies the current `coding-agent-setup` checkout into the image.
+4. Installs `agent-ai[all,tui]` and its dependency graph.
+5. Copies the current `agent-setup` checkout into the image.
 6. Compiles and smoke-checks the setup TUI and `pa` command.
 7. Runs a credential-boundary smoke test with a sentinel value.
 8. Starts the TUI interactively with the project mounted at `/workspace`.
@@ -66,8 +66,8 @@ First prove the credential-free path:
 Fedora
   -> Podman
   -> Containerfile
-  -> coding-agent-ai
-  -> coding-agent-setup
+  -> agent-ai
+  -> agent-setup
   -> TUI
   -> generated configuration
 ```
@@ -77,7 +77,7 @@ Then, and only then, run an authenticated coding task:
 ```text
 runtime credential
   -> Podman environment
-  -> coding-agent-ai (`pa`)
+  -> agent-ai (`pa`)
   -> routing / policy
   -> provider-neutral contract
   -> cross-cutting decorators
@@ -95,7 +95,7 @@ Native installation remains available when debugging the container or developing
 ./scripts/install.sh
 ```
 
-It installs Fedora prerequisites, creates `~/.flossware/venv`, installs `coding-agent-ai`, validates the TUI and `pa`, and installs `~/.local/bin/flossware-setup`.
+It installs Fedora prerequisites, creates `~/.flossware/venv`, installs `agent-ai`, validates the TUI and `pa`, and installs `~/.local/bin/flossware-setup`.
 
 Pin a reviewed ref when reproducibility matters:
 
@@ -109,8 +109,8 @@ FLOSSWARE_RELEASE_REF=<reviewed-ref> ./scripts/install.sh
 Fedora
   -> Podman
   -> FlossWare runtime image
-  -> coding-agent-setup
-  -> coding-agent-ai (`pa`)
+  -> agent-setup
+  -> agent-ai (`pa`)
   -> routing / policy
   -> provider-neutral contract
   -> cross-cutting decorators

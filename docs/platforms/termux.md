@@ -21,13 +21,13 @@ git --version
 
 Python 3.11 or newer is required by the current setup path.
 
-## 2. Install coding-agent-setup
+## 2. Install agent-setup
 
 The repository includes a dedicated Termux bootstrapper:
 
 ```bash
-git clone https://github.com/FlossWare/coding-agent-setup.git
-cd coding-agent-setup
+git clone https://github.com/FlossWare/agent-setup.git
+cd agent-setup
 bash scripts/install-termux.sh
 ```
 
@@ -92,15 +92,15 @@ A useful secret-value check is to inspect the generated files manually rather th
 
 ## 6. Runtime dogfood
 
-The setup repository prepares the project. The runtime/orchestration layer is `FlossWare/coding-agent-ai`.
+The setup repository prepares the project. The runtime/orchestration layer is `FlossWare/agent-ai`.
 
 The intended architecture is:
 
 ```text
 Termux
-  -> coding-agent-setup
+  -> agent-setup
   -> generated agent configuration
-  -> coding-agent-ai
+  -> agent-ai
   -> policy / model router
   -> provider-neutral contract
   -> decorators

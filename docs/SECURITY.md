@@ -1,6 +1,6 @@
 # Security and credential handling
 
-`coding-agent-setup` generates agent instructions and configuration. It is not a secret store and must never turn provider credentials into project artifacts.
+`agent-setup` generates agent instructions and configuration. It is not a secret store and must never turn provider credentials into project artifacts.
 
 ## Credential boundary
 
@@ -13,7 +13,7 @@
 
 ## Agent/runtime boundary
 
-`coding-agent-setup` prepares configuration. `coding-agent-ai` is responsible for untrusted worker execution, command policy, filesystem confinement, and credential isolation during agent work. Setup configuration must not weaken those runtime controls.
+`agent-setup` prepares configuration. `agent-ai` is responsible for untrusted worker execution, command policy, filesystem confinement, and credential isolation during agent work. Setup configuration must not weaken those runtime controls.
 
 ## Installer safety
 

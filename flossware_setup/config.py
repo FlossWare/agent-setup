@@ -303,7 +303,7 @@ def build_state_dict(config: Config) -> dict[str, Any]:
     capability_ids = [c for c in config.capabilities if c in CAPABILITY_BY_ID]
     state = {
         "schema_version": 1,
-        "tool": "FlossWare/coding-agent-setup",
+        "tool": "FlossWare/agent-setup",
         "profile": config.profile,
         "budget_policy_id": config.budget_policy,
         "budget_policy": policy_label,

@@ -1,6 +1,6 @@
 # Bootstrap installation
 
-`coding-agent-setup` is a consumer-facing installer. A normal user does **not** clone the Git repository.
+`agent-setup` is a consumer-facing installer. A normal user does **not** clone the Git repository.
 
 ## Quick start
 
@@ -18,9 +18,9 @@ The bootstrap is designed for an empty working directory. It obtains the selecte
 ```text
 public bootstrap
       |
-      +--> coding-agent-ai package artifact (when available)
+      +--> agent-ai package artifact (when available)
       |
-      +--> coding-agent-setup source archive for the selected ref
+      +--> agent-setup source archive for the selected ref
       |
       +--> managed virtual environment
       |
@@ -47,8 +47,8 @@ Use a release/tag rather than a moving branch when reproducibility is required.
 Only contributors who intentionally need editable source installation should use a checkout:
 
 ```bash
-git clone https://github.com/FlossWare/coding-agent-setup.git
-cd coding-agent-setup
+git clone https://github.com/FlossWare/agent-setup.git
+cd agent-setup
 FLOSSWARE_USE_SOURCE=true ./scripts/install.sh
 ```
 

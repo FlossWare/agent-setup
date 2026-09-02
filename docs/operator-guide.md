@@ -1,13 +1,13 @@
 # Operator guide
 
-This is the canonical end-to-end guide for `coding-agent-setup`.
+This is the canonical end-to-end guide for `agent-setup`.
 
 ## 1. Install without cloning
 
 A normal user starts from an empty directory. No Git checkout is required:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/FlossWare/agent-setup/main/install.sh | bash
 flossware-ai tui
 ```
 

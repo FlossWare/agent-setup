@@ -87,7 +87,7 @@ def test_load_project_state_strips_unknown_and_secret_keys(tmp_path) -> None:
                 "budget_policy_id": "medium",
                 "monthly_budget": 50,
                 "theme": "dark",
-                "tool": "FlossWare/coding-agent-setup",
+                "tool": "FlossWare/agent-setup",
             }
         ),
         encoding="utf-8",

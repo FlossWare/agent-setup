@@ -77,7 +77,7 @@ Project state is stored centrally under `~/.flossware/ai/projects/<id>/state.jso
 | Key | Type | Description |
 |-----|------|-------------|
 | `schema_version` | number | State schema version (`1`) |
-| `tool` | string | Always `FlossWare/coding-agent-setup` |
+| `tool` | string | Always `FlossWare/agent-setup` |
 | `profile` | string | Active profile name (policy name, not a person) |
 | `budget_policy_id` | string | Stable budget policy id from the catalog |
 | `budget_policy` | string | Human-readable policy label |
@@ -103,12 +103,12 @@ API keys, tokens, passwords, cookies, email addresses, legal names, employee ids
 ```json
 {
   "schema_version": 1,
-  "tool": "FlossWare/coding-agent-setup",
+  "tool": "FlossWare/agent-setup",
   "profile": "default",
   "budget_policy_id": "medium",
   "budget_policy": "Medium",
   "monthly_budget": 50.0,
-  "capabilities": ["coding-agent-ai"],
+  "capabilities": ["agent-ai"],
   "agents": ["claude-code"],
   "providers": {"OpenAI": true, "Anthropic": false},
   "provider_env_vars": {"OpenAI": "OPENAI_API_KEY", "Anthropic": "ANTHROPIC_API_KEY"},

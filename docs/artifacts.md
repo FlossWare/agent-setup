@@ -7,14 +7,14 @@ FlossWare setup is designed so a normal consumer can start without cloning the r
 Use the stable bootstrap script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/FlossWare/agent-setup/main/install.sh | bash
 flossware-ai tui
 ```
 
 The bootstrap downloads the installer and the installer then:
 
-1. installs/uses the `coding-agent-ai` package artifact when available;
-2. downloads the `coding-agent-setup` GitHub source archive for the selected release ref;
+1. installs/uses the `agent-ai` package artifact when available;
+2. downloads the `agent-setup` GitHub source archive for the selected release ref;
 3. installs the setup package into the managed virtual environment;
 4. creates the neutral `default` profile and managed CLI/TUI;
 5. leaves native agent/provider credentials untouched.

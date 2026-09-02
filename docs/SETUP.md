@@ -1,6 +1,6 @@
 # Interactive TUI Setup Guide
 
-`coding-agent-setup` configures coding agents to use FlossWare capabilities. It is provider-neutral and pricing-neutral. Provider, account, model, profile, and budget selection are runtime policy decisions.
+`agent-setup` configures coding agents to use FlossWare capabilities. It is provider-neutral and pricing-neutral. Provider, account, model, profile, and budget selection are runtime policy decisions.
 
 The public project is designed to be reusable by individuals, teams, enterprises, government environments, and other organizations. It does **not** assume a Red Hat, personal, or other organization-specific profile. The repository ships a neutral `default` profile; users create named profiles such as `personal`, `work`, `redhat`, or `government` as local policy requires.
 

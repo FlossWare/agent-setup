@@ -1,9 +1,9 @@
-"""Shared configuration provider interface for coding-agent-setup and Loom.
+"""Shared configuration provider interface for agent-setup and Loom.
 
 Contract id: ``flossware.config.v1``. The wire schema is documented in
 ``docs/configuration-contract.md`` and is independent of this Python binding.
 Loom (or any other orchestrator) may implement the same contract without
-importing ``coding-agent-setup``.
+importing ``agent-setup``.
 
 ``resolve()`` **never raises for policy failure**. It always returns an
 ``EffectiveConfiguration``. When policy is violated, ``policy_violations`` is
@@ -79,7 +79,7 @@ class EffectiveConfiguration:
 
 @runtime_checkable
 class ConfigurationProvider(Protocol):
-    """Stable interface both coding-agent-setup and Loom can implement."""
+    """Stable interface both agent-setup and Loom can implement."""
 
     def resolve(self, directory: str | Path | None = None) -> EffectiveConfiguration:
         """Merge layers for *directory* and return effective configuration.
@@ -216,7 +216,7 @@ def _policy_violations_for(profile: str, values: dict[str, Any]) -> tuple[str, .
 
 
 class LocalConfigurationProvider:
-    """coding-agent-setup native provider (no Loom required)."""
+    """agent-setup native provider (no Loom required)."""
 
     def resolve(self, directory: str | Path | None = None) -> EffectiveConfiguration:
         from flossware_setup.config_control import (

@@ -12,4 +12,4 @@ Every installation records non-secret provenance in managed state at:
 
 The metadata records the requested setup ref, source/archive mode, detected platform, active profile, and the fact that installer credential values were not written. This file is the canonical audit trail for artifact-first installs, which intentionally do not contain a Git checkout.
 
-For source checkouts, `git -C "$INSTALL_ROOT/coding-agent-setup" rev-parse HEAD` may additionally be used to inspect the checked-out commit, but it is not required for installation provenance.
+For source checkouts, `git -C "$INSTALL_ROOT/agent-setup" rev-parse HEAD` may additionally be used to inspect the checked-out commit, but it is not required for installation provenance.

@@ -7,8 +7,8 @@ set -euo pipefail
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 INSTALL_ROOT="${FLOSSWARE_INSTALL_ROOT:-$HOME/.flossware}"
 VENV="$INSTALL_ROOT/venv"
-SETUP_REPO="https://github.com/FlossWare/coding-agent-setup.git"
-SETUP_DIR="$INSTALL_ROOT/coding-agent-setup"
+SETUP_REPO="https://github.com/FlossWare/agent-setup.git"
+SETUP_DIR="$INSTALL_ROOT/agent-setup"
 REF="${FLOSSWARE_RELEASE_REF:-main}"
 
 log(){ printf '\n[FlossWare] %s\n' "$*"; }
@@ -45,7 +45,7 @@ fi
 source "$VENV/bin/activate"
 python -m pip install --upgrade pip setuptools wheel
 
-log "Installing coding-agent-setup from $REF"
+log "Installing agent-setup from $REF"
 if [[ -d "$SETUP_DIR/.git" ]]; then
     git -C "$SETUP_DIR" fetch --tags --force origin
     git -C "$SETUP_DIR" checkout --force "$REF"
@@ -55,7 +55,7 @@ else
 fi
 
 # Verify the repository contains the expected entry point before continuing.
-[[ -f "$SETUP_DIR/scripts/setup.py" ]] || fail "coding-agent-setup checkout is missing scripts/setup.py"
+[[ -f "$SETUP_DIR/scripts/setup.py" ]] || fail "agent-setup checkout is missing scripts/setup.py"
 
 log "Installing runtime dependencies"
 if [[ -f "$SETUP_DIR/requirements.txt" ]]; then

@@ -20,13 +20,13 @@ flossware-ai config validate
 flossware-ai demo
 ```
 
-The managed runtime lives at `~/.flossware/ai` (or the platform-appropriate user-data location). Reinstallation and cleanup never require manually deleting that directory.
+The canonical persistent AI state root is `~/.FlossWare/ai`. Set `FLOSSWARE_AI_HOME=/absolute/path` to override it for tests, CI, containers, or unusual installations. Reinstallation does not require manually deleting the state root, and migration from the historical `~/.flossware/ai` root is non-destructive and credential-safe.
 
 For a local checkout, contributor build, or explicit source fallback, use the repository's `scripts/install.sh` and set `FLOSSWARE_USE_SOURCE=true` when source checkout behavior is desired.
 
 ## Profiles and directory bindings
 
-Profiles are stored centrally under the managed FlossWare state root. The public installation ships only the provider-neutral `default` profile; organization-specific examples are not installed as built-ins.
+Profiles are stored centrally under the canonical FlossWare AI state root. The public installation ships only the provider-neutral `default` profile; organization-specific examples are not installed as built-ins.
 
 A directory binding selects the profile used while operating in that directory. Bindings are stored centrally, not as `.flossware` files in projects. The most specific matching directory wins.
 
@@ -75,7 +75,7 @@ The configuration contract is versioned as `flossware.config.v1`. Unsupported or
 
 ## Themes
 
-The TUI supports selectable themes, including Turbo and dBASE-style presentation. Theme state is stored centrally under the managed FlossWare state root.
+The TUI supports selectable themes, including Turbo and dBASE-style presentation. Theme state is stored centrally under the canonical FlossWare AI state root.
 
 ```bash
 flossware-ai tui --theme turbo
@@ -84,4 +84,4 @@ flossware-ai tui --theme dbase4
 
 ## Documentation
 
-See `docs/` for the operator guide, profile schema, configuration contract, installation/reproducibility guidance, and architecture decisions.
+See `docs/` for the operator guide, profile schema, configuration contract, installation/reproducibility guidance, state-root and migration policy, and architecture decisions. See [`docs/state-root.md`](docs/state-root.md) for the persistent-state contract.

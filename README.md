@@ -1,13 +1,13 @@
-# coding-agent-setup
+# agent-setup
 
-FlossWare's shared control plane for configuring coding agents and independently usable FlossWare AI capabilities. Supported installation targets include Fedora/RHEL derivatives, Debian-family Linux, FreeBSD, Windows, and Termux.
+FlossWare's shared control plane for configuring agents and independently usable FlossWare AI capabilities. Supported installation targets include Fedora/RHEL derivatives, Debian-family Linux, FreeBSD, Windows, and Termux.
 
 ## Quick start
 
 A normal user does **not** need to clone this repository. The bootstrap installer downloads managed artifacts/source archives and installs the control plane into the user's FlossWare directory:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/FlossWare/coding-agent-setup/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/FlossWare/agent-setup/main/install.sh | bash
 flossware-ai tui
 ```
 
@@ -49,7 +49,7 @@ flossware-ai claude
 flossware-ai crush
 ```
 
-The selected profile is exported to the launched process along with the effective configuration and provenance. Work profiles can restrict which coding-agent executables are permitted.
+The selected profile is exported to the launched process along with the effective configuration and provenance. Work profiles can restrict which agent executables are permitted.
 
 ## Crush setup
 
@@ -59,7 +59,7 @@ The same control plane can provision the FlossWare Crush integration used by the
 flossware-ai setup crush --free-only
 ```
 
-The command installs or updates `coding-agent-ai` in the managed environment, installs Crush when needed, provisions the FlossWare local OpenAI-compatible gateway and user service, configures Crush for the `flossware` model, and creates the `flossware-crush` and `flossware-models` convenience commands. The current Crush integration is intentionally free/local-only.
+The command installs or updates `agent-ai` in the managed environment, installs Crush when needed, provisions the FlossWare local OpenAI-compatible gateway and user service, configures Crush for the `flossware` model, and creates the `flossware-crush` and `flossware-models` convenience commands. The current Crush integration is intentionally free/local-only.
 
 ## Configuration precedence
 

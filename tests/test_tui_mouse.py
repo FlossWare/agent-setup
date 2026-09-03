@@ -45,54 +45,34 @@ def test_resolve_list_mouse_activate_and_focus(monkeypatch):
 def test_resolve_list_mouse_scroll_and_visible(monkeypatch):
     monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
-    assert tui_input.resolve_list_mouse(
-        (0, 6, 4), origin_y=5, count=20, scroll_offset=4, visible=3
-    ) == ("activate", 5)
-    assert tui_input.resolve_list_mouse(
-        (0, 9, 4), origin_y=5, count=20, scroll_offset=4, visible=3
-    ) is None
+    assert tui_input.resolve_list_mouse((0, 6, 4), origin_y=5, count=20, scroll_offset=4, visible=3) == ("activate", 5)
+    assert tui_input.resolve_list_mouse((0, 9, 4), origin_y=5, count=20, scroll_offset=4, visible=3) is None
 
 
 def test_resolve_list_mouse_pressed_as_activate(monkeypatch):
-    """BUTTON1_PRESSED must activate (terminals often report press, not click)."""
     monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
     assert tui_input.resolve_list_mouse((0, 5, 2), origin_y=5, count=3) == ("activate", 0)
 
 
 def _install_fake_profile_selector(monkeypatch, mouse_event):
-    """Install the real UX override against a minimal fake IDE/window."""
     class FakePanel:
         def __init__(self):
             self.keys = [curses.KEY_MOUSE]
-
         def getch(self):
             return self.keys.pop(0)
-
-        def refresh(self):
-            return None
-
-        def addnstr(self, *args):
-            return None
-
-        def addstr(self, *args):
-            return None
-
-        def bkgd(self, *args):
-            return None
-
-        def erase(self):
-            return None
-
-        def noutrefresh(self):
-            return None
-
-        def border(self):
-            return None
+        def refresh(self): return None
+        def addnstr(self, *args): return None
+        def addstr(self, *args): return None
+        def bkgd(self, *args): return None
+        def erase(self): return None
+        def noutrefresh(self): return None
+        def border(self): return None
 
     class FakeWin:
-        def getmaxyx(self):
-            return (30, 100)
+        def getmaxyx(self): return (30, 100)
+        def touchwin(self): return None
+        def noutrefresh(self): return None
 
     class FakeIde:
         ITEMS = {"Config": ("Profiles",)}
@@ -101,11 +81,7 @@ def _install_fake_profile_selector(monkeypatch, mouse_event):
         add = staticmethod(lambda *args: None)
         palette = staticmethod(lambda *args: 0)
 
-    ide = FakeIde()
-    panel = FakePanel()
-    saved = []
-    closed = []
-
+    ide = FakeIde(); panel = FakePanel(); saved = []; closed = []
     monkeypatch.setattr(tui_package, "ide", ide, raising=False)
     monkeypatch.setattr(ux, "load_active_profile", lambda: "default", raising=False)
     monkeypatch.setattr(ux, "save_active_profile", saved.append, raising=False)
@@ -113,7 +89,6 @@ def _install_fake_profile_selector(monkeypatch, mouse_event):
     monkeypatch.setattr(ux, "mouse_event", lambda: mouse_event, raising=False)
     monkeypatch.setattr(ux, "edit_profile_tui", lambda *args: None, raising=False)
     monkeypatch.setattr(ux, "validate_popup", lambda *args: None, raising=False)
-
     ide._popup = lambda *args: panel
     ide._close = lambda p: closed.append(p)
     ux.install_tui_fixes()
@@ -121,51 +96,35 @@ def _install_fake_profile_selector(monkeypatch, mouse_event):
 
 
 def test_profile_selector_mouse_activation_uses_real_install(monkeypatch):
-    """Exercise the installed UX override, not just its hit-testing helpers."""
     monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
-    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(
-        monkeypatch, (0, 9, curses.BUTTON1_PRESSED)
-    )
-
-    selected = ide.profile_selector(FakeWin())
-
-    assert selected == "free"
+    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(monkeypatch, (0, 9, curses.BUTTON1_PRESSED))
+    assert ide.profile_selector(FakeWin()) == "free"
     assert saved == ["free"]
     assert closed == [panel]
 
 
 def test_profile_selector_mouse_outside_list_does_not_activate(monkeypatch):
-    """A mouse event outside the list must leave the selector open."""
     monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
-    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(
-        monkeypatch, (0, 20, curses.BUTTON1_CLICKED)
-    )
+    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(monkeypatch, (0, 20, curses.BUTTON1_CLICKED))
     panel.keys = [curses.KEY_MOUSE, 27]
-
     assert ide.profile_selector(FakeWin()) is None
     assert saved == []
     assert closed == [panel]
 
 
 def test_profile_selector_mouse_clicked_also_activates(monkeypatch):
-    """Both terminal button event forms must activate a profile."""
     monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
-    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(
-        monkeypatch, (0, 9, curses.BUTTON1_CLICKED)
-    )
-
+    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(monkeypatch, (0, 9, curses.BUTTON1_CLICKED))
     assert ide.profile_selector(FakeWin()) == "free"
     assert saved == ["free"]
     assert closed == [panel]
 
 
 def test_enable_mouse_degrades_when_mousemask_fails(monkeypatch):
-    def _boom(*_a, **_k):
-        raise curses.error("no mouse")
-
+    def _boom(*_a, **_k): raise curses.error("no mouse")
     monkeypatch.setattr(curses, "mousemask", _boom, raising=False)
     assert tui_input.enable_mouse() is False
 
@@ -184,10 +143,7 @@ def test_primary_click_reads_getmouse(monkeypatch):
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
     monkeypatch.setattr(curses, "getmouse", lambda: (0, 3, 9, 0, 4), raising=False)
     assert tui_input.primary_click() == (3, 9)
-
-    def _err():
-        raise curses.error("x")
-
+    def _err(): raise curses.error("x")
     monkeypatch.setattr(curses, "getmouse", _err, raising=False)
     assert tui_input.primary_click() is None
 

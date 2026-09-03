@@ -193,3 +193,166 @@ def test_write_profile_rejects_path_escape(ai_root):
             "../escape",
             {"profile": "x", "model_policy": {"allowed_providers": ["*configured*"]}},
         )
+
+
+def test_edit_profile_tui_loop_persists_providers(ai_root, monkeypatch):
+    """Drive the real edit_profile_tui event loop: Enter, edit providers, save."""
+    import types
+
+    from flossware_setup.tui import profile_editor as pe
+
+    fake_curses = types.ModuleType("curses")
+    fake_curses.KEY_UP = 259
+    fake_curses.KEY_DOWN = 258
+    fake_curses.KEY_ENTER = 343
+    fake_curses.A_BOLD = 0
+    fake_curses.echo = lambda: None
+    fake_curses.noecho = lambda: None
+    monkeypatch.setitem(sys.modules, "curses", fake_curses)
+
+    config_control.create_profile("loopwork", template="default")
+    original = config_control.load_profile("loopwork")
+    assert original["model_policy"]["allowed_providers"] == ["*configured*"]
+
+    keys = [10, ord("s")]  # Enter on Allowed providers, then save
+    getstr_values = [b"openai, anthropic"]
+
+    class _Panel:
+        def __init__(self):
+            self._keys = list(keys)
+            self._gets = list(getstr_values)
+
+        def erase(self):
+            return None
+
+        def border(self):
+            return None
+
+        def addnstr(self, *args, **kwargs):
+            return None
+
+        def refresh(self):
+            return None
+
+        def getch(self):
+            if not self._keys:
+                return 27
+            return self._keys.pop(0)
+
+        def getstr(self, *args, **kwargs):
+            if not self._gets:
+                return b""
+            return self._gets.pop(0)
+
+    panel = _Panel()
+
+    def popup(win, top, left, height, width, title):
+        return panel
+
+    closed = {"n": 0}
+
+    def close(p):
+        closed["n"] += 1
+
+    pe.edit_profile_tui(object(), "loopwork", popup, close)
+    assert closed["n"] == 1
+    loaded = config_control.load_profile("loopwork")
+    assert loaded["model_policy"]["allowed_providers"] == ["openai", "anthropic"]
+
+
+def test_edit_profile_tui_loop_cancel_leaves_profile_unchanged(ai_root, monkeypatch):
+    """Esc in the real editor loop must not call update_profile."""
+    import types
+
+    from flossware_setup.tui import profile_editor as pe
+
+    fake_curses = types.ModuleType("curses")
+    fake_curses.KEY_UP = 259
+    fake_curses.KEY_DOWN = 258
+    fake_curses.KEY_ENTER = 343
+    fake_curses.A_BOLD = 0
+    fake_curses.echo = lambda: None
+    fake_curses.noecho = lambda: None
+    monkeypatch.setitem(sys.modules, "curses", fake_curses)
+
+    config_control.create_profile("loopcancel", template="default")
+    before = config_control.profile_path("loopcancel").read_text(encoding="utf-8")
+
+    class _Panel:
+        def erase(self):
+            return None
+
+        def border(self):
+            return None
+
+        def addnstr(self, *args, **kwargs):
+            return None
+
+        def refresh(self):
+            return None
+
+        def getch(self):
+            return 27  # Esc immediately
+
+        def getstr(self, *args, **kwargs):
+            raise AssertionError("cancel path must not request text input")
+
+    def popup(win, top, left, height, width, title):
+        return _Panel()
+
+    pe.edit_profile_tui(object(), "loopcancel", popup, lambda p: None)
+    after = config_control.profile_path("loopcancel").read_text(encoding="utf-8")
+    assert after == before
+
+
+def test_edit_profile_tui_loop_invalid_provider_does_not_corrupt(ai_root, monkeypatch):
+    """Invalid provider text on save keeps the editor open and leaves disk unchanged."""
+    import types
+
+    from flossware_setup.tui import profile_editor as pe
+
+    fake_curses = types.ModuleType("curses")
+    fake_curses.KEY_UP = 259
+    fake_curses.KEY_DOWN = 258
+    fake_curses.KEY_ENTER = 343
+    fake_curses.A_BOLD = 0
+    fake_curses.echo = lambda: None
+    fake_curses.noecho = lambda: None
+    monkeypatch.setitem(sys.modules, "curses", fake_curses)
+
+    config_control.create_profile("loopbad", template="default")
+    before = config_control.profile_path("loopbad").read_text(encoding="utf-8")
+
+    # Enter -> invalid text -> save (rejected) -> Esc
+    keys = [10, ord("s"), 27]
+    gets = [b"not a valid!!!"]
+
+    class _Panel:
+        def __init__(self):
+            self._keys = list(keys)
+            self._gets = list(gets)
+
+        def erase(self):
+            return None
+
+        def border(self):
+            return None
+
+        def addnstr(self, *args, **kwargs):
+            return None
+
+        def refresh(self):
+            return None
+
+        def getch(self):
+            return self._keys.pop(0)
+
+        def getstr(self, *args, **kwargs):
+            return self._gets.pop(0)
+
+    def popup(win, top, left, height, width, title):
+        return _Panel()
+
+    pe.edit_profile_tui(object(), "loopbad", popup, lambda p: None)
+    after = config_control.profile_path("loopbad").read_text(encoding="utf-8")
+    assert after == before

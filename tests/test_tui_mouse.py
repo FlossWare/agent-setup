@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import curses
 
+import flossware_setup.tui as tui_package
 from flossware_setup.tui import input as tui_input
 from flossware_setup.tui import ux
 
@@ -59,8 +60,8 @@ def test_resolve_list_mouse_pressed_as_activate(monkeypatch):
     assert tui_input.resolve_list_mouse((0, 5, 2), origin_y=5, count=3) == ("activate", 0)
 
 
-def test_profile_selector_mouse_activation_uses_real_install(monkeypatch):
-    """Exercise the installed UX override, not just its hit-testing helpers."""
+def _install_fake_profile_selector(monkeypatch, mouse_event):
+    """Install the real UX override against a minimal fake IDE/window."""
     class FakePanel:
         def __init__(self):
             self.keys = [curses.KEY_MOUSE]
@@ -99,28 +100,33 @@ def test_profile_selector_mouse_activation_uses_real_install(monkeypatch):
         available_profiles = staticmethod(lambda: ["default", "free"])
         add = staticmethod(lambda *args: None)
         palette = staticmethod(lambda *args: 0)
-        _active_popup = None
 
     ide = FakeIde()
     panel = FakePanel()
     saved = []
     closed = []
 
-    monkeypatch.setattr(ux, "ide", ide, raising=False)
+    monkeypatch.setattr(tui_package, "ide", ide, raising=False)
     monkeypatch.setattr(ux, "load_active_profile", lambda: "default")
     monkeypatch.setattr(ux, "save_active_profile", saved.append)
     monkeypatch.setattr(ux, "is_mouse", lambda key: key == curses.KEY_MOUSE)
-    monkeypatch.setattr(ux, "mouse_event", lambda: (0, 9, curses.BUTTON1_PRESSED))
-    monkeypatch.setattr(ux, "curses", curses)
+    monkeypatch.setattr(ux, "mouse_event", lambda: mouse_event)
     monkeypatch.setattr(ux, "edit_profile_tui", lambda *args: None)
     monkeypatch.setattr(ux, "validate_popup", lambda *args: None)
 
-    original_popup = lambda *args: panel
-    original_close = lambda p: closed.append(p)
-    ide._popup = original_popup
-    ide._close = original_close
-
+    ide._popup = lambda *args: panel
+    ide._close = lambda p: closed.append(p)
     ux.install_tui_fixes()
+    return ide, panel, saved, closed, FakeWin
+
+
+def test_profile_selector_mouse_activation_uses_real_install(monkeypatch):
+    """Exercise the installed UX override, not just its hit-testing helpers."""
+    monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
+    monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
+    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(
+        monkeypatch, (0, 9, curses.BUTTON1_PRESSED)
+    )
 
     selected = ide.profile_selector(FakeWin())
 
@@ -131,50 +137,28 @@ def test_profile_selector_mouse_activation_uses_real_install(monkeypatch):
 
 def test_profile_selector_mouse_outside_list_does_not_activate(monkeypatch):
     """A mouse event outside the list must leave the selector open."""
-    class FakePanel:
-        def __init__(self):
-            self.keys = [curses.KEY_MOUSE, 27]
-
-        def getch(self):
-            return self.keys.pop(0)
-
-        def refresh(self):
-            return None
-
-        def addnstr(self, *args):
-            return None
-
-    class FakeWin:
-        def getmaxyx(self):
-            return (30, 100)
-
-    class FakeIde:
-        ITEMS = {"Config": ("Profiles",)}
-        _ux_fixes_installed = False
-        available_profiles = staticmethod(lambda: ["default", "free"])
-        add = staticmethod(lambda *args: None)
-        palette = staticmethod(lambda *args: 0)
-
-    ide = FakeIde()
-    panel = FakePanel()
-    saved = []
-    closed = []
-
-    monkeypatch.setattr(ux, "ide", ide, raising=False)
-    monkeypatch.setattr(ux, "load_active_profile", lambda: "default")
-    monkeypatch.setattr(ux, "save_active_profile", saved.append)
-    monkeypatch.setattr(ux, "is_mouse", lambda key: key == curses.KEY_MOUSE)
-    monkeypatch.setattr(ux, "mouse_event", lambda: (0, 20, curses.BUTTON1_CLICKED))
-    monkeypatch.setattr(ux, "edit_profile_tui", lambda *args: None)
-    monkeypatch.setattr(ux, "validate_popup", lambda *args: None)
-
-    ide._popup = lambda *args: panel
-    ide._close = lambda p: closed.append(p)
-
-    ux.install_tui_fixes()
+    monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
+    monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
+    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(
+        monkeypatch, (0, 20, curses.BUTTON1_CLICKED)
+    )
+    panel.keys = [curses.KEY_MOUSE, 27]
 
     assert ide.profile_selector(FakeWin()) is None
     assert saved == []
+    assert closed == [panel]
+
+
+def test_profile_selector_mouse_clicked_also_activates(monkeypatch):
+    """Both terminal button event forms must activate a profile."""
+    monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
+    monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
+    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(
+        monkeypatch, (0, 9, curses.BUTTON1_CLICKED)
+    )
+
+    assert ide.profile_selector(FakeWin()) == "free"
+    assert saved == ["free"]
     assert closed == [panel]
 
 

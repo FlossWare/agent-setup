@@ -90,7 +90,6 @@ jobs:
           FLOSSWARE_INSTALL_ROOT: /tmp/flossware-ai
           FLOSSWARE_RELEASE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
           FLOSSWARE_AI_REF: main
-          FLOSSWARE_AI_REF: main
         run: |
           set -euxo pipefail
           cd /workspace/empty-home

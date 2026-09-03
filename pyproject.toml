@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "coding-agent-setup"
+name = "agent-setup"
 version = "0.1.0"
 description = "Provider-neutral control plane and Setup TUI for configuring AI coding agents with FlossWare capabilities"
 readme = "README.md"
@@ -42,5 +42,5 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/FlossWare/coding-agent-setup"
-Repository = "https://github.com/FlossWare/coding-agent-setup"
+Homepage = "https://github.com/FlossWare/agent-setup"
+Repository = "https://github.com/FlossWare/agent-setup"

@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "coding-agent-setup"
+name = "agent-setup"
 version = "0.1.0"
-description = "Provider-neutral control plane and Setup TUI for configuring AI coding agents with FlossWare capabilities"
+description = "Provider-neutral control plane and Setup TUI for configuring AI agents with FlossWare capabilities"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -24,13 +24,13 @@ flossware-ai = "flossware_setup.cli:main"
 [project.optional-dependencies]
 core = [
     "curses-themes @ git+https://github.com/FlossWare/curses-themes.git@b611725c54fd6aab8170e6e1735fc818127065ac",
-    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git@e35f2cca34a34683a7a02b74d673012f122279c1",
+    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git@6c159fecc94ebd9e6e8e8ae32a8f7ab57693202f",
     "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git@b4a11f80bfe4b9a879b95b724d143d92cb548c47",
     "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git@9584f13877afa60307a9f9bca950caef0ff3b542c1",
 ]
 all = [
     "curses-themes @ git+https://github.com/FlossWare/curses-themes.git@b611725c54fd6aab8170e6e1735fc818127065ac",
-    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git@e35f2cca34a34683a7a02b74d673012f122279c1",
+    "model-router-ai @ git+https://github.com/FlossWare/model-router-ai.git@6c159fecc94ebd9e6e8e8ae32a8f7ab57693202f",
     "resilience-ai @ git+https://github.com/FlossWare/resilience-ai.git@b4a11f80bfe4b9a879b95b724d143d92cb548c47",
     "structured-output-ai @ git+https://github.com/FlossWare/structured-output-ai.git@9584f13877afa60307a9f9bca950caef0ff3b542c1",
     "consensus-ai @ git+https://github.com/FlossWare/consensus-ai.git@8a7c76893b76b26e097dffe4db578b64f0238996",
@@ -42,5 +42,5 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/FlossWare/coding-agent-setup"
-Repository = "https://github.com/FlossWare/coding-agent-setup"
+Homepage = "https://github.com/FlossWare/agent-setup"
+Repository = "https://github.com/FlossWare/agent-setup"

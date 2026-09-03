@@ -57,10 +57,8 @@ def test_resolve_list_mouse_pressed_as_activate(monkeypatch):
 
 def _install_fake_profile_selector(monkeypatch, mouse_event):
     class FakePanel:
-        def __init__(self):
-            self.keys = [curses.KEY_MOUSE]
-        def getch(self):
-            return self.keys.pop(0)
+        def __init__(self): self.keys = [curses.KEY_MOUSE]
+        def getch(self): return self.keys.pop(0)
         def refresh(self): return None
         def addnstr(self, *args): return None
         def addstr(self, *args): return None
@@ -98,7 +96,7 @@ def _install_fake_profile_selector(monkeypatch, mouse_event):
 def test_profile_selector_mouse_activation_uses_real_install(monkeypatch):
     monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
-    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(monkeypatch, (0, 9, curses.BUTTON1_PRESSED))
+    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(monkeypatch, (0, 14, curses.BUTTON1_PRESSED))
     assert ide.profile_selector(FakeWin()) == "free"
     assert saved == ["free"]
     assert closed == [panel]
@@ -117,7 +115,7 @@ def test_profile_selector_mouse_outside_list_does_not_activate(monkeypatch):
 def test_profile_selector_mouse_clicked_also_activates(monkeypatch):
     monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
-    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(monkeypatch, (0, 9, curses.BUTTON1_CLICKED))
+    ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(monkeypatch, (0, 14, curses.BUTTON1_CLICKED))
     assert ide.profile_selector(FakeWin()) == "free"
     assert saved == ["free"]
     assert closed == [panel]

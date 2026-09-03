@@ -5,6 +5,7 @@ from __future__ import annotations
 import curses
 
 import flossware_setup.tui as tui_package
+from flossware_setup.tui import config_screen
 from flossware_setup.tui import input as tui_input
 from flossware_setup.tui import ux
 
@@ -57,8 +58,12 @@ def test_resolve_list_mouse_pressed_as_activate(monkeypatch):
 
 def _install_fake_profile_selector(monkeypatch, mouse_event):
     class FakePanel:
-        def __init__(self): self.keys = [curses.KEY_MOUSE]
-        def getch(self): return self.keys.pop(0)
+        def __init__(self):
+            self.keys = [curses.KEY_MOUSE]
+
+        def getch(self):
+            return self.keys.pop(0) if self.keys else 27
+
         def refresh(self): return None
         def addnstr(self, *args): return None
         def addstr(self, *args): return None
@@ -69,6 +74,8 @@ def _install_fake_profile_selector(monkeypatch, mouse_event):
 
     class FakeWin:
         def getmaxyx(self): return (30, 100)
+        def erase(self): return None
+        def refresh(self): return None
         def touchwin(self): return None
         def noutrefresh(self): return None
 
@@ -79,14 +86,27 @@ def _install_fake_profile_selector(monkeypatch, mouse_event):
         add = staticmethod(lambda *args: None)
         palette = staticmethod(lambda *args: 0)
 
-    ide = FakeIde(); panel = FakePanel(); saved = []; closed = []
+    ide = FakeIde()
+    panel = FakePanel()
+    saved = []
+    closed = []
     monkeypatch.setattr(tui_package, "ide", ide, raising=False)
-    monkeypatch.setattr(ux, "load_active_profile", lambda: "default", raising=False)
-    monkeypatch.setattr(ux, "save_active_profile", saved.append, raising=False)
-    monkeypatch.setattr(ux, "is_mouse", lambda key: key == curses.KEY_MOUSE, raising=False)
-    monkeypatch.setattr(ux, "mouse_event", lambda: mouse_event, raising=False)
-    monkeypatch.setattr(ux, "edit_profile_tui", lambda *args: None, raising=False)
-    monkeypatch.setattr(ux, "validate_popup", lambda *args: None, raising=False)
+
+    # install_tui_fixes uses local imports from these modules, so patch the
+    # actual provider modules rather than adding attributes to ux.py.
+    import flossware_setup.config_control as config_control
+    import flossware_setup.tui.input as tui_input_module
+    import flossware_setup.tui.profile_editor as profile_editor
+    import flossware_setup.tui.validation as validation
+
+    monkeypatch.setattr(config_control, "available_profiles", lambda: ("default", "free"))
+    monkeypatch.setattr(config_control, "load_active_profile", lambda: "default")
+    monkeypatch.setattr(config_control, "save_active_profile", saved.append)
+    monkeypatch.setattr(tui_input_module, "is_mouse", lambda key: key == curses.KEY_MOUSE)
+    monkeypatch.setattr(tui_input_module, "mouse_event", lambda: mouse_event)
+    monkeypatch.setattr(profile_editor, "edit_profile_tui", lambda *args: None)
+    monkeypatch.setattr(validation, "validate_popup", lambda *args: None)
+
     ide._popup = lambda *args: panel
     ide._close = lambda p: closed.append(p)
     ux.install_tui_fixes()
@@ -106,7 +126,6 @@ def test_profile_selector_mouse_outside_list_does_not_activate(monkeypatch):
     monkeypatch.setattr(curses, "BUTTON1_CLICKED", 4, raising=False)
     monkeypatch.setattr(curses, "BUTTON1_PRESSED", 2, raising=False)
     ide, panel, saved, closed, FakeWin = _install_fake_profile_selector(monkeypatch, (0, 20, curses.BUTTON1_CLICKED))
-    panel.keys = [curses.KEY_MOUSE, 27]
     assert ide.profile_selector(FakeWin()) is None
     assert saved == []
     assert closed == [panel]

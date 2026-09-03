@@ -157,3 +157,185 @@ def test_credentials_excluded_from_migration(tmp_path):
     result = migrate_legacy_state_detailed(source=legacy, destination=current)
     assert "profiles/default.toml" in result.migrated
     assert not (current / "credentials").exists()
+
+
+def test_migration_preserves_accounts_directory(tmp_path):
+    """Test that accounts directory is preserved during migration."""
+    legacy = tmp_path / "legacy-state" / "ai"
+    current = tmp_path / "canonical-state" / "ai"
+
+    # Create legacy accounts with free account configurations
+    (legacy / "accounts").mkdir(parents=True)
+    (legacy / "accounts" / "anthropic.toml").write_text('[account]\ntype = "free"\n', encoding="utf-8")
+    (legacy / "accounts" / "openai.toml").write_text('[account]\ntype = "paid"\n', encoding="utf-8")
+
+    result = migrate_legacy_state_detailed(source=legacy, destination=current)
+    assert isinstance(result, MigrationResult)
+
+    # Both account files should be migrated
+    assert "accounts/anthropic.toml" in result.migrated
+    assert "accounts/openai.toml" in result.migrated
+    assert (current / "accounts" / "anthropic.toml").exists()
+    assert (current / "accounts" / "openai.toml").exists()
+
+
+def test_migration_preserves_models_directory(tmp_path):
+    """Test that models directory is preserved during migration."""
+    legacy = tmp_path / "legacy-state" / "ai"
+    current = tmp_path / "canonical-state" / "ai"
+
+    # Create legacy models with model configurations
+    (legacy / "models").mkdir(parents=True)
+    (legacy / "models" / "gpt-4.toml").write_text('[model]\nname = "gpt-4"\n', encoding="utf-8")
+    (legacy / "models" / "claude.toml").write_text('[model]\nname = "claude-3"\n', encoding="utf-8")
+
+    result = migrate_legacy_state_detailed(source=legacy, destination=current)
+    assert isinstance(result, MigrationResult)
+
+    # Both model files should be migrated
+    assert "models/gpt-4.toml" in result.migrated
+    assert "models/claude.toml" in result.migrated
+    assert (current / "models" / "gpt-4.toml").exists()
+    assert (current / "models" / "claude.toml").exists()
+
+
+def test_migration_preserves_providers_directory(tmp_path):
+    """Test that providers directory is preserved during migration."""
+    legacy = tmp_path / "legacy-state" / "ai"
+    current = tmp_path / "canonical-state" / "ai"
+
+    # Create legacy providers with provider configurations
+    (legacy / "providers").mkdir(parents=True)
+    (legacy / "providers" / "anthropic.toml").write_text('[provider]\nname = "anthropic"\n', encoding="utf-8")
+    (legacy / "providers" / "openai.toml").write_text('[provider]\nname = "openai"\n', encoding="utf-8")
+
+    result = migrate_legacy_state_detailed(source=legacy, destination=current)
+    assert isinstance(result, MigrationResult)
+
+    # Both provider files should be migrated
+    assert "providers/anthropic.toml" in result.migrated
+    assert "providers/openai.toml" in result.migrated
+    assert (current / "providers" / "anthropic.toml").exists()
+    assert (current / "providers" / "openai.toml").exists()
+
+
+def test_migration_all_categories_together(tmp_path):
+    """Test that all state categories are migrated together correctly."""
+    legacy = tmp_path / "legacy-state" / "ai"
+    current = tmp_path / "canonical-state" / "ai"
+
+    # Create legacy with all major categories
+    (legacy / "profiles").mkdir(parents=True)
+    (legacy / "profiles" / "default.toml").write_text('[profile]\n', encoding="utf-8")
+    
+    (legacy / "accounts").mkdir(parents=True)
+    (legacy / "accounts" / "provider1.toml").write_text('[account]\n', encoding="utf-8")
+    
+    (legacy / "models").mkdir(parents=True)
+    (legacy / "models" / "model1.toml").write_text('[model]\n', encoding="utf-8")
+    
+    (legacy / "providers").mkdir(parents=True)
+    (legacy / "providers" / "provider1.toml").write_text('[provider]\n', encoding="utf-8")
+    
+    (legacy / "config").mkdir(parents=True)
+    (legacy / "config" / "settings.toml").write_text('[settings]\n', encoding="utf-8")
+    
+    (legacy / "state").mkdir(parents=True)
+    (legacy / "state" / "runtime.json").write_text('{}', encoding="utf-8")
+
+    result = migrate_legacy_state_detailed(source=legacy, destination=current)
+    assert isinstance(result, MigrationResult)
+
+    # All categories should be migrated
+    assert "profiles/default.toml" in result.migrated
+    assert "accounts/provider1.toml" in result.migrated
+    assert "models/model1.toml" in result.migrated
+    assert "providers/provider1.toml" in result.migrated
+    assert "config/settings.toml" in result.migrated
+    assert "state/runtime.json" in result.migrated
+    
+    # Verify all files exist
+    assert (current / "profiles" / "default.toml").exists()
+    assert (current / "accounts" / "provider1.toml").exists()
+    assert (current / "models" / "model1.toml").exists()
+    assert (current / "providers" / "provider1.toml").exists()
+    assert (current / "config" / "settings.toml").exists()
+    assert (current / "state" / "runtime.json").exists()
+
+
+def test_migration_idempotent_with_all_categories(tmp_path):
+    """Test that repeated migrations are idempotent with all state categories."""
+    legacy = tmp_path / "legacy-state" / "ai"
+    current = tmp_path / "canonical-state" / "ai"
+
+    # Create legacy with mixed categories
+    (legacy / "profiles").mkdir(parents=True)
+    (legacy / "profiles" / "dev.toml").write_text('[profile]\n', encoding="utf-8")
+    
+    (legacy / "accounts").mkdir(parents=True)
+    (legacy / "accounts" / "free.toml").write_text('[account]\ntype="free"\n', encoding="utf-8")
+    
+    (legacy / "models").mkdir(parents=True)
+    (legacy / "models" / "gpt4.toml").write_text('[model]\n', encoding="utf-8")
+
+    # First migration
+    result1 = migrate_legacy_state_detailed(source=legacy, destination=current)
+    assert len(result1.migrated) == 3  # Three files migrated
+    assert not result1.conflicts
+
+    # Second migration: all files now exist, should report as conflicts
+    result2 = migrate_legacy_state_detailed(source=legacy, destination=current)
+    assert not result2.migrated  # No new files
+    assert len(result2.conflicts) == 3  # Three conflicts (already exist)
+
+    # Third migration: should be consistent with second
+    result3 = migrate_legacy_state_detailed(source=legacy, destination=current)
+    assert not result3.migrated
+    assert len(result3.conflicts) == 3
+    assert set(result3.conflicts.keys()) == set(result2.conflicts.keys())
+
+
+def test_migration_preserves_free_accounts_and_models(tmp_path):
+    """Test the specific use case: preserving free accounts and models during migration."""
+    legacy = tmp_path / "legacy-state" / "ai"
+    current = tmp_path / "canonical-state" / "ai"
+
+    # Legacy: configured free accounts and models
+    (legacy / "accounts").mkdir(parents=True)
+    (legacy / "accounts" / "anthropic-free.toml").write_text(
+        '[account]\ntype = "free"\nprovider = "anthropic"\n', 
+        encoding="utf-8"
+    )
+    
+    (legacy / "models").mkdir(parents=True)
+    (legacy / "models" / "claude-3-free.toml").write_text(
+        '[model]\nprovider = "anthropic"\nname = "claude-3-sonnet-free-tier"\n',
+        encoding="utf-8"
+    )
+    
+    (legacy / "profiles").mkdir(parents=True)
+    (legacy / "profiles" / "free-tier.toml").write_text(
+        '[profile]\nallowed_models = ["claude-3-free"]\n',
+        encoding="utf-8"
+    )
+
+    # Canonical: has some existing configuration
+    (current / "providers").mkdir(parents=True)
+    (current / "providers" / "anthropic.toml").write_text(
+        '[provider]\nname = "anthropic"\n',
+        encoding="utf-8"
+    )
+
+    result = migrate_legacy_state_detailed(source=legacy, destination=current)
+    assert isinstance(result, MigrationResult)
+
+    # Free account and model should be preserved
+    assert "accounts/anthropic-free.toml" in result.migrated
+    assert "models/claude-3-free.toml" in result.migrated
+    assert "profiles/free-tier.toml" in result.migrated
+    
+    # Existing provider should remain
+    assert (current / "providers" / "anthropic.toml").exists()
+    
+    # No conflicts
+    assert not result.conflicts

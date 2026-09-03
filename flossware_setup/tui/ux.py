@@ -4,9 +4,11 @@ import curses
 
 def install_tui_fixes() -> None:
     """Install profile editing, validation, and repaint-safe popup fixes."""
+    from flossware_setup.config_control import load_active_profile, save_active_profile
     from flossware_setup.tui import ide
-    from flossware_setup.tui.validation import validate_popup
+    from flossware_setup.tui.input import is_mouse, mouse_event, resolve_list_mouse
     from flossware_setup.tui.profile_editor import edit_profile_tui
+    from flossware_setup.tui.validation import validate_popup
     config_items = list(ide.ITEMS.get("Config", ()))
     if "Create Profile" not in config_items:
         try: insert_at = config_items.index("Profiles") + 1
@@ -29,20 +31,33 @@ def install_tui_fixes() -> None:
     def profile_selector(win):
         names = ide.available_profiles()
         if not names: return None
-        current, _ = ide._active(); idx = names.index(current) if current in names else 0
+        current = load_active_profile(); idx = names.index(current) if current in names else 0
         h, w = win.getmaxyx(); height = min(len(names) + 5, max(8, h - 4)); width = min(max(44, max(map(len, names)) + 18), w - 4); top, left = max(2, (h-height)//2), max(2, (w-width)//2); panel = popup(win, top, left, height, width, "Profiles")
         while True:
             for i, name in enumerate(names[:height-5]): ide.add(panel, 2+i, 2, ("> " if i == idx else "  ") + name.replace("-", " ").title(), ide.palette("selected" if i == idx else "normal"))
             panel.addnstr(height-2, 2, "Enter select | E edit | Esc close", width-4, ide.palette("muted")); panel.refresh(); key = panel.getch()
-            if key == curses.KEY_MOUSE:
-                from flossware_setup.tui.input import mouse_event, resolve_list_mouse
-                event = mouse_event()
-                if event and event[2] & getattr(curses, "BUTTON1_CLICKED", 0):
-                    row = event[1] - top - 2
-                    if 0 <= row < min(len(names), height-5): ide.save_profile(names[row]); close(panel); return names[row]
+            if is_mouse(key):
+                # Screen-absolute coordinates from getmouse(); list starts at top+2.
+                visible = min(len(names), height - 5)
+                action = resolve_list_mouse(
+                    mouse_event(),
+                    origin_y=top + 2,
+                    count=len(names),
+                    scroll_offset=0,
+                    visible=visible,
+                )
+                if action is not None:
+                    kind, index = action
+                    idx = index
+                    if kind == "activate":
+                        save_active_profile(names[idx])
+                        close(panel)
+                        return names[idx]
+                continue
             elif key in (curses.KEY_UP, ord("k")): idx = (idx-1) % len(names)
             elif key in (curses.KEY_DOWN, ord("j")): idx = (idx+1) % len(names)
-            elif key in (10, 13, curses.KEY_ENTER): ide.save_profile(names[idx]); close(panel); return names[idx]
+            elif key in (10, 13, curses.KEY_ENTER):
+                save_active_profile(names[idx]); close(panel); return names[idx]
             elif key in (ord("e"), ord("E")): close(panel); edit_profile_tui(win, names[idx], popup, close, ide.add, ide.palette); return None
             elif key == 27: close(panel); return None
     ide._popup = popup; ide._close = close; ide.profile_selector = profile_selector; ide._ux_fixes_installed = True

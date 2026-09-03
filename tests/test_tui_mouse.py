@@ -107,12 +107,12 @@ def _install_fake_profile_selector(monkeypatch, mouse_event):
     closed = []
 
     monkeypatch.setattr(tui_package, "ide", ide, raising=False)
-    monkeypatch.setattr(ux, "load_active_profile", lambda: "default")
-    monkeypatch.setattr(ux, "save_active_profile", saved.append)
-    monkeypatch.setattr(ux, "is_mouse", lambda key: key == curses.KEY_MOUSE)
-    monkeypatch.setattr(ux, "mouse_event", lambda: mouse_event)
-    monkeypatch.setattr(ux, "edit_profile_tui", lambda *args: None)
-    monkeypatch.setattr(ux, "validate_popup", lambda *args: None)
+    monkeypatch.setattr(ux, "load_active_profile", lambda: "default", raising=False)
+    monkeypatch.setattr(ux, "save_active_profile", saved.append, raising=False)
+    monkeypatch.setattr(ux, "is_mouse", lambda key: key == curses.KEY_MOUSE, raising=False)
+    monkeypatch.setattr(ux, "mouse_event", lambda: mouse_event, raising=False)
+    monkeypatch.setattr(ux, "edit_profile_tui", lambda *args: None, raising=False)
+    monkeypatch.setattr(ux, "validate_popup", lambda *args: None, raising=False)
 
     ide._popup = lambda *args: panel
     ide._close = lambda p: closed.append(p)

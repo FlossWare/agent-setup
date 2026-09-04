@@ -2,6 +2,8 @@
 
 `flossware-setup`, `flossware-ai setup`, and `flossware-ai tui` launch the same authoritative implementation: `flossware_setup.tui`.
 
+The TUI uses `FlossWare/curses-themes` for low-level terminal interaction primitives. `agent-setup` retains ownership of setup workflows, persistence, profiles, and domain-specific actions.
+
 For the complete end-to-end workflow, see [`operator-guide.md`](operator-guide.md). For command syntax see [`cli-reference.md`](cli-reference.md).
 
 ## Control center
@@ -53,11 +55,14 @@ Provider, account, and model state is deliberately separate. See [`profile-schem
 
 Keyboard and mouse input are supported when the terminal exposes mouse events. Primary mouse clicks activate selectable menu entries, and mouse movement can move the current menu cursor and therefore update the status line. Terminal emulators, SSH clients, and multiplexers can differ in mouse-event behavior.
 
+The profile selector consumes the reusable `Menu`/`MenuItem` accelerator dispatch from `curses-themes`; `1` through `9` select the corresponding visible profile directly. Popup geometry is backed by `Window`/`WindowManager`, so title-bar dragging and border/corner resizing use the shared interaction semantics rather than an application-specific implementation.
+
 Common keys:
 
 - Arrow keys: navigate and update status
 - Enter: activate/confirm
 - Space: toggle
+- `1`-`9`: profile selector accelerators
 - Mouse movement: hover/navigate and update status without changing selection
 - Primary click: select/toggle/activate
 - `a`: select all where offered

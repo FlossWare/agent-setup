@@ -1,6 +1,6 @@
-"""Compatibility imports for the shared curses-themes input primitives."""
+"""Imports for the shared curses-tui input primitives."""
 
-from curses_themes import (
+from curses_tui.input import (
     enable_mouse,
     is_cancel,
     is_confirm,

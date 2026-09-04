@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
-    "curses-tui @ git+https://github.com/FlossWare/curses-tui.git@3499fe4e0ff48e5ae4ce8df9d571673c21823f31",
+    "curses-tui @ git+https://github.com/FlossWare/curses-tui.git@84458a18ae4c47a9f31d7233f5a6cf565c0c2c1f",
 ]
 
 [tool.setuptools.packages.find]

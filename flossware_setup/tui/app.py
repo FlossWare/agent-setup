@@ -14,7 +14,7 @@ from flossware_setup.tui.widgets import palette
 def load_theme(name: str):
     """Load an optional FlossWare theme without installing during startup."""
     try:
-        from curses_themes import ThemeManager
+        from curses_tui import ThemeManager
         return ThemeManager.load(name)
     except Exception:  # noqa: BLE001 - optional dependency
         return None

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import curses
 
-from curses_themes import Menu, MenuItem, Rect, Window, WindowManager
+from curses_tui import Menu, MenuItem, Rect, Window, WindowManager
 
 
 def install_tui_fixes() -> None:

@@ -17,7 +17,7 @@ def test_profile_creation_is_exposed_and_patch_is_idempotent():
 
 
 def test_shared_interaction_primitives_are_used():
-    from curses_themes import Menu, MenuItem, Rect, Window, WindowManager
+    from curses_tui import Menu, MenuItem, Rect, Window, WindowManager
     from flossware_setup.tui import ux
 
     assert ux.Menu is Menu

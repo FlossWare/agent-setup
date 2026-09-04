@@ -29,15 +29,17 @@ def configuration_contract_screen(win) -> None:
         win.refresh()
         key = win.getch()
         if key == curses.KEY_MOUSE:
-            event = mouse_event()
-            if event is None:
-                continue
-            _x, mouse_y, bstate = event
-            idx = mouse_y - (y + 4)
-            if 0 <= idx < visible:
-                cursor = idx
-                if bstate & getattr(curses, "BUTTON1_CLICKED", 0):
-                    continue
+            from flossware_setup.tui.input import resolve_list_mouse
+            action = resolve_list_mouse(
+                mouse_event(),
+                origin_y=y + 4,
+                count=len(order),
+                scroll_offset=0,
+                visible=visible,
+            )
+            if action is not None:
+                _kind, index = action
+                cursor = index
             continue
         if is_cancel(key):
             return

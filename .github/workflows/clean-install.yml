@@ -39,14 +39,12 @@ jobs:
           mkdir -p /workspace/empty-home
           cd /workspace/empty-home
           test ! -e .git
-          # Pin to the exact commit under test (avoids branch raw CDN races).
           curl --proto "=https" --tlsv1.2 -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${FLOSSWARE_RELEASE_REF}/scripts/install.sh" -o install.sh
           chmod +x install.sh
-          # Prove AI_REF is main before install.
           grep -q 'AI_REF="${FLOSSWARE_AI_REF:-main}"' install.sh
           ./install.sh --profile default
-          test ! -d /tmp/flossware-ai/coding-agent-setup/.git
-          test -f /tmp/flossware-ai/coding-agent-setup/profiles/default.toml
+          test ! -d /tmp/flossware-ai/agent-setup/.git
+          test -f /tmp/flossware-ai/agent-setup/profiles/default.toml
           profile_pkg="$(find /tmp/flossware-ai -path '*/flossware_setup/profiles/default.toml' 2>/dev/null | head -n 1)"
           test -n "$profile_pkg"
           test -f "$profile_pkg"
@@ -85,7 +83,7 @@ jobs:
           curl --proto "=https" --tlsv1.2 -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${FLOSSWARE_RELEASE_REF}/scripts/install.sh" -o install.sh
           chmod +x install.sh
           ./install.sh --profile default
-          test -d /tmp/flossware-source/coding-agent-setup/.git
+          test -d /tmp/flossware-source/agent-setup/.git
       - name: Verify reinstall boundary
         shell: bash
         env:
@@ -96,8 +94,8 @@ jobs:
           set -euxo pipefail
           cd /workspace/empty-home
           ./install.sh --reinstall --profile default
-          test ! -d /tmp/flossware-ai/coding-agent-setup/.git
-          test -f /tmp/flossware-ai/coding-agent-setup/profiles/default.toml
+          test ! -d /tmp/flossware-ai/agent-setup/.git
+          test -f /tmp/flossware-ai/agent-setup/profiles/default.toml
           test -f /tmp/flossware-ai/state/active-profile
           test "$(cat /tmp/flossware-ai/state/active-profile)" = default
       - name: Verify clean boundary

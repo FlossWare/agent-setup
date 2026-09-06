@@ -24,6 +24,40 @@ A configurable item has a stable key, type, default, optional bounds or enum val
 
 Policy is evaluated after configuration resolution. A lower layer cannot use an override to escape a higher-level policy constraint.
 
+## Credential references
+
+Agent-setup manages **credential references**, not secret material. Profiles may persist which credential is needed and which secret backend should resolve it:
+
+```toml
+[credentials.anthropic_personal]
+ref = "ANTHROPIC_API_KEY"
+source = "environment"
+
+[credentials.github_personal]
+ref = "github/personal"
+source = "keychain"
+```
+
+The `ref` is an opaque, secret-free locator. The `source` identifies the credential backend. Supported source identifiers are `environment`, `keychain`, `encrypted_file`, `vault`, `cloud_secret_manager`, and `external`.
+
+The actual secret **must never be stored in the profile**. It remains in the selected credential backend and is resolved only when an authorized operation requires it. `flossware_setup.credential_refs` provides `set_credential_reference()`, `credential_references()`, and `remove_credential_reference()` for setup-managed profile state.
+
+This deliberately supports the current environment-variable workflow without making `.bashrc` the architecture. For example, `ANTHROPIC_API_KEY` may remain in the user's environment today while the profile records only that `anthropic/personal` resolves through that environment variable. A future keychain, Vault, or cloud secret manager can replace the source without changing Loom tasks or model-router contracts.
+
+### Credential boundary
+
+> **Orchestrators and workers request authorized capabilities or account references. They do not manage raw secrets. Credential resolution is performed by the designated credential/provider layer under agent-setup policy.**
+
+- **agent-setup** owns identities, accounts, credential references, authorization policy, budgets, and effective configuration.
+- **Loom Orchestrator** requests capabilities and coordinates work; it must not retrieve, distribute, or persist provider secrets.
+- **model-router** resolves provider/model/account selection and obtains an authorized credential for provider operations.
+- **Credential providers** resolve the actual secret through a deployment-selected backend.
+- **Workers** receive only the minimum authorized execution capability required for a task or lease.
+
+Task payloads, leases, persisted task state, logs, normal telemetry, and ordinary API responses must not contain raw API keys, OAuth secrets, passwords, private keys, or equivalent credential material. Authorization should be evaluated before credential resolution wherever practical.
+
+The account, credential-reference, capability, and secret-provider boundaries are language-neutral so future Java implementations can satisfy the same contracts and interoperate with the current Python implementation.
+
 ## Example
 
 ```toml
@@ -215,4 +249,5 @@ Loom and coding-agent-setup can both load these JSON files in CI.
 | policy | `config_contract` (shared), enforced post-merge |
 | agent | coding-agent-setup (future) |
 | routing / context | Loom orchestration (future; never secrets) |
+| credentials / accounts / credential references | coding-agent-setup + designated credential providers |
 | secret values | Environment / OS / agent stores only — never the wire map |

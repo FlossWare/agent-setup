@@ -1,5 +1,7 @@
 # agent-setup
 
+![agent-setup](docs/assets/banner.svg)
+
 FlossWare's shared control plane for configuring agents and independently usable FlossWare AI capabilities. Supported installation targets include Fedora/RHEL derivatives, Debian-family Linux, FreeBSD, Windows, and Termux.
 
 ## Quick start
